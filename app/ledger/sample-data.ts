@@ -1,42 +1,28 @@
-// Example 555 tabs for a kedai runcit (neighbourhood sundry shop).
-// Replace with live data once the Scan and Collect screens write real rows.
+// Example 555 tabs for a kedai runcit (neighbourhood sundry shop). The ledger starts
+// with these on a first visit, and "Load sample tabs" puts them back for demos.
 
-export type LedgerStatus = "overdue" | "sent" | "unpaid" | "paid";
+import type { Debt } from "@/lib/debts";
 
-export type LedgerRow = {
-  id: string;
-  customerName: string;
-  item: string;
-  amountRm: number;
-  date: string; // ISO date, YYYY-MM-DD
-  status: LedgerStatus;
-};
-
-export const SAMPLE_LEDGER_ROWS: LedgerRow[] = [
-  { id: "T-1001", customerName: "Mak Cik Siti", item: "Beras 10kg, minyak masak 2kg", amountRm: 48.5, date: "2026-08-02", status: "overdue" },
-  { id: "T-1002", customerName: "Pak Ali (Bengkel)", item: "Rokok Dunhill x2 kotak", amountRm: 36.0, date: "2026-08-19", status: "overdue" },
-  { id: "T-1003", customerName: "Ah Seng", item: "Susu tepung 2kg, Milo 1kg", amountRm: 39.9, date: "2026-09-04", status: "overdue" },
-  { id: "T-1004", customerName: "Kak Lina", item: "Telur 30 biji, gula 1kg", amountRm: 22.4, date: "2026-09-28", status: "sent" },
-  { id: "T-1005", customerName: "Encik Hafiz", item: "Roti canai x3, teh tarik x3", amountRm: 13.5, date: "2026-10-03", status: "unpaid" },
-  { id: "T-1006", customerName: "Uncle Tan", item: "Sabun basuh 1L x2", amountRm: 17.8, date: "2026-10-05", status: "unpaid" },
-  { id: "T-1007", customerName: "Puan Rosnah", item: "Garam 1kg, kicap 500ml", amountRm: 9.2, date: "2026-10-06", status: "sent" },
-  { id: "T-1008", customerName: "Mr. Raj", item: "Kopi O x2", amountRm: 5.0, date: "2026-10-08", status: "unpaid" },
-  { id: "T-1009", customerName: "Ah Hock", item: "Air mineral 12 botol", amountRm: 12.0, date: "2026-09-15", status: "paid" },
-  { id: "T-1010", customerName: "Nurul", item: "Biskut Marie x4, sos cili", amountRm: 16.6, date: "2026-09-22", status: "paid" },
-];
-
-const STATUS_ORDER: Record<LedgerStatus, number> = {
-  overdue: 0,
-  sent: 1,
-  unpaid: 2,
-  paid: 3,
-};
-
-// Overdue first, then the rest by status, then oldest date first within a status.
-export function sortLedgerRows(rows: LedgerRow[]): LedgerRow[] {
-  return [...rows].sort((a, b) => {
-    const byStatus = STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
-    if (byStatus !== 0) return byStatus;
-    return a.date.localeCompare(b.date);
-  });
+function sample(
+  id: string,
+  customerName: string,
+  item: string,
+  amountSen: number,
+  date: string,
+  status: Debt["status"],
+): Debt {
+  return { id, customerName, item, amountSen, date, status, source: "manual", createdAt: `${date}T09:00:00.000Z` };
 }
+
+export const SAMPLE_DEBTS: Debt[] = [
+  sample("T-1001", "Mak Cik Siti", "Beras 10kg, minyak masak 2kg", 4850, "2026-08-02", "overdue"),
+  sample("T-1002", "Pak Ali (Bengkel)", "Rokok Dunhill x2 kotak", 3600, "2026-08-19", "overdue"),
+  sample("T-1003", "Ah Seng", "Susu tepung 2kg, Milo 1kg", 3990, "2026-09-04", "overdue"),
+  sample("T-1004", "Kak Lina", "Telur 30 biji, gula 1kg", 2240, "2026-09-28", "sent"),
+  sample("T-1005", "Encik Hafiz", "Roti canai x3, teh tarik x3", 1350, "2026-10-03", "unpaid"),
+  sample("T-1006", "Uncle Tan", "Sabun basuh 1L x2", 1780, "2026-10-05", "unpaid"),
+  sample("T-1007", "Puan Rosnah", "Garam 1kg, kicap 500ml", 920, "2026-10-06", "sent"),
+  sample("T-1008", "Mr. Raj", "Kopi O x2", 500, "2026-10-08", "unpaid"),
+  sample("T-1009", "Ah Hock", "Air mineral 12 botol", 1200, "2026-09-15", "paid"),
+  sample("T-1010", "Nurul", "Biskut Marie x4, sos cili", 1660, "2026-09-22", "paid"),
+];

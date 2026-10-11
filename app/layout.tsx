@@ -13,6 +13,7 @@ const NAV_LINKS = [
   { href: "/scan", label: "Scan" },
   { href: "/collect", label: "Collect" },
   { href: "/ledger", label: "Ledger" },
+  { href: "/add", label: "Add debt" },
 ];
 
 export default function RootLayout({ children }: { children: ReactNode }) {
