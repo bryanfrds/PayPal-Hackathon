@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   createManualDebt,
+  formDefaults,
   formatSen,
   isDebt,
   outstanding,
@@ -36,6 +37,15 @@ describe("parseRmToSen", () => {
     expect(parseRmToSen("12.05")).toBe(1205);
     expect(parseRmToSen(" RM 0.10 ")).toBe(10);
     expect(parseRmToSen("rm1,250.00")).toBe(125000);
+    expect(parseRmToSen("1,000")).toBe(100000);
+    expect(parseRmToSen("1,000.50")).toBe(100050);
+    expect(parseRmToSen("12,345,678")).toBe(1234567800);
+  });
+
+  it("only takes commas as thousands separators, so 12,50 isn't read as RM 1,250", () => {
+    for (const bad of ["12,50", "1,2,3", "1,00", ",100", "100,", "1,0000", "12,50.00"]) {
+      expect(parseRmToSen(bad), bad).toBeNull();
+    }
   });
 
   it("refuses anything that isn't a plain amount with at most two decimals", () => {
@@ -156,6 +166,10 @@ describe("isDebt", () => {
     expect(isDebt(debt({}))).toBe(true);
     expect(isDebt({ ...debt({}), amountSen: 12.5 })).toBe(false);
     expect(isDebt({ ...debt({}), status: "cancelled" })).toBe(false);
+    expect(isDebt({ ...debt({}), amountSen: 0 })).toBe(false);
+    expect(isDebt({ ...debt({}), amountSen: -500 })).toBe(false);
+    expect(isDebt({ ...debt({}), date: "11/10/2026" })).toBe(false);
+    expect(isDebt({ ...debt({}), date: "2026-02-30" })).toBe(false);
     expect(isDebt(null)).toBe(false);
   });
 });
@@ -163,5 +177,38 @@ describe("isDebt", () => {
 describe("todayLocal", () => {
   it("formats the local date", () => {
     expect(todayLocal(new Date(2026, 0, 5, 23, 59))).toBe("2026-01-05");
+  });
+
+  it("uses the shop's own day, not UTC's, in the early-morning hours", () => {
+    const previous = process.env.TZ;
+    process.env.TZ = "Asia/Kuala_Lumpur";
+    try {
+      // 02:30 on 11 Oct in Malaysia is still 10 Oct in UTC.
+      expect(todayLocal(new Date("2026-10-10T18:30:00.000Z"))).toBe("2026-10-11");
+      // 07:59 Malaysia time, the last minute before UTC catches up.
+      expect(todayLocal(new Date("2026-10-10T23:59:00.000Z"))).toBe("2026-10-11");
+    } finally {
+      if (previous === undefined) delete process.env.TZ;
+      else process.env.TZ = previous;
+    }
+  });
+});
+
+describe("formDefaults", () => {
+  it("starts the form on the day it's opened, from the given clock", () => {
+    expect(formDefaults(new Date(2026, 9, 12, 0, 5))).toEqual({
+      customerName: "",
+      item: "",
+      amount: "",
+      date: "2026-10-12",
+    });
+  });
+
+  it("a form left open past midnight accepts the new day once today is re-read", () => {
+    const opened = formDefaults(new Date(2026, 9, 11, 23, 58));
+    const nextDay = todayLocal(new Date(2026, 9, 12, 0, 2));
+    const input = { ...opened, customerName: "Ah Seng", amount: "5", date: nextDay };
+    expect(validateDebtInput(input, opened.date).ok).toBe(false); // the stale day refuses it
+    expect(validateDebtInput(input, nextDay).ok).toBe(true); // re-read on submit accepts it
   });
 });
