@@ -41,14 +41,18 @@ export const MAX_AMOUNT_SEN = 10_000_00; // RM 10,000: far above any kedai tab, 
 export const MAX_NAME_LENGTH = 60;
 export const MAX_ITEM_LENGTH = 120;
 
+// Plain digits, or digits grouped in threes with commas ("1,250"). A comma anywhere
+// else is refused: "12,50" is a comma typed for a decimal point, not RM 1,250.
+const AMOUNT = /^(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d{1,2})?$/;
+
 /**
  * Reads an amount typed in ringgit ("12", "12.5", "RM 12.50", "1,250.00") into whole sen.
  * Returns null for anything that isn't a plain amount with at most two decimals.
  */
 export function parseRmToSen(text: string): number | null {
-  const cleaned = text.trim().replace(/^rm\s*/i, "").replace(/,/g, "");
-  if (!/^\d+(\.\d{1,2})?$/.test(cleaned)) return null;
-  const [whole, fraction = ""] = cleaned.split(".");
+  const typed = text.trim().replace(/^rm\s*/i, "");
+  if (!AMOUNT.test(typed)) return null;
+  const [whole, fraction = ""] = typed.replace(/,/g, "").split(".");
   return Number(whole) * 100 + Number(fraction.padEnd(2, "0"));
 }
 
@@ -65,6 +69,11 @@ export function todayLocal(now: Date = new Date()): string {
   const m = String(now.getMonth() + 1).padStart(2, "0");
   const d = String(now.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
+}
+
+/** An empty form, dated the day it's opened. Call it in the browser, not at build time. */
+export function formDefaults(now: Date = new Date()): DebtInput {
+  return { customerName: "", item: "", amount: "", date: todayLocal(now) };
 }
 
 function isRealDate(value: string): boolean {
@@ -145,7 +154,9 @@ export function isDebt(value: unknown): value is Debt {
     typeof d.customerName === "string" &&
     typeof d.item === "string" &&
     Number.isSafeInteger(d.amountSen) &&
+    (d.amountSen as number) > 0 &&
     typeof d.date === "string" &&
+    isRealDate(d.date) &&
     (d.status === "overdue" || d.status === "sent" || d.status === "unpaid" || d.status === "paid") &&
     (d.source === "manual" || d.source === "scan") &&
     typeof d.createdAt === "string"
