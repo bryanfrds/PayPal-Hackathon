@@ -82,13 +82,30 @@ describe("createDebtStore", () => {
     expect(store.list().map((d) => d.id)).toEqual(["S1", "S2"]);
   });
 
-  it("falls back to the sample debts when saved data is unreadable, and keeps valid records", () => {
+  it("flags saved data it can't read, and leaves it alone until the owner chooses", () => {
+    for (const raw of ["{not json", '{"a":1}', JSON.stringify([debt("OK"), { id: "bad", amountSen: 1.5 }])]) {
+      const storage = new FakeStorage();
+      storage.data.set(STORAGE_KEY, raw);
+      const store = createDebtStore(storage, SEED);
+      expect(store.unreadable, raw).toBe(true);
+      expect(store.list()).toEqual([]);
+      // Adding anything would overwrite what couldn't be read, so it's refused.
+      expect(() => store.add(debt("N1"))).toThrow(DebtStoreError);
+      expect(storage.data.get(STORAGE_KEY)).toBe(raw);
+      // The owner chooses to start over.
+      store.reset();
+      expect(store.unreadable).toBe(false);
+      expect(store.list().map((d) => d.id)).toEqual(["S1", "S2"]);
+    }
+  });
+
+  it("clear starts empty, also from unreadable data", () => {
     const storage = new FakeStorage();
     storage.data.set(STORAGE_KEY, "{not json");
-    expect(createDebtStore(storage, SEED).list().map((d) => d.id)).toEqual(["S1", "S2"]);
-
-    storage.data.set(STORAGE_KEY, JSON.stringify([debt("OK"), { id: "bad", amountSen: 1.5 }]));
-    expect(createDebtStore(storage, SEED).list().map((d) => d.id)).toEqual(["OK"]);
+    const store = createDebtStore(storage, SEED);
+    store.clear();
+    expect(store.unreadable).toBe(false);
+    expect(createDebtStore(storage, SEED).list()).toEqual([]);
   });
 
   it("works in memory when storage is missing or blocked", () => {
@@ -109,6 +126,29 @@ describe("createDebtStore", () => {
     expect(store.list()).toEqual([]);
     store.reset();
     expect(store.list().map((d) => d.id)).toEqual(["S1", "S2"]);
+  });
+
+  it("two tabs adding at once keep both debts", () => {
+    const shared = new FakeStorage();
+    const tabA = createDebtStore(shared, SEED);
+    const tabB = createDebtStore(shared, SEED);
+    tabA.add(debt("A1"));
+    tabB.add(debt("B1")); // tab B never saw A1 in memory
+    expect(createDebtStore(shared, SEED).list().map((d) => d.id).sort()).toEqual(["A1", "B1", "S1", "S2"]);
+    // A delete in one tab doesn't bring back what the other removed.
+    tabA.remove("S1");
+    tabB.remove("S2");
+    expect(createDebtStore(shared, SEED).list().map((d) => d.id).sort()).toEqual(["A1", "B1"]);
+  });
+
+  it("refresh picks up another tab's changes", () => {
+    const shared = new FakeStorage();
+    const tabA = createDebtStore(shared, SEED);
+    const tabB = createDebtStore(shared, SEED);
+    tabA.add(debt("A1"));
+    expect(tabB.list().map((d) => d.id)).not.toContain("A1");
+    tabB.refresh();
+    expect(tabB.list().map((d) => d.id)).toContain("A1");
   });
 
   it("the ledger total comes from what's in the store", () => {
