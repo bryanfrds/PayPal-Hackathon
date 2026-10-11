@@ -2,6 +2,9 @@
   "name": "555-buku",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20.12"
+  },
   "description": "Snap your shop's 555 IOU notebook; AI turns each debt into a PayPal invoice.",
   "scripts": {
     "dev": "next dev",
