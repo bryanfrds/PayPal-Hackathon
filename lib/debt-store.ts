@@ -13,10 +13,19 @@ export interface DebtStore {
   update(id: string, patch: Partial<Omit<Debt, "id">>): Debt | undefined;
   /** Removes a debt and returns it (so it can be restored), or undefined if there's none with that id. */
   remove(id: string): Debt | undefined;
-  /** Puts the sample debts back, for demos. */
+  /** Puts the sample debts back, for demos. Also the way out of unreadable saved data. */
   reset(): void;
+  /** Starts with no debts at all. Also a way out of unreadable saved data. */
+  clear(): void;
+  /** Re-reads what's saved, e.g. after another tab changed it. */
+  refresh(): void;
   /** False when nothing is saved between visits (private browsing, storage blocked). */
   readonly persistent: boolean;
+  /**
+   * True when saved data exists but couldn't be read. Nothing is written over it (adds and
+   * removes are refused) until the owner picks reset() or clear().
+   */
+  readonly unreadable: boolean;
 }
 
 /** A save failed. The store is left exactly as it was before the call. */
@@ -31,16 +40,51 @@ export const STORAGE_KEY = "buku.debts.v1";
 
 type StorageLike = Pick<Storage, "getItem" | "setItem">;
 
+type Read = { kind: "none" } | { kind: "ok"; debts: Debt[] } | { kind: "unreadable" };
+
 /**
  * A store backed by `storage` (window.localStorage in the app). With no storage, or one
  * that can't be read, it works in memory only and `persistent` is false.
+ *
+ * Every change is applied to a fresh read of what's saved, so two tabs adding at the
+ * same time both keep their debts instead of the later save wiping the earlier one.
  */
 export function createDebtStore(storage: StorageLike | null, seed: Debt[]): DebtStore {
   // Storage that can't even be read is treated as missing: work in memory only.
   let usable: StorageLike | null = storage;
-  let debts: Debt[] = readSaved() ?? [...seed];
+  let debts: Debt[] = [];
+  let unreadable = false;
+  load();
 
-  function save(next: Debt[]): void {
+  function read(): Read {
+    if (!usable) return { kind: "none" };
+    let raw: string | null;
+    try {
+      raw = usable.getItem(STORAGE_KEY);
+    } catch {
+      usable = null;
+      return { kind: "none" };
+    }
+    if (raw === null) return { kind: "none" }; // nothing saved yet
+    try {
+      const parsed: unknown = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.every(isDebt)) return { kind: "ok", debts: parsed };
+    } catch {
+      // fall through
+    }
+    return { kind: "unreadable" };
+  }
+
+  function load() {
+    const result = read();
+    unreadable = result.kind === "unreadable";
+    if (result.kind === "ok") debts = [...result.debts];
+    else if (result.kind === "unreadable") debts = [];
+    else if (!usable) debts = debts.length ? debts : [...seed]; // memory only: keep what we have
+    else debts = [...seed]; // first visit: start from the sample debts
+  }
+
+  function write(next: Debt[]) {
     if (usable) {
       try {
         usable.setItem(STORAGE_KEY, JSON.stringify(next));
@@ -49,54 +93,63 @@ export function createDebtStore(storage: StorageLike | null, seed: Debt[]): Debt
       }
     }
     debts = next;
+    unreadable = false;
+  }
+
+  /** Applies a change to what's saved right now, then saves it. */
+  function change(apply: (current: Debt[]) => Debt[]) {
+    const fresh = read();
+    if (fresh.kind === "unreadable") {
+      unreadable = true;
+      throw new DebtStoreError("Saved tabs couldn't be read. Choose to start over before adding more.");
+    }
+    const current = fresh.kind === "ok" ? fresh.debts : debts;
+    write(apply(current));
   }
 
   return {
     get persistent() {
       return usable !== null;
     },
+    get unreadable() {
+      return unreadable;
+    },
     list: () => [...debts],
     add(debt) {
-      if (debts.some((d) => d.id === debt.id)) throw new DebtStoreError(`A debt with id ${debt.id} already exists.`);
-      save([...debts, debt]);
+      change((current) => {
+        if (current.some((d) => d.id === debt.id)) throw new DebtStoreError(`A debt with id ${debt.id} already exists.`);
+        return [...current, debt];
+      });
     },
     update(id, patch) {
-      const current = debts.find((d) => d.id === id);
-      if (!current) return undefined;
-      const updated: Debt = { ...current, ...patch, id };
-      save(debts.map((d) => (d.id === id ? updated : d)));
+      let updated: Debt | undefined;
+      change((current) =>
+        current.map((d) => {
+          if (d.id !== id) return d;
+          updated = { ...d, ...patch, id };
+          return updated;
+        }),
+      );
       return updated;
     },
     remove(id) {
-      const removed = debts.find((d) => d.id === id);
-      if (!removed) return undefined;
-      save(debts.filter((d) => d.id !== id));
+      let removed: Debt | undefined;
+      change((current) => {
+        removed = current.find((d) => d.id === id);
+        return removed ? current.filter((d) => d.id !== id) : current;
+      });
       return removed;
     },
     reset() {
-      save([...seed]);
+      write([...seed]);
+    },
+    clear() {
+      write([]);
+    },
+    refresh() {
+      load();
     },
   };
-
-  function readSaved(): Debt[] | null {
-    if (!usable) return null;
-    let raw: string | null;
-    try {
-      raw = usable.getItem(STORAGE_KEY);
-    } catch {
-      usable = null;
-      return null;
-    }
-    if (raw === null) return null; // first visit: start from the sample debts
-    try {
-      const parsed: unknown = JSON.parse(raw);
-      if (!Array.isArray(parsed)) return null;
-      // Keep whatever is still valid rather than losing everything to one bad record.
-      return parsed.filter(isDebt);
-    } catch {
-      return null;
-    }
-  }
 }
 
 /** The browser's localStorage, or null when it's blocked (some private modes throw on access). */
