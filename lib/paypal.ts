@@ -80,7 +80,7 @@ export class PayPalError extends Error {
  * Reads config from the environment. Throws a clear error naming the missing
  * variable (never its value).
  */
-export function readPayPalConfigFromEnv(env: NodeJS.ProcessEnv = process.env): PayPalConfig {
+export function readPayPalConfigFromEnv(env: Record<string, string | undefined> = process.env): PayPalConfig {
   const clientId = env.PAYPAL_CLIENT_ID?.trim();
   const clientSecret = env.PAYPAL_CLIENT_SECRET?.trim();
 
