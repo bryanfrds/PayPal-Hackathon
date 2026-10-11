@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { DebtStoreError, newDebtId } from "@/lib/debt-store";
 import {
   createManualDebt,
+  formDefaults,
   MAX_ITEM_LENGTH,
   MAX_NAME_LENGTH,
   todayLocal,
@@ -19,9 +20,28 @@ import { useDebts } from "../useDebts";
 export default function AddDebtForm() {
   const router = useRouter();
   const { add, ready } = useDebts();
-  const [today] = useState(() => todayLocal());
-  const [input, setInput] = useState<DebtInput>(() => ({ customerName: "", item: "", amount: "", date: todayLocal() }));
+  // The page is built ahead of time, so "today" must come from the owner's browser after
+  // it loads, never from the build. It's read again on submit, for a form left open
+  // past midnight.
+  const [today, setToday] = useState<string | null>(null);
+  const [input, setInput] = useState<DebtInput>({ customerName: "", item: "", amount: "", date: "" });
   const [errors, setErrors] = useState<DebtErrors>({});
+  // Bumped on each failed submit; focus moves once the messages are on screen.
+  const [focusRequest, setFocusRequest] = useState(0);
+  const errorsRef = useRef(errors);
+  errorsRef.current = errors;
+
+  useEffect(() => {
+    const defaults = formDefaults();
+    setToday(defaults.date);
+    setInput((prev) => (prev.date ? prev : { ...prev, date: defaults.date }));
+  }, []);
+
+  useEffect(() => {
+    if (focusRequest === 0) return;
+    const first = (["customerName", "item", "amount", "date"] as const).find((f) => errorsRef.current[f]);
+    if (first) document.getElementById(`debt-${first}`)?.focus();
+  }, [focusRequest]);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -34,11 +54,12 @@ export default function AddDebtForm() {
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaveError(null);
-    const result = validateDebtInput(input, today);
+    const now = todayLocal();
+    setToday(now);
+    const result = validateDebtInput(input, now);
     if (!result.ok) {
       setErrors(result.errors);
-      const first = (["customerName", "amount", "date", "item"] as const).find((f) => result.errors[f]);
-      if (first) document.getElementById(`debt-${first}`)?.focus();
+      setFocusRequest((n) => n + 1);
       return;
     }
     setSaving(true);
@@ -59,6 +80,14 @@ export default function AddDebtForm() {
 
   return (
     <form className="card form" onSubmit={onSubmit} noValidate>
+      {Object.values(errors).some(Boolean) && (
+        <p className="visually-hidden" role="alert">
+          {Object.values(errors).filter(Boolean).length === 1
+            ? "1 field needs fixing."
+            : `${Object.values(errors).filter(Boolean).length} fields need fixing.`}
+        </p>
+      )}
+
       {saveError && (
         <p className="notice notice-error" role="alert">
           {saveError}
@@ -135,7 +164,7 @@ export default function AddDebtForm() {
             id="debt-date"
             name="date"
             type="date"
-            max={today}
+            max={today ?? undefined}
             value={input.date}
             onChange={(e) => set("date", e.target.value)}
             aria-invalid={Boolean(errors.date)}
@@ -150,7 +179,7 @@ export default function AddDebtForm() {
       </div>
 
       <div className="form-actions">
-        <button type="submit" className="button button-primary" disabled={!ready || saving}>
+        <button type="submit" className="button button-primary" disabled={!ready || !today || saving}>
           {saving ? "Saving…" : "Save debt"}
         </button>
         <Link href="/ledger" className="button">
