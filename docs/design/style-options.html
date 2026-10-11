@@ -1,0 +1,550 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>555 Buku – Style Options</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Inter:wght@400;500;600;700&family=Patrick+Hand&family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Space+Mono:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Manrope:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&family=Inter+Tight:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700&family=Nunito:wght@600;700;800;900&family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Sora:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Inter, system-ui, sans-serif; background: #1b1c20; color: #e9e9ec; }
+  header.page { max-width: 1240px; margin: 0 auto; padding: 32px 16px 4px; }
+  header.page h1 { margin: 0 0 6px; font-size: 26px; }
+  header.page p { margin: 0; color: #a8abb3; max-width: 720px; line-height: 1.5; }
+  .grid { max-width: 1240px; margin: 0 auto; padding: 24px 16px 48px; display: grid; gap: 36px 28px; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); }
+  .option h2 { margin: 0 0 4px; font-size: 18px; }
+  .option .why { margin: 0 0 16px; color: #a8abb3; font-size: 14px; line-height: 1.45; min-height: 62px; }
+  footer { text-align: center; color: #7d808a; font-size: 13px; padding: 0 16px 40px; }
+
+  
+  .grouphead { max-width: 1240px; margin: 24px auto 0; padding: 0 16px; }
+  .grouphead h2 { margin: 0; font-size: 20px; border-top: 1px solid #33353b; padding-top: 24px; }
+  .grouphead p { margin: 4px 0 0; color: #a8abb3; font-size: 14px; }
+  /* ===== A–G ===== */
+  .v1 .phone { width: 340px; max-width: 100%; height: 700px; margin: 0 auto; border-radius: 42px; border: 10px solid #0d0e10; overflow: hidden; position: relative; box-shadow: 0 20px 50px rgba(0,0,0,.45); }
+  .v1 .screen { height: 100%; overflow-y: auto; padding: 18px 16px 90px; }
+  .v1 .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .v1 .tab { padding: 12px 0; }
+  .v1 .tab .who { font-weight: 600; font-size: 15px; }
+  .v1 .tab .what { font-size: 12.5px; opacity: .7; margin-top: 2px; }
+  .v1 .tab .amt { font-weight: 700; font-size: 15px; text-align: right; white-space: nowrap; }
+  .v1 .pill { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; margin-top: 4px; }
+  .v1 .fab { position: absolute; left: 16px; right: 16px; bottom: 16px; padding: 15px; text-align: center; font-weight: 700; font-size: 16px; }
+  .v1 .label { font-size: 12px; font-weight: 600; margin: 14px 0 6px; }
+  .v1 .input { padding: 12px; font-size: 15px; }
+  .v1 .muted { opacity: .65; }
+  .v1 .pp { font-size: 11px; opacity: .75; margin-top: 10px; display: flex; align-items: center; gap: 6px; }
+  .v1 .ppmark { font-weight: 800; font-style: italic; }
+  .v1 .ppmark b:first-child { color: #003087; }
+  .v1 .ppmark b:last-child { color: #009cde; }
+  .v1 .A .phone { background: #fbf7ea; color: #1d2a57; font-family: 'Patrick Hand', 'Kalam', cursive; }
+  .v1 .A .screen { background: repeating-linear-gradient(#fbf7ea 0 31px, #c9d6ef 31px 32px); background-attachment: local; border-left: 3px solid #e2574c; margin-left: 22px; padding-left: 14px; }
+  .v1 .A .brand { font-family: Kalam, cursive; font-weight: 700; font-size: 26px; color: #e2574c; }
+  .v1 .A .sum { margin: 10px 0 6px; }
+  .v1 .A .sum .big { font-family: Kalam, cursive; font-size: 40px; font-weight: 700; line-height: 1; }
+  .v1 .A .tab { border-bottom: 1px dashed #9fb1d8; }
+  .v1 .A .tab .who { font-size: 18px; font-weight: 400; }
+  .v1 .A .tab .amt { font-size: 19px; font-weight: 400; }
+  .v1 .A .pill { font-family: Inter, sans-serif; border: 1.5px solid currentColor; background: transparent; }
+  .v1 .A .over { color: #d33a2c; }
+  .v1 .A .sent { color: #2c5fbd; }
+  .v1 .A .unpaid { color: #9a6a00; }
+  .v1 .A .paid { color: #2f8a4b; text-decoration: line-through; }
+  .v1 .A .fab { background: #e2574c; color: #fff; border-radius: 6px; font-family: Kalam, cursive; font-size: 19px; box-shadow: 3px 3px 0 #1d2a57; }
+  .v1 .A .input { border: none; border-bottom: 2px solid #1d2a57; background: transparent; font-family: 'Patrick Hand', cursive; font-size: 19px; padding: 6px 0; }
+  .v1 .B .phone { background: #fff8ee; color: #23302a; font-family: 'Plus Jakarta Sans', sans-serif; }
+  .v1 .B .top { background: #1f6b4a; color: #fff; margin: -18px -16px 0; padding: 22px 16px 26px; border-radius: 0 0 26px 26px; }
+  .v1 .B .awning { height: 10px; margin: -22px -16px 14px; background: repeating-linear-gradient(90deg, #f2c14e 0 22px, #fff 22px 44px); }
+  .v1 .B .brand { font-weight: 800; font-size: 20px; }
+  .v1 .B .sum .big { font-size: 38px; font-weight: 800; letter-spacing: -.5px; }
+  .v1 .B .sum .sub { color: #cde7d8; font-size: 13px; }
+  .v1 .B .card { background: #fff; border-radius: 18px; padding: 4px 14px; margin-top: -14px; box-shadow: 0 6px 18px rgba(31,107,74,.12); }
+  .v1 .B .tab { border-bottom: 1px solid #f1e8da; }
+  .v1 .B .tab:last-child { border-bottom: none; }
+  .v1 .B .over { background: #fde4e1; color: #b3261e; }
+  .v1 .B .sent { background: #e2ecff; color: #1d4fb8; }
+  .v1 .B .unpaid { background: #fdf0c8; color: #7a5600; }
+  .v1 .B .paid { background: #dcf3e5; color: #1f6b4a; }
+  .v1 .B .fab { background: #f2c14e; color: #23302a; border-radius: 16px; box-shadow: 0 6px 14px rgba(242,193,78,.45); }
+  .v1 .B .input { border: 1.5px solid #eadfcd; border-radius: 12px; background: #fff; }
+  .v1 .C .phone { background: #f6f7f9; color: #101828; font-family: Inter, sans-serif; }
+  .v1 .C .brand { font-weight: 700; font-size: 17px; letter-spacing: -.2px; }
+  .v1 .C .brand span { display: inline-block; width: 22px; height: 22px; border-radius: 6px; background: #0f766e; color: #fff; text-align: center; font-size: 12px; line-height: 22px; margin-right: 6px; }
+  .v1 .C .sumcard { background: #0f172a; color: #fff; border-radius: 16px; padding: 16px; margin: 14px 0; }
+  .v1 .C .sumcard .big { font-size: 32px; font-weight: 700; letter-spacing: -.6px; }
+  .v1 .C .sumcard .sub { color: #94a3b8; font-size: 12.5px; }
+  .v1 .C .bars { display: flex; gap: 4px; margin-top: 12px; height: 6px; }
+  .v1 .C .bars i { display: block; border-radius: 3px; }
+  .v1 .C .list { background: #fff; border-radius: 14px; padding: 2px 14px; border: 1px solid #e4e7ec; }
+  .v1 .C .tab { border-bottom: 1px solid #eef0f3; }
+  .v1 .C .tab:last-child { border-bottom: none; }
+  .v1 .C .over { background: #fef3f2; color: #b42318; }
+  .v1 .C .sent { background: #eff8ff; color: #175cd3; }
+  .v1 .C .unpaid { background: #fffaeb; color: #b54708; }
+  .v1 .C .paid { background: #ecfdf3; color: #067647; }
+  .v1 .C .fab { background: #0f766e; color: #fff; border-radius: 12px; }
+  .v1 .C .input { border: 1px solid #d0d5dd; border-radius: 10px; background: #fff; }
+  .v1 .C .seg { display: flex; background: #eef0f3; border-radius: 10px; padding: 3px; font-size: 12px; font-weight: 600; margin-bottom: 10px; }
+  .v1 .C .seg span { flex: 1; text-align: center; padding: 6px; border-radius: 8px; color: #475467; }
+  .v1 .C .seg span.on { background: #fff; color: #101828; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+  .v1 .D .phone { background: #14121c; color: #f4eefc; font-family: 'Bricolage Grotesque', sans-serif; }
+  .v1 .D .brand { font-weight: 800; font-size: 22px; color: #ffd23f; text-shadow: 0 0 12px rgba(255,210,63,.55); }
+  .v1 .D .sumcard { margin: 14px 0; padding: 16px; border-radius: 18px; background: linear-gradient(135deg, #ff3d7f, #7b2ff7); box-shadow: 0 10px 30px rgba(255,61,127,.35); }
+  .v1 .D .sumcard .big { font-size: 38px; font-weight: 800; letter-spacing: -.5px; }
+  .v1 .D .sumcard .sub { font-size: 13px; opacity: .85; }
+  .v1 .D .tab { margin: 8px 0; padding: 12px 14px; background: #1f1c2b; border-radius: 14px; border: 1px solid #2d2940; }
+  .v1 .D .over { background: rgba(255,61,127,.18); color: #ff6b9a; }
+  .v1 .D .sent { background: rgba(80,200,255,.16); color: #6fd3ff; }
+  .v1 .D .unpaid { background: rgba(255,210,63,.16); color: #ffd23f; }
+  .v1 .D .paid { background: rgba(70,230,150,.16); color: #5ee6a0; }
+  .v1 .D .fab { background: #ffd23f; color: #14121c; border-radius: 16px; box-shadow: 0 0 22px rgba(255,210,63,.5); }
+  .v1 .D .input { background: #1f1c2b; border: 1px solid #3a3552; border-radius: 12px; color: #f4eefc; }
+  .v1 .D .label { color: #b9b0d4; }
+  .v1 .E .phone { background: #fbf4e8; color: #2b2a33; font-family: Inter, sans-serif; }
+  .v1 .E .tiles { height: 64px; margin: -18px -16px 14px; background-color: #1d6b73;
+    background-image: radial-gradient(circle at 50% 50%, #f08a6b 0 7px, transparent 8px), radial-gradient(circle at 0 0, #f6d7a7 0 12px, transparent 13px), radial-gradient(circle at 100% 100%, #f6d7a7 0 12px, transparent 13px), radial-gradient(circle at 100% 0, #f6d7a7 0 12px, transparent 13px), radial-gradient(circle at 0 100%, #f6d7a7 0 12px, transparent 13px);
+    background-size: 32px 32px; }
+  .v1 .E .brand { font-family: Fraunces, serif; font-weight: 700; font-size: 24px; color: #1d6b73; }
+  .v1 .E .sum .big { font-family: Fraunces, serif; font-size: 40px; font-weight: 700; color: #2b2a33; line-height: 1.05; }
+  .v1 .E .sum .sub { font-size: 13px; color: #7a6f63; }
+  .v1 .E .card { background: #fff; border-radius: 4px 22px 4px 22px; padding: 4px 14px; margin-top: 12px; border: 1.5px solid #ead9bf; }
+  .v1 .E .tab { border-bottom: 1px dotted #d9c6a8; }
+  .v1 .E .tab:last-child { border-bottom: none; }
+  .v1 .E .tab .who { font-family: Fraunces, serif; font-weight: 500; font-size: 16px; }
+  .v1 .E .over { background: #f08a6b; color: #fff; }
+  .v1 .E .sent { background: #d6ecee; color: #1d6b73; }
+  .v1 .E .unpaid { background: #f6e3bf; color: #8a5a10; }
+  .v1 .E .paid { background: #e3efdc; color: #3f7a3a; }
+  .v1 .E .fab { background: #1d6b73; color: #fff; border-radius: 4px 18px 4px 18px; }
+  .v1 .E .input { border: 1.5px solid #ead9bf; border-radius: 4px 12px 4px 12px; background: #fff; }
+  .v1 .F .phone { background: #e9e6df; color: #111; font-family: 'Space Mono', monospace; }
+  .v1 .F .paper { background: #fffdf8; padding: 16px 14px 20px; box-shadow: 0 2px 8px rgba(0,0,0,.08);
+    -webkit-mask: radial-gradient(circle 6px at 50% 100%, transparent 98%, #000) 0 0 / 14px 100% repeat-x; mask: radial-gradient(circle 6px at 50% 100%, transparent 98%, #000) 0 0 / 14px 100%; }
+  .v1 .F .brand { font-weight: 700; font-size: 20px; text-align: center; letter-spacing: 2px; }
+  .v1 .F .center { text-align: center; font-size: 11px; }
+  .v1 .F hr { border: none; border-top: 1.5px dashed #111; margin: 10px 0; }
+  .v1 .F .sum .big { font-size: 34px; font-weight: 700; text-align: center; }
+  .v1 .F .tab { padding: 8px 0; border-bottom: 1px dashed #bbb; }
+  .v1 .F .tab .who { font-weight: 700; font-size: 13px; text-transform: uppercase; }
+  .v1 .F .tab .what { font-size: 11px; }
+  .v1 .F .tab .amt { font-size: 13px; }
+  .v1 .F .pill { border-radius: 0; font-size: 10px; letter-spacing: .5px; }
+  .v1 .F .over { background: #e4202e; color: #fff; }
+  .v1 .F .sent { background: #111; color: #fff; }
+  .v1 .F .unpaid { border: 1px solid #111; }
+  .v1 .F .paid { border: 1px solid #111; text-decoration: line-through; }
+  .v1 .F .fab { background: #e4202e; color: #fff; border-radius: 0; text-transform: uppercase; letter-spacing: 1px; font-size: 14px; box-shadow: 4px 4px 0 #111; }
+  .v1 .F .input { background: #fffdf8; border: 1.5px solid #111; font-family: 'Space Mono', monospace; font-size: 14px; }
+  .v1 .G .phone { background: #ece5dd; color: #111b21; font-family: Inter, sans-serif; }
+  .v1 .G .bar { background: #075e54; color: #fff; margin: -18px -16px 12px; padding: 16px; display: flex; align-items: center; gap: 10px; }
+  .v1 .G .avatar { width: 34px; height: 34px; border-radius: 50%; background: #25d366; color: #075e54; font-weight: 800; display: grid; place-items: center; font-size: 13px; }
+  .v1 .G .bubble { background: #fff; border-radius: 4px 14px 14px 14px; padding: 10px 12px; margin: 8px 30px 8px 0; box-shadow: 0 1px 1px rgba(0,0,0,.08); font-size: 14px; }
+  .v1 .G .bubble.me { background: #dcf8c6; border-radius: 14px 4px 14px 14px; margin: 8px 0 8px 30px; }
+  .v1 .G .bubble .time { font-size: 10.5px; color: #667781; text-align: right; margin-top: 4px; }
+  .v1 .G .bubble .big { font-size: 30px; font-weight: 800; color: #075e54; }
+  .v1 .G .tab { padding: 8px 0; border-bottom: 1px solid #eef0f1; }
+  .v1 .G .tab:last-child { border-bottom: none; }
+  .v1 .G .tab .who { font-size: 14px; }
+  .v1 .G .over { background: #fde4e1; color: #b3261e; }
+  .v1 .G .sent { background: #e2f0ff; color: #1d5fb8; }
+  .v1 .G .unpaid { background: #fff3c4; color: #7a5600; }
+  .v1 .G .paid { background: #d9fdd3; color: #0a7a3e; }
+  .v1 .G .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .v1 .G .chips span { background: #fff; border: 1px solid #c9d3d8; color: #075e54; border-radius: 999px; padding: 6px 10px; font-size: 12px; font-weight: 600; }
+  .v1 .G .fab { background: #fff; color: #667781; border-radius: 999px; text-align: left; font-weight: 400; font-size: 14px; padding: 13px 18px; box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+  .v1 .G .fab::after { content: "➤"; float: right; color: #075e54; }
+  .v1 .formcard { margin-top: 18px; padding-top: 6px; }
+  /* ===== H–M ===== */
+  .v2 .phone { width: 350px; max-width: 100%; height: 720px; margin: 0 auto; border-radius: 46px; border: 10px solid #0b0c0e; overflow: hidden; position: relative;
+    box-shadow: 0 24px 60px rgba(0,0,0,.5); background: var(--bg); color: var(--fg); font-family: var(--font); }
+  .v2 .screen { height: 100%; overflow-y: auto; padding: 0 18px 110px; scrollbar-width: none; }
+  .v2 .screen::-webkit-scrollbar { display: none; }
+  .v2 .status { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; padding: 14px 6px 8px; font-family: Inter, sans-serif; }
+  .v2 .status i { font-style: normal; letter-spacing: 2px; }
+  .v2 .head { display: flex; align-items: center; justify-content: space-between; margin: 6px 0 16px; }
+  .v2 .hello { font-size: 13px; color: var(--muted); }
+  .v2 .shop { font-size: 19px; font-weight: 700; }
+  .v2 .me { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 13px; background: var(--card); color: var(--fg); border: 1px solid var(--line); }
+  .v2 .hero { border-radius: var(--r); padding: 20px; background: var(--heroBg); color: var(--heroFg); position: relative; overflow: hidden; }
+  .v2 .hero .lbl { font-size: 13px; opacity: .75; }
+  .v2 .hero .big { font-family: var(--num); font-size: 42px; font-weight: 700; letter-spacing: -1px; line-height: 1.1; margin: 4px 0 2px; }
+  .v2 .hero .big small { font-size: .5em; font-weight: 600; margin-right: 4px; letter-spacing: 0; }
+  .v2 .hero .sub { font-size: 13px; opacity: .75; }
+  .v2 .meter { height: 6px; border-radius: 3px; background: var(--meterBg); margin-top: 16px; overflow: hidden; }
+  .v2 .meter b { display: block; height: 100%; width: 13%; background: var(--meter); border-radius: 3px; }
+  .v2 .meterlbl { display: flex; justify-content: space-between; font-size: 11.5px; opacity: .75; margin-top: 6px; }
+  .v2 .actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 16px 0 22px; }
+  .v2 .act { background: var(--card); border: 1px solid var(--line); border-radius: calc(var(--r) * .7); padding: 12px 6px; text-align: center; font-size: 12px; font-weight: 600; }
+  .v2 .act svg { width: 22px; height: 22px; display: block; margin: 0 auto 6px; stroke: var(--accent); }
+  .v2 .act.primary { background: var(--accent); color: var(--accentFg); border-color: transparent; }
+  .v2 .act.primary svg { stroke: var(--accentFg); }
+  .v2 .sect { display: flex; justify-content: space-between; align-items: baseline; margin: 0 2px 8px; }
+  .v2 .sect h3 { margin: 0; font-size: 16px; font-weight: 700; }
+  .v2 .sect a { font-size: 12.5px; color: var(--accentText, var(--accent)); font-weight: 600; text-decoration: none; }
+  .v2 .list { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); padding: 4px 14px; }
+  .v2 .item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .v2 .item:last-child { border-bottom: none; }
+  .v2 .av { width: 38px; height: 38px; flex: none; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 700; }
+  .v2 .who { font-weight: 600; font-size: 14.5px; }
+  .v2 .what { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .v2 .grow { flex: 1; min-width: 0; }
+  .v2 .amt { text-align: right; font-weight: 700; font-size: 14.5px; white-space: nowrap; font-family: var(--num); }
+  .v2 .st { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; margin-top: 4px; font-family: var(--font); }
+  .v2 .over { background: var(--overBg); color: var(--over); }
+  .v2 .sent { background: var(--sentBg); color: var(--sent); }
+  .v2 .unpaid { background: var(--unpaidBg); color: var(--unpaid); }
+  .v2 .paid { background: var(--paidBg); color: var(--paid); }
+  .v2 .pp { font-size: 11.5px; color: var(--muted); margin: 12px 4px 0; display: flex; align-items: center; gap: 5px; }
+  .v2 .ppmark { font-weight: 800; font-style: italic; font-family: Verdana, sans-serif; }
+  .v2 .ppmark b:first-child { color: #003087; }
+  .v2 .ppmark b:last-child { color: #009cde; }
+  .v2 .form { margin-top: 26px; background: var(--card); border: 1px solid var(--line); border-radius: var(--r); padding: 18px; }
+  .v2 .form h3 { margin: 0 0 4px; font-size: 17px; }
+  .v2 .form .lbl { font-size: 12px; font-weight: 600; color: var(--muted); margin: 14px 0 6px; }
+  .v2 .form .in { border: 1.5px solid var(--line); border-radius: calc(var(--r) * .5); padding: 12px; font-size: 15px; background: var(--bg); }
+  .v2 .form .in.focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--ring); }
+  .v2 .form .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .v2 .form .btn { margin-top: 18px; padding: 14px; text-align: center; font-weight: 700; border-radius: calc(var(--r) * .6); background: var(--accent); color: var(--accentFg); }
+  .v2 .tabbar { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: space-around; padding: 10px 8px 22px; background: var(--barBg); border-top: 1px solid var(--line); }
+  .v2 .tabbar div { font-size: 10.5px; font-weight: 600; text-align: center; color: var(--muted); width: 64px; }
+  .v2 .tabbar svg { width: 22px; height: 22px; display: block; margin: 0 auto 3px; stroke: currentColor; }
+  .v2 .tabbar .on { color: var(--accentText, var(--accent)); }
+  .v2 svg { fill: none; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+  .v2 .H { --bg:#f3f1ec; --fg:#141414; --muted:#8a867e; --card:#fff; --line:#ebe7df; --accent:#141414; --accentFg:#fff; --r:24px;
+       --font:Manrope, sans-serif; --num:Manrope, sans-serif; --heroBg:#fff; --heroFg:#141414; --meter:#141414; --meterBg:#efece6; --ring:rgba(20,20,20,.1);
+       --overBg:#ffe9e4; --over:#c23b22; --sentBg:#e8eefc; --sent:#2f55c4; --unpaidBg:#f6efdc; --unpaid:#8c6512; --paidBg:#e6f3ea; --paid:#2b7a46; --barBg:transparent; }
+  .v2 .H .hero { box-shadow: 0 1px 0 #ebe7df, 0 12px 30px rgba(0,0,0,.05); }
+  .v2 .H .hero .big { font-size: 46px; font-weight: 800; letter-spacing: -2px; }
+  .v2 .H .list { border: none; box-shadow: 0 12px 30px rgba(0,0,0,.04); }
+  .v2 .H .act { border: none; box-shadow: 0 8px 20px rgba(0,0,0,.04); }
+  .v2 .H .tabbar { left: 40px; right: 40px; bottom: 18px; border-radius: 999px; background: #141414; border: none; padding: 10px 6px; box-shadow: 0 14px 30px rgba(0,0,0,.25); }
+  .v2 .H .tabbar div { color: #8d8d8d; font-size: 0; width: auto; padding: 0 10px; }
+  .v2 .H .tabbar .on { color: #fff; }
+  .v2 .I { --bg:#f2ebdd; --fg:#1d1a15; --muted:#7c7365; --card:transparent; --line:#d9cfbd; --accent:#e4572e; --accentFg:#fff; --r:4px;
+       --font:'Inter Tight', sans-serif; --num:'Instrument Serif', serif; --heroBg:transparent; --heroFg:#1d1a15; --meter:#e4572e; --meterBg:#ddd2bf; --ring:rgba(228,87,46,.15);
+       --overBg:transparent; --over:#d2401a; --sentBg:transparent; --sent:#2e5f8a; --unpaidBg:transparent; --unpaid:#8a6a1c; --paidBg:transparent; --paid:#4a7a3d; --barBg:#f2ebdd; }
+  .v2 .I .shop { font-family: 'Instrument Serif', serif; font-weight: 400; font-size: 26px; }
+  .v2 .I .hero { padding: 6px 0 18px; border-bottom: 1px solid #1d1a15; border-radius: 0; }
+  .v2 .I .hero .big { font-size: 72px; font-weight: 400; letter-spacing: -2px; line-height: 1; }
+  .v2 .I .hero .lbl { text-transform: uppercase; letter-spacing: 1.5px; font-size: 11px; }
+  .v2 .I .act { border: 1px solid #1d1a15; border-radius: 999px; padding: 9px 4px; display: flex; align-items: center; justify-content: center; gap: 6px; }
+  .v2 .I .act svg { margin: 0; width: 16px; height: 16px; stroke: #1d1a15; }
+  .v2 .I .act.primary svg { stroke: #fff; }
+  .v2 .I .sect h3 { font-family: 'Instrument Serif', serif; font-weight: 400; font-size: 24px; }
+  .v2 .I .list { border: none; padding: 0; }
+  .v2 .I .item { border-bottom: 1px solid #d9cfbd; }
+  .v2 .I .av { border-radius: 0; background: none !important; color: #1d1a15 !important; font-family: 'Instrument Serif', serif; font-style: italic; font-size: 22px; width: 26px; }
+  .v2 .I .who { font-family: 'Instrument Serif', serif; font-size: 20px; font-weight: 400; }
+  .v2 .I .amt { font-size: 22px; font-weight: 400; }
+  .v2 .I .st { padding: 0; text-transform: uppercase; letter-spacing: 1px; font-size: 9.5px; }
+  .v2 .I .form { border: 1px solid #1d1a15; border-radius: 0; }
+  .v2 .I .form h3 { font-family: 'Instrument Serif', serif; font-weight: 400; font-size: 26px; }
+  .v2 .I .form .in { border: none; border-bottom: 1.5px solid #1d1a15; border-radius: 0; background: transparent; padding: 8px 0; }
+  .v2 .I .form .in.focus { box-shadow: none; border-color: #e4572e; }
+  .v2 .I .form .btn { border-radius: 999px; }
+  .v2 .I .tabbar { border-top: 1px solid #1d1a15; }
+  .v2 .J { --bg:#e9e4ff; --fg:#1b1636; --muted:#5f5980; --card:rgba(255,255,255,.55); --line:rgba(255,255,255,.7); --accent:#5b3df5; --accentFg:#fff; --r:28px;
+       --font:Outfit, sans-serif; --num:Outfit, sans-serif; --heroBg:linear-gradient(140deg,#5b3df5 0%,#9b5cf6 55%,#ff8fb1 100%); --heroFg:#fff; --meter:#fff; --meterBg:rgba(255,255,255,.3); --ring:rgba(91,61,245,.18);
+       --overBg:#ffe0ea; --over:#c4245a; --sentBg:#e2e6ff; --sent:#3f3fd0; --unpaidBg:#fff1cf; --unpaid:#93660a; --paidBg:#d9f7ea; --paid:#18805a; --barBg:rgba(255,255,255,.6); }
+  .v2 .J .phone { background: radial-gradient(circle at 10% 0%, #c9f0ff 0, transparent 45%), radial-gradient(circle at 100% 30%, #ffd6e7 0, transparent 45%), radial-gradient(circle at 30% 100%, #d8ccff 0, transparent 55%), #efeaff; }
+  .v2 .J .hero { box-shadow: 0 18px 40px rgba(91,61,245,.35); }
+  .v2 .J .hero .big { font-weight: 600; font-size: 46px; }
+  .v2 .J .act, .v2 .J .list, .v2 .J .form { backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); box-shadow: 0 8px 24px rgba(60,40,140,.08); }
+  .v2 .J .item { border-bottom-color: rgba(27,22,54,.07); }
+  .v2 .J .tabbar { backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); left: 14px; right: 14px; bottom: 14px; border-radius: 26px; padding-bottom: 10px; }
+  .v2 .J .form .in { background: rgba(255,255,255,.7); border-color: rgba(27,22,54,.08); }
+  .v2 .K { --bg:#fffaf0; --fg:#2b2b2b; --muted:#8b8577; --card:#fff; --line:#ece3d0; --accent:#22b455; --accentFg:#fff; --r:22px;
+       --font:Nunito, sans-serif; --num:Nunito, sans-serif; --heroBg:#ffcf3f; --heroFg:#2b2b2b; --meter:#2b2b2b; --meterBg:rgba(43,43,43,.15); --ring:rgba(34,180,85,.2);
+       --overBg:#ff5c5c; --over:#fff; --sentBg:#3d8bff; --sent:#fff; --unpaidBg:#ffcf3f; --unpaid:#2b2b2b; --paidBg:#22b455; --paid:#fff; --barBg:#fff; }
+  .v2 .K .shop { font-weight: 900; }
+  .v2 .K .hero { border: 2.5px solid #2b2b2b; box-shadow: 0 5px 0 #2b2b2b; }
+  .v2 .K .hero .big { font-weight: 900; font-size: 44px; }
+  .v2 .K .hero::after { content: "📒"; position: absolute; right: 16px; top: 14px; font-size: 34px; transform: rotate(12deg); }
+  .v2 .K .act { border: 2.5px solid #2b2b2b; box-shadow: 0 4px 0 #2b2b2b; font-weight: 800; }
+  .v2 .K .act.primary { border-color: #2b2b2b; }
+  .v2 .K .list { border: 2.5px solid #2b2b2b; box-shadow: 0 5px 0 #2b2b2b; }
+  .v2 .K .item { border-bottom: 2px dashed #ece3d0; }
+  .v2 .K .av { border-radius: 14px; border: 2px solid #2b2b2b; font-weight: 900; }
+  .v2 .K .who { font-weight: 800; }
+  .v2 .K .amt { font-weight: 900; }
+  .v2 .K .st { font-weight: 900; }
+  .v2 .K .form { border: 2.5px solid #2b2b2b; box-shadow: 0 5px 0 #2b2b2b; }
+  .v2 .K .form h3 { font-weight: 900; }
+  .v2 .K .form .in { border: 2px solid #2b2b2b; font-weight: 700; }
+  .v2 .K .form .btn { border: 2.5px solid #2b2b2b; box-shadow: 0 5px 0 #157a37; font-weight: 900; font-size: 16px; }
+  .v2 .K .tabbar { border-top: 2.5px solid #2b2b2b; }
+  .v2 .K .tabbar div { font-weight: 800; }
+  .v2 .L { --bg:#0a0c0f; --fg:#eef1f4; --muted:#7d8692; --card:#12161b; --line:#1f252d; --accent:#c8f542; --accentFg:#0a0c0f; --accentText:#c8f542; --r:18px;
+       --font:Geist, sans-serif; --num:'JetBrains Mono', monospace; --heroBg:#12161b; --heroFg:#eef1f4; --meter:#c8f542; --meterBg:#1f252d; --ring:rgba(200,245,66,.18);
+       --overBg:rgba(255,92,92,.12); --over:#ff7a7a; --sentBg:rgba(110,160,255,.12); --sent:#8db3ff; --unpaidBg:rgba(255,200,80,.12); --unpaid:#ffd06a; --paidBg:rgba(200,245,66,.12); --paid:#c8f542; --barBg:#0a0c0f; }
+  .v2 .L .hero { border: 1px solid #1f252d; }
+  .v2 .L .hero .big { font-size: 38px; font-weight: 700; letter-spacing: -1.5px; }
+  .v2 .L .spark { position: absolute; right: 14px; top: 14px; width: 76px; height: 34px; }
+  .v2 .L .me { background: #c8f542; color: #0a0c0f; border: none; }
+  .v2 .L .av { background: #1a2028 !important; color: #c9d1db !important; border: 1px solid #262e38; }
+  .v2 .L .amt { font-size: 14px; }
+  .v2 .L .form .in { background: #0a0c0f; }
+  .v2 .M { --bg:#f7f5f1; --fg:#12234a; --muted:#6b7488; --card:#fff; --line:#e7e3dc; --accent:#d8343a; --accentFg:#fff; --r:20px;
+       --font:Sora, sans-serif; --num:Sora, sans-serif; --heroBg:#12234a; --heroFg:#fff; --meter:#f2b33d; --meterBg:rgba(255,255,255,.15); --ring:rgba(216,52,58,.15);
+       --overBg:#fde3e3; --over:#b8232a; --sentBg:#e4ebf8; --sent:#1f4596; --unpaidBg:#fdf0d2; --unpaid:#8a5c00; --paidBg:#e2f2e6; --paid:#23733c; --barBg:#fff; }
+  .v2 .M .hero::before { content: ""; position: absolute; inset: 0; opacity: .14;
+    background: repeating-linear-gradient(45deg, #f2b33d 0 2px, transparent 2px 14px), repeating-linear-gradient(-45deg, #f2b33d 0 2px, transparent 2px 14px); }
+  .v2 .M .hero::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 5px; background: linear-gradient(90deg, #d8343a 0 33%, #f2b33d 33% 66%, #d8343a 66%); }
+  .v2 .M .hero > * { position: relative; }
+  .v2 .M .hero .big { font-weight: 800; letter-spacing: -1.5px; }
+  .v2 .M .shop { font-weight: 800; }
+  .v2 .M .act svg { stroke: #d8343a; }
+  .v2 .M .act.primary svg { stroke: #fff; }
+  .v2 .M .tabbar .on { color: #d8343a; }
+</style>
+</head>
+<body>
+<header class="page">
+  <h1>555 Buku: style options</h1>
+  <p>Thirteen looks for the shop owner's app. A–G show the ledger and the "Add debt" form; H–M show a full home screen. Scroll inside a phone to see more. Pick one, or mix two.</p>
+</header>
+<div class="grouphead"><h2>First set (A–G)</h2><p>Ledger and "Add debt" form only.</p></div>
+<div class="grid v1">
+
+  <!-- ===================== A ===================== -->
+  <section class="option A">
+    <h2>A · The Notebook</h2>
+    <p class="why">Looks like the real buku 555: lined paper, red margin, handwriting. Instantly recognisable to Malaysian judges and great in the demo video ("we kept the notebook"). Risk: harder to read at small sizes, and can feel gimmicky if overdone.</p>
+    <div class="phone"><div class="screen">
+      <div class="row"><div class="brand">555 Buku</div><div class="muted" style="font-size:16px">Kedai Ah Seng</div></div>
+      <div class="sum"><div class="muted" style="font-size:17px">Still owed</div><div class="big">RM 192.30</div><div class="muted" style="font-size:16px">8 tabs · 3 overdue</div></div>
+      <div class="tab row"><div><div class="who">Mak Cik Siti</div><div class="what">Beras 10kg, minyak 2kg</div></div><div class="amt">48.50<br><span class="pill over">Overdue</span></div></div>
+      <div class="tab row"><div><div class="who">Pak Ali (Bengkel)</div><div class="what">Rokok x2 kotak</div></div><div class="amt">36.00<br><span class="pill over">Overdue</span></div></div>
+      <div class="tab row"><div><div class="who">Kak Lina</div><div class="what">Telur 30 biji, gula</div></div><div class="amt">22.40<br><span class="pill sent">Invoice sent</span></div></div>
+      <div class="tab row"><div><div class="who">Encik Hafiz</div><div class="what">Roti canai x3, teh tarik</div></div><div class="amt">13.50<br><span class="pill unpaid">Unpaid</span></div></div>
+      <div class="tab row"><div><div class="who">Ah Hock</div><div class="what">Air mineral</div></div><div class="amt">12.00<br><span class="pill paid">Paid</span></div></div>
+      <div class="pp">Collected with <span class="ppmark"><b>Pay</b><b>Pal</b></span></div>
+      <div class="formcard">
+        <div class="brand" style="font-size:22px">New tab</div>
+        <div class="label">Who</div><div class="input">Abang Joe</div>
+        <div class="label">What</div><div class="input">Milo 1kg</div>
+        <div class="label">How much (RM)</div><div class="input">12.50</div>
+      </div>
+    </div><div class="fab">+ Write a new tab</div></div>
+  </section>
+
+  <!-- ===================== B ===================== -->
+  <section class="option B">
+    <h2>B · Kedai Warm</h2>
+    <p class="why">Friendly and local: shop-awning green and mustard, rounded cards, bold numbers. Feels like a real consumer app a kedai owner would enjoy. Easy to read, photographs well, and still clearly "ours". My pick: a good balance of personality and polish.</p>
+    <div class="phone"><div class="screen">
+      <div class="top"><div class="awning"></div>
+        <div class="row"><div class="brand">555 Buku</div><div style="font-size:13px;opacity:.85">Kedai Ah Seng ▾</div></div>
+        <div class="sum" style="margin-top:14px"><div class="sub">Still owed to you</div><div class="big">RM 192.30</div><div class="sub">8 tabs · 3 overdue · RM 28.60 collected this week</div></div>
+      </div>
+      <div class="card">
+        <div class="tab row"><div><div class="who">Mak Cik Siti</div><div class="what">Beras 10kg, minyak 2kg · 2 Aug</div></div><div class="amt">RM 48.50<br><span class="pill over">Overdue</span></div></div>
+        <div class="tab row"><div><div class="who">Pak Ali (Bengkel)</div><div class="what">Rokok x2 kotak · 19 Aug</div></div><div class="amt">RM 36.00<br><span class="pill over">Overdue</span></div></div>
+        <div class="tab row"><div><div class="who">Kak Lina</div><div class="what">Telur 30 biji, gula · 28 Sep</div></div><div class="amt">RM 22.40<br><span class="pill sent">Invoice sent</span></div></div>
+        <div class="tab row"><div><div class="who">Encik Hafiz</div><div class="what">Roti canai x3 · 3 Oct</div></div><div class="amt">RM 13.50<br><span class="pill unpaid">Unpaid</span></div></div>
+        <div class="tab row"><div><div class="who">Ah Hock</div><div class="what">Air mineral · 15 Sep</div></div><div class="amt">RM 12.00<br><span class="pill paid">Paid</span></div></div>
+      </div>
+      <div class="pp">Invoices and payments by <span class="ppmark"><b>Pay</b><b>Pal</b></span></div>
+      <div class="formcard">
+        <div style="font-weight:800;font-size:18px">Add a debt</div>
+        <div class="label">Customer</div><div class="input">Abang Joe</div>
+        <div class="label">What they took</div><div class="input">Milo 1kg</div>
+        <div class="label">Amount</div><div class="input">RM 12.50</div>
+      </div>
+    </div><div class="fab">+ Add debt</div></div>
+  </section>
+
+  <!-- ===================== C ===================== -->
+  <section class="option C">
+    <h2>C · Clean Fintech</h2>
+    <p class="why">Calm, precise, trustworthy, like a modern banking app. Dark summary card, clear filters, a small chart of what's owed. Reads as "serious money tool" and scores well on polish. Risk: generic; it could be any finance app, with less of the kedai story.</p>
+    <div class="phone"><div class="screen">
+      <div class="row"><div class="brand"><span>5</span>555 Buku</div><div class="muted" style="font-size:13px">Kedai Ah Seng</div></div>
+      <div class="sumcard">
+        <div class="sub">Outstanding</div><div class="big">RM 192.30</div><div class="sub">8 open tabs · 3 overdue</div>
+        <div class="bars"><i style="flex:124;background:#f97066"></i><i style="flex:32;background:#53b1fd"></i><i style="flex:36;background:#fdb022"></i></div>
+      </div>
+      <div class="seg"><span class="on">All</span><span>Overdue</span><span>Sent</span><span>Paid</span></div>
+      <div class="list">
+        <div class="tab row"><div><div class="who">Mak Cik Siti</div><div class="what">Beras 10kg, minyak 2kg</div></div><div class="amt">RM 48.50<br><span class="pill over">Overdue</span></div></div>
+        <div class="tab row"><div><div class="who">Pak Ali (Bengkel)</div><div class="what">Rokok x2 kotak</div></div><div class="amt">RM 36.00<br><span class="pill over">Overdue</span></div></div>
+        <div class="tab row"><div><div class="who">Kak Lina</div><div class="what">Telur 30 biji, gula</div></div><div class="amt">RM 22.40<br><span class="pill sent">Sent</span></div></div>
+        <div class="tab row"><div><div class="who">Encik Hafiz</div><div class="what">Roti canai x3</div></div><div class="amt">RM 13.50<br><span class="pill unpaid">Unpaid</span></div></div>
+        <div class="tab row"><div><div class="who">Ah Hock</div><div class="what">Air mineral</div></div><div class="amt">RM 12.00<br><span class="pill paid">Paid</span></div></div>
+      </div>
+      <div class="pp">Powered by <span class="ppmark"><b>Pay</b><b>Pal</b></span> invoicing</div>
+      <div class="formcard">
+        <div style="font-weight:700;font-size:17px">Add debt</div>
+        <div class="label">Customer name</div><div class="input">Abang Joe</div>
+        <div class="label">Item</div><div class="input">Milo 1kg</div>
+        <div class="label">Amount (RM)</div><div class="input">12.50</div>
+      </div>
+    </div><div class="fab">+ Add debt</div></div>
+  </section>
+
+  <!-- ===================== D ===================== -->
+  <section class="option D">
+    <h2>D · Pasar Malam</h2>
+    <p class="why">Dark mode with night-market neon: hot pink, purple and lamp yellow. Very eye-catching in a demo video and stands out from every other hackathon entry. Risk: loud; less "calm money tool", and dark screens are harder to read in a bright shop.</p>
+    <div class="phone"><div class="screen">
+      <div class="row"><div class="brand">555 Buku</div><div class="muted" style="font-size:13px">Kedai Ah Seng</div></div>
+      <div class="sumcard"><div class="sub">Still owed to you</div><div class="big">RM 192.30</div><div class="sub">8 tabs · 3 overdue</div></div>
+      <div class="tab row"><div><div class="who">Mak Cik Siti</div><div class="what">Beras 10kg, minyak 2kg</div></div><div class="amt">RM 48.50<br><span class="pill over">Overdue</span></div></div>
+      <div class="tab row"><div><div class="who">Pak Ali (Bengkel)</div><div class="what">Rokok x2 kotak</div></div><div class="amt">RM 36.00<br><span class="pill over">Overdue</span></div></div>
+      <div class="tab row"><div><div class="who">Kak Lina</div><div class="what">Telur 30 biji, gula</div></div><div class="amt">RM 22.40<br><span class="pill sent">Invoice sent</span></div></div>
+      <div class="tab row"><div><div class="who">Encik Hafiz</div><div class="what">Roti canai x3</div></div><div class="amt">RM 13.50<br><span class="pill unpaid">Unpaid</span></div></div>
+      <div class="tab row"><div><div class="who">Ah Hock</div><div class="what">Air mineral</div></div><div class="amt">RM 12.00<br><span class="pill paid">Paid</span></div></div>
+      <div class="pp">Collected with PayPal</div>
+      <div class="formcard">
+        <div style="font-weight:800;font-size:18px">Add a debt</div>
+        <div class="label">Customer</div><div class="input">Abang Joe</div>
+        <div class="label">What they took</div><div class="input">Milo 1kg</div>
+        <div class="label">Amount</div><div class="input">RM 12.50</div>
+      </div>
+    </div><div class="fab">+ Add debt</div></div>
+  </section>
+
+  <!-- ===================== E ===================== -->
+  <section class="option E">
+    <h2>E · Peranakan Tile</h2>
+    <p class="why">Teal, coral and cream with a Peranakan tile band and an elegant serif for names and totals. Feels Malaysian and premium at the same time, like a heritage kedai. Risk: the serif and pattern need care to stay readable on small phones.</p>
+    <div class="phone"><div class="screen">
+      <div class="tiles"></div>
+      <div class="row"><div class="brand">555 Buku</div><div class="muted" style="font-size:13px">Kedai Ah Seng</div></div>
+      <div class="sum" style="margin-top:10px"><div class="sub">Still owed to you</div><div class="big">RM 192.30</div><div class="sub">8 tabs · 3 overdue</div></div>
+      <div class="card">
+        <div class="tab row"><div><div class="who">Mak Cik Siti</div><div class="what">Beras 10kg, minyak 2kg · 2 Aug</div></div><div class="amt">RM 48.50<br><span class="pill over">Overdue</span></div></div>
+        <div class="tab row"><div><div class="who">Pak Ali (Bengkel)</div><div class="what">Rokok x2 kotak · 19 Aug</div></div><div class="amt">RM 36.00<br><span class="pill over">Overdue</span></div></div>
+        <div class="tab row"><div><div class="who">Kak Lina</div><div class="what">Telur 30 biji, gula · 28 Sep</div></div><div class="amt">RM 22.40<br><span class="pill sent">Invoice sent</span></div></div>
+        <div class="tab row"><div><div class="who">Encik Hafiz</div><div class="what">Roti canai x3 · 3 Oct</div></div><div class="amt">RM 13.50<br><span class="pill unpaid">Unpaid</span></div></div>
+        <div class="tab row"><div><div class="who">Ah Hock</div><div class="what">Air mineral · 15 Sep</div></div><div class="amt">RM 12.00<br><span class="pill paid">Paid</span></div></div>
+      </div>
+      <div class="pp">Invoices and payments by <span class="ppmark"><b>Pay</b><b>Pal</b></span></div>
+      <div class="formcard">
+        <div style="font-family:Fraunces,serif;font-weight:700;font-size:20px;color:#1d6b73">Add a debt</div>
+        <div class="label">Customer</div><div class="input">Abang Joe</div>
+        <div class="label">What they took</div><div class="input">Milo 1kg</div>
+        <div class="label">Amount</div><div class="input">RM 12.50</div>
+      </div>
+    </div><div class="fab">+ Add debt</div></div>
+  </section>
+
+  <!-- ===================== F ===================== -->
+  <section class="option F">
+    <h2>F · The Receipt</h2>
+    <p class="why">Styled like a kedai till receipt: typewriter font, dashed lines, black and white with one red. Bold, memorable and very easy to build. Risk: all-monospace gets tiring on longer screens, and it can look unfinished if spacing isn't tight.</p>
+    <div class="phone"><div class="screen">
+      <div class="paper">
+        <div class="brand">*** 555 BUKU ***</div>
+        <div class="center">KEDAI AH SENG · JLN PASAR 12</div>
+        <hr>
+        <div class="sum"><div class="center">STILL OWED</div><div class="big">RM 192.30</div><div class="center">8 TABS · 3 OVERDUE</div></div>
+        <hr>
+        <div class="tab row"><div><div class="who">Mak Cik Siti</div><div class="what">Beras 10kg, minyak 2kg</div></div><div class="amt">48.50<br><span class="pill over">OVERDUE</span></div></div>
+        <div class="tab row"><div><div class="who">Pak Ali</div><div class="what">Rokok x2 kotak</div></div><div class="amt">36.00<br><span class="pill over">OVERDUE</span></div></div>
+        <div class="tab row"><div><div class="who">Kak Lina</div><div class="what">Telur 30 biji, gula</div></div><div class="amt">22.40<br><span class="pill sent">SENT</span></div></div>
+        <div class="tab row"><div><div class="who">Encik Hafiz</div><div class="what">Roti canai x3</div></div><div class="amt">13.50<br><span class="pill unpaid">UNPAID</span></div></div>
+        <div class="tab row"><div><div class="who">Ah Hock</div><div class="what">Air mineral</div></div><div class="amt">12.00<br><span class="pill paid">PAID</span></div></div>
+        <div class="center" style="margin-top:10px">PAY BY PAYPAL · TERIMA KASIH</div>
+      </div>
+      <div class="formcard">
+        <div style="font-weight:700;font-size:15px">NEW TAB</div>
+        <div class="label">CUSTOMER</div><div class="input">Abang Joe</div>
+        <div class="label">ITEM</div><div class="input">Milo 1kg</div>
+        <div class="label">AMOUNT (RM)</div><div class="input">12.50</div>
+      </div>
+    </div><div class="fab">+ Add debt</div></div>
+  </section>
+
+  <!-- ===================== G ===================== -->
+  <section class="option G">
+    <h2>G · Chat-style</h2>
+    <p class="why">Looks and works like WhatsApp, which every kedai owner already uses all day. You type "Abang Joe Milo 12.50" and the app replies with the updated tab. Zero learning curve and a strong demo story. Risk: a different layout, so more build work, and close to WhatsApp's look.</p>
+    <div class="phone"><div class="screen">
+      <div class="bar"><div class="avatar">555</div><div><div style="font-weight:700">555 Buku</div><div style="font-size:12px;opacity:.8">Kedai Ah Seng's ledger</div></div></div>
+      <div class="bubble">Good morning! Still owed to you:<div class="big">RM 192.30</div><span class="muted">8 tabs · 3 overdue</span><div class="time">8:02 am</div></div>
+      <div class="bubble">
+        <div class="tab row"><div class="who">Mak Cik Siti</div><div class="amt">RM 48.50 <span class="pill over">Overdue</span></div></div>
+        <div class="tab row"><div class="who">Pak Ali</div><div class="amt">RM 36.00 <span class="pill over">Overdue</span></div></div>
+        <div class="tab row"><div class="who">Kak Lina</div><div class="amt">RM 22.40 <span class="pill sent">Sent</span></div></div>
+        <div class="tab row"><div class="who">Encik Hafiz</div><div class="amt">RM 13.50 <span class="pill unpaid">Unpaid</span></div></div>
+        <div class="chips"><span>Send PayPal reminders</span><span>See all</span></div>
+        <div class="time">8:02 am</div>
+      </div>
+      <div class="bubble me">Abang Joe Milo 1kg 12.50<div class="time">9:15 am ✓✓</div></div>
+      <div class="bubble">Added ✅ <b>Abang Joe</b> · Milo 1kg · <b>RM 12.50</b><div class="chips"><span>Undo</span><span>Send invoice</span></div><div class="time">9:15 am</div></div>
+    </div><div class="fab">Type a debt, e.g. "Siti beras 25"</div></div>
+  </section>
+
+</div>
+<div class="grouphead"><h2>Full home screens (H–M)</h2><p>The newer, more polished set.</p></div>
+<div class="grid v2" id="grid2"></div>
+<footer>Mockups only: static pictures, not the real app. The PayPal wordmark is a placeholder; the real app uses PayPal's official logo and buttons.</footer>
+<script>
+const I = {
+  scan: '<svg viewBox="0 0 24 24"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2M7 12h10"/></svg>',
+  plus: '<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
+  bell: '<svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8M10 20a2 2 0 0 0 4 0"/></svg>',
+  book: '<svg viewBox="0 0 24 24"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3zM5 17a3 3 0 0 1 3-3h11"/></svg>',
+  doc: '<svg viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h4"/></svg>',
+  user: '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>',
+};
+const debts = [
+  ['Mak Cik Siti','Beras 10kg, minyak','48.50','over','Overdue','#ffd9cf','#9c3317'],
+  ['Pak Ali','Rokok x2 kotak','36.00','over','Overdue','#d9e4ff','#2a4ea8'],
+  ['Kak Lina','Telur 30 biji, gula','22.40','sent','Invoice sent','#e6dcff','#5a3db8'],
+  ['Encik Hafiz','Roti canai x3','13.50','unpaid','Unpaid','#fff0c2','#80600a'],
+  ['Ah Hock','Air mineral','12.00','paid','Paid','#d6f2df','#236b3c'],
+];
+const opts = [
+  ['H','Soft Premium','Calm off-white, big confident numbers and a floating black menu, like Revolut or Monzo. Feels expensive and trustworthy without being cold. Safe, polished choice.'],
+  ['I','Editorial','Cream paper, a large elegant serif for money and names, thin black rules and one orange. Looks like a well-designed magazine. Very distinctive; fewer boxes, more type.'],
+  ['J','Aurora Glass','Soft pastel gradient background with frosted-glass cards and a purple hero. Modern, light and dreamy, like Apple Wallet. Looks great on video; slightly less "local".'],
+  ['K','Chunky Fun','Thick outlines, solid shadows and bright yellow, green and red, like Duolingo. Playful and very easy to read for older shop owners. Most personality of the six.'],
+  ['L','Midnight Pro','Near-black with one lime accent, number font for money and a little trend chart. Sharp and techy, like a trading app. Strong for judges; may feel cold for a kedai.'],
+  ['M','Malaysia Modern','Deep navy and hibiscus red with a gold songket pattern and a red-gold stripe. Clean and modern but proudly Malaysian. Good balance of story and polish.'],
+];
+const spark = '<svg class="spark" viewBox="0 0 110 44"><path d="M2 36 L16 30 L28 33 L42 22 L56 26 L70 14 L84 18 L98 8 L108 10" stroke="#c8f542" stroke-width="2"/><path d="M2 36 L16 30 L28 33 L42 22 L56 26 L70 14 L84 18 L98 8 L108 10 L108 44 L2 44Z" fill="rgba(200,245,66,.12)" stroke="none"/></svg>';
+
+document.getElementById('grid2').innerHTML = opts.map(([k,name,why]) => `
+<section class="option ${k}">
+  <h2>${k} · ${name}</h2>
+  <p class="why">${why}</p>
+  <div class="phone"><div class="screen">
+    <div class="status"><span>9:41</span><i>●●● ▮</i></div>
+    <div class="head"><div><div class="hello">Selamat pagi 👋</div><div class="shop">Kedai Ah Seng</div></div><div class="me">AS</div></div>
+    <div class="hero">${k==='L'?spark:''}
+      <div class="lbl">Still owed to you</div>
+      <div class="big"><small>RM</small>192.30</div>
+      <div class="sub">8 tabs · 3 overdue</div>
+      <div class="meter"><b></b></div>
+      <div class="meterlbl"><span>RM 28.60 collected this week</span><span>13%</span></div>
+    </div>
+    <div class="actions">
+      <div class="act">${I.scan}Scan buku</div>
+      <div class="act primary">${I.plus}Add debt</div>
+      <div class="act">${I.bell}Remind</div>
+    </div>
+    <div class="sect"><h3>Open tabs</h3><a href="#">See all</a></div>
+    <div class="list">${debts.map(([n,w,a,s,sl,bg,fg]) => `
+      <div class="item"><div class="av" style="background:${bg};color:${fg}">${(p=>p[0][0]+p[p.length-1][0])(n.split(' '))}</div>
+        <div class="grow"><div class="who">${n}</div><div class="what">${w}</div></div>
+        <div class="amt">RM ${a}<br><span class="st ${s}">${sl}</span></div></div>`).join('')}
+    </div>
+    <div class="pp">Invoices and payments by <span class="ppmark"><b>Pay</b><b>Pal</b></span></div>
+    <div class="form">
+      <h3>Add a debt</h3>
+      <div class="lbl">Customer</div><div class="in focus">Abang Joe</div>
+      <div class="lbl">What they took</div><div class="in">Milo 1kg</div>
+      <div class="two"><div><div class="lbl">Amount</div><div class="in">RM 12.50</div></div><div><div class="lbl">Date</div><div class="in">11 Oct</div></div></div>
+      <div class="btn">Save debt</div>
+    </div>
+  </div>
+  <nav class="tabbar">
+    <div class="on">${I.book}Ledger</div><div>${I.scan}Scan</div><div>${I.doc}Invoices</div><div>${I.user}Customers</div>
+  </nav></div>
+</section>`).join('');
+</script>
+</body>
+</html>
