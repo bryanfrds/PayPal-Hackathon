@@ -15,7 +15,7 @@
 - Use PayPal's official buttons and logos if we show them; don't redraw them.
 
 ## Product rules (judging: a complete, coherent product, not a proof of concept)
-- Every must-have works end to end before any nice-to-have starts: Scan → Collect → Chase → Ledger.
+- Every must-have works end to end before any nice-to-have starts: the whole journey below, from upload to reminders.
 - One look across all screens. Real-looking example data, loading and error states, no dead buttons.
 - Check UI changes in a browser before calling them done.
 
@@ -23,7 +23,7 @@
 The journey: upload notebook → review extracted entries → confirm customers → approve invoices → collect payments → track balances → remind unpaid customers.
 Agree the shared data model and API contracts before building separately. Each owner writes the code **and the tests** for their area.
 
-- **Person 1: scanning, import backend, reminder scheduling.** Photo upload and private image storage, vision-model extraction into draft entries, corrections and rescans, duplicate imports, the customer-directory backend and name matching, the reminder rules and scheduled job (it calls Person 2's reminder function). Extraction only makes drafts; money actions need owner approval.
+- **Person 1: scanning, import backend, reminder orchestration.** Photo upload and private image storage, vision-model extraction into draft entries, corrections and rescans, duplicate imports, the customer-directory backend and name matching, the reminder rules and scheduled job (it calls Person 2's reminder function). Extraction only makes drafts; money actions need owner approval.
 - **Person 2: PayPal and financial correctness.** Sandbox accounts, app and webhook setup, `lib/paypal.ts`, creating and sending invoices from approved debts (no duplicates on retry), invoice/payment/balance records, webhook verification and reconciliation, and the safe reminder-delivery function.
 - **Person 3 (Bryan): the whole app experience, the ledger and deployment.** Upload and review screens, customer matching screens, invoice approval with per-invoice outcomes and safe retry, the AG Grid ledger and reminder settings/activity views, sign-in, phone layout, deployment, the resettable demo data, README, screenshots, video and submission checklist.
 
@@ -34,8 +34,10 @@ Agree the shared data model and API contracts before building separately. Each o
 4. **Reminders connected:** eligibility and scheduling (P1), safe delivery (P2), settings and activity views (P3).
 5. **Submission ready:** extraction fixtures and scheduler checked (P1), payment edge cases and setup docs (P2), deployment polished and demo coordinated (P3).
 
-Keep optional features until after the first payment loop, then rebalance work.
+Keep optional features deferred (see Product rules); rebalance work after the first payment loop.
+
+Workload: Person 1 has substantial backend and testing work, Person 2 carries the highest financial integration risk, and Person 3 has the widest UI workload.
 
 ## Code layout
-- Screens under `app/` (Person 3). Server code under `lib/` and `app/api/`: `lib/paypal.ts` and payment records (Person 2), scanning, import, customers and the scheduler (Person 1).
+- Screens under `app/` (Person 3). Server code under `lib/` and `app/api/`: `lib/paypal.ts`, payment records and the PayPal webhook endpoint (Person 2), scanning, import, customers and the scheduler (Person 1).
 - Touching another person's area? Ask them first, or tag them on the PR.
