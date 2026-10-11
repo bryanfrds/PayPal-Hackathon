@@ -8,6 +8,7 @@
  * Errors never include the client secret, the Basic auth header or the
  * access token; every message is passed through redact() first.
  */
+import "server-only";
 
 export type PayPalConfig = {
   apiBase: string;
@@ -422,9 +423,6 @@ function errorText(err: unknown): string {
 let defaultClient: PayPalClient | undefined;
 
 function getDefaultClient(): PayPalClient {
-  if (typeof window !== "undefined") {
-    throw new PayPalError("lib/paypal.ts is server-only and cannot run in the browser.");
-  }
   defaultClient ??= createPayPalClient(readPayPalConfigFromEnv());
   return defaultClient;
 }
