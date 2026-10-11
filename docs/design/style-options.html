@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>555 Buku – Style Options</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Inter:wght@400;500;600;700&family=Patrick+Hand&family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Space+Mono:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Manrope:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&family=Inter+Tight:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700&family=Nunito:wght@600;700;800;900&family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Sora:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Inter:wght@400;500;600;700&family=Patrick+Hand&family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Space+Mono:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Manrope:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&family=Inter+Tight:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700&family=Nunito:wght@600;700;800;900&family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Sora:wght@400;600;700;800&family=DM+Serif+Display&family=Roboto+Flex:wght@400;500;600;700&family=Young+Serif&family=Righteous&family=Fredoka:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&family=Roboto+Flex:wght@400;500;600;700&family=Young+Serif&family=Righteous&family=Fredoka:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   * { box-sizing: border-box; }
   body { margin: 0; font-family: Inter, system-ui, sans-serif; background: #1b1c20; color: #e9e9ec; }
@@ -35,6 +35,7 @@
   .v1 .input { padding: 12px; font-size: 15px; }
   .v1 .muted { opacity: .65; }
   .v1 .pp { font-size: 11px; opacity: .75; margin-top: 10px; display: flex; align-items: center; gap: 6px; }
+  /* placeholder wordmark: do not copy into app/, use PayPal's official assets */
   .v1 .ppmark { font-weight: 800; font-style: italic; }
   .v1 .ppmark b:first-child { color: #003087; }
   .v1 .ppmark b:last-child { color: #009cde; }
@@ -196,6 +197,7 @@
   .v2 .unpaid { background: var(--unpaidBg); color: var(--unpaid); }
   .v2 .paid { background: var(--paidBg); color: var(--paid); }
   .v2 .pp { font-size: 11.5px; color: var(--muted); margin: 12px 4px 0; display: flex; align-items: center; gap: 5px; }
+  /* placeholder wordmark: do not copy into app/, use PayPal's official assets */
   .v2 .ppmark { font-weight: 800; font-style: italic; font-family: Verdana, sans-serif; }
   .v2 .ppmark b:first-child { color: #003087; }
   .v2 .ppmark b:last-child { color: #009cde; }
@@ -297,12 +299,109 @@
   .v2 .M .act svg { stroke: #d8343a; }
   .v2 .M .act.primary svg { stroke: #fff; }
   .v2 .M .tabbar .on { color: #d8343a; }
+
+  /* ===== N–S ===== */
+  /* N · Kopitiam */
+  .v2 .N { --bg:#f5f2ec; --fg:#3b2417; --muted:#8a7565; --card:#fffdf9; --line:#e9e0d3; --accent:#2f6b4f; --accentFg:#fff; --r:18px;
+       --font:'DM Sans', sans-serif; --num:'DM Serif Display', serif; --heroBg:#2f6b4f; --heroFg:#fff; --meter:#f3d27a; --meterBg:rgba(255,255,255,.2); --ring:rgba(47,107,79,.15);
+       --overBg:#f9e0d9; --over:#a8371c; --sentBg:#e3ebe6; --sent:#2f6b4f; --unpaidBg:#f6ead0; --unpaid:#7d5a10; --paidBg:#ece4da; --paid:#6b5444; --barBg:#fffdf9; }
+  .v2 .N .phone { background: radial-gradient(ellipse at 20% 10%, rgba(0,0,0,.035) 0 20%, transparent 40%), radial-gradient(ellipse at 80% 60%, rgba(0,0,0,.03) 0 15%, transparent 35%), #f5f2ec; }
+  .v2 .N .shop { font-family: 'DM Serif Display', serif; font-weight: 400; font-size: 24px; }
+  .v2 .N .hero { background: repeating-conic-gradient(#2f6b4f 0 25%, #2a6247 0 50%) 0 0 / 22px 22px; }
+  .v2 .N .hero::after { content: "☕"; position: absolute; right: 16px; top: 14px; font-size: 30px; }
+  .v2 .N .hero .big { font-weight: 400; font-size: 48px; letter-spacing: -.5px; }
+  .v2 .N .act { border: 1.5px solid #e2d6c5; }
+  .v2 .N .sect h3, .v2 .N .form h3 { font-family: 'DM Serif Display', serif; font-weight: 400; font-size: 20px; }
+  .v2 .N .av { box-shadow: 0 0 0 3px #fffdf9, 0 0 0 4.5px #e2d6c5; }
+
+  /* O · iPhone Native */
+  .v2 .O { --bg:#f2f2f7; --fg:#000; --muted:#8e8e93; --card:#fff; --line:#e5e5ea; --accent:#007aff; --accentFg:#fff; --r:14px;
+       --font:-apple-system, BlinkMacSystemFont, Inter, sans-serif; --num:-apple-system, BlinkMacSystemFont, Inter, sans-serif; --heroBg:#fff; --heroFg:#000; --meter:#34c759; --meterBg:#e5e5ea; --ring:rgba(0,122,255,.2);
+       --overBg:transparent; --over:#ff3b30; --sentBg:transparent; --sent:#007aff; --unpaidBg:transparent; --unpaid:#ff9500; --paidBg:transparent; --paid:#34c759; --barBg:rgba(249,249,249,.92); }
+  .v2 .O .shop { font-size: 32px; font-weight: 800; letter-spacing: -.5px; }
+  .v2 .O .hero .big { font-weight: 700; }
+  .v2 .O .act { border: none; background: rgba(0,122,255,.1); color: #007aff; }
+  .v2 .O .act.primary { background: #007aff; color: #fff; }
+  .v2 .O .list { border: none; padding: 0 0 0 14px; }
+  .v2 .O .item { padding-right: 14px; border-bottom-color: #e5e5ea; }
+  .v2 .O .av { background: linear-gradient(#a5abb8, #858a96) !important; color: #fff !important; font-weight: 600; }
+  .v2 .O .st { padding: 0; font-weight: 600; font-size: 12px; }
+  .v2 .O .form, .v2 .O .hero, .v2 .O .act { border: none; }
+  .v2 .O .form .in { background: #f2f2f7; border: none; }
+  .v2 .O .tabbar { backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+  .v2 .O .sect a { font-weight: 400; font-size: 15px; }
+
+  /* P · Android Material */
+  .v2 .P { --bg:#f7fbf3; --fg:#181d17; --muted:#5d6a5b; --card:#ebf2e6; --line:transparent; --accent:#2a6b3e; --accentFg:#fff; --r:26px;
+       --font:'Roboto Flex', Roboto, sans-serif; --num:'Roboto Flex', Roboto, sans-serif; --heroBg:#bcefc6; --heroFg:#00210c; --meter:#2a6b3e; --meterBg:rgba(0,33,12,.12); --ring:rgba(42,107,62,.2);
+       --overBg:#ffdad5; --over:#8c1d13; --sentBg:#d6e3ff; --sent:#1b3f8a; --unpaidBg:#ffe08f; --unpaid:#5c4300; --paidBg:#bcefc6; --paid:#00531f; --barBg:#e4ece0; }
+  .v2 .P .shop { font-weight: 500; font-size: 22px; }
+  .v2 .P .me { background: #2a6b3e; color: #fff; border: none; }
+  .v2 .P .hero .big { font-weight: 500; font-size: 44px; }
+  .v2 .P .act { border-radius: 18px; font-weight: 500; }
+  .v2 .P .act.primary { border-radius: 18px; box-shadow: 0 3px 8px rgba(42,107,62,.3); }
+  .v2 .P .item { border-bottom: 1px solid rgba(0,0,0,.05); }
+  .v2 .P .form .in { border: 1.5px solid #75806f; border-radius: 6px; background: transparent; }
+  .v2 .P .form .in.focus { border: 2px solid #2a6b3e; box-shadow: none; }
+  .v2 .P .form .btn { border-radius: 999px; }
+  .v2 .P .tabbar { border-top: none; }
+  .v2 .P .tabbar svg { box-sizing: content-box; padding: 4px 18px; border-radius: 16px; margin-bottom: 4px; }
+  .v2 .P .tabbar .on { color: #00210c; }
+  .v2 .P .tabbar .on svg { background: #bcefc6; }
+
+  /* Q · Terracotta */
+  .v2 .Q { --bg:#f3e9de; --fg:#3a2a20; --muted:#8b7564; --card:#fbf6f0; --line:#e6d5c2; --accent:#c4623b; --accentFg:#fff; --r:26px;
+       --font:'DM Sans', sans-serif; --num:'Young Serif', serif; --heroBg:#c4623b; --heroFg:#fff6ee; --meter:#fff6ee; --meterBg:rgba(255,246,238,.25); --ring:rgba(196,98,59,.18);
+       --overBg:#f6d6c8; --over:#9a3a16; --sentBg:#e2e4d0; --sent:#4f5a26; --unpaidBg:#f3e2bf; --unpaid:#7a5a14; --paidBg:#dfe5cf; --paid:#55652a; --barBg:#fbf6f0; }
+  .v2 .Q .shop { font-family: 'Young Serif', serif; font-weight: 400; font-size: 23px; }
+  .v2 .Q .hero::before { content: ""; position: absolute; width: 180px; height: 180px; right: -60px; top: -70px; border-radius: 42% 58% 63% 37% / 45% 40% 60% 55%; background: #d77e57; }
+  .v2 .Q .hero::after { content: ""; position: absolute; width: 90px; height: 90px; right: -30px; bottom: -55px; border-radius: 50%; background: #6b7a3a; opacity: .6; }
+  .v2 .Q .hero > * { position: relative; z-index: 1; }
+  .v2 .Q .hero .big { font-weight: 400; font-size: 46px; }
+  .v2 .Q .sect h3, .v2 .Q .form h3 { font-family: 'Young Serif', serif; font-weight: 400; font-size: 19px; }
+  .v2 .Q .act svg { stroke: #c4623b; }
+  .v2 .Q .act.primary svg { stroke: #fff; }
+  .v2 .Q .av { border-radius: 42% 58% 55% 45% / 50% 45% 55% 50%; }
+
+  /* R · Retro 70s */
+  .v2 .R { --bg:#fff2dc; --fg:#3d2210; --muted:#8c6a4f; --card:#fffaf0; --line:#f0dcbc; --accent:#e2571e; --accentFg:#fff; --r:22px;
+       --font:Outfit, sans-serif; --num:Righteous, sans-serif; --heroBg:#3d2210; --heroFg:#fff2dc; --meter:#f2a93b; --meterBg:rgba(255,242,220,.18); --ring:rgba(226,87,30,.18);
+       --overBg:#e2571e; --over:#fff; --sentBg:#2d6d8c; --sent:#fff; --unpaidBg:#f2a93b; --unpaid:#3d2210; --paidBg:#7a8c3a; --paid:#fff; --barBg:#fffaf0; }
+  .v2 .R .shop { font-family: Righteous, sans-serif; font-weight: 400; font-size: 22px; }
+  .v2 .R .hero { padding-bottom: 38px; }
+  .v2 .R .hero::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 22px; background: linear-gradient(#f2a93b 0 33%, #e2571e 33% 66%, #b8361a 66%); }
+  .v2 .R .hero .big { font-weight: 400; font-size: 46px; letter-spacing: 0; }
+  .v2 .R .sect h3, .v2 .R .form h3 { font-family: Righteous, sans-serif; font-weight: 400; }
+  .v2 .R .act { border: 2px solid #3d2210; }
+  .v2 .R .act.primary { border-color: #3d2210; }
+  .v2 .R .act svg { stroke: #e2571e; }
+  .v2 .R .act.primary svg { stroke: #fff; }
+  .v2 .R .list { border: 2px solid #3d2210; }
+  .v2 .R .av { border: 2px solid #3d2210; }
+  .v2 .R .tabbar { border-top: 2px solid #3d2210; }
+
+  /* S · Pastel Stickers */
+  .v2 .S { --bg:#fdf1f7; --fg:#3a2140; --muted:#93789a; --card:#fff; --line:#f6dcea; --accent:#ff5c9d; --accentFg:#fff; --r:26px;
+       --font:Fredoka, sans-serif; --num:Fredoka, sans-serif; --heroBg:#c8f1e1; --heroFg:#1f4a3c; --meter:#1f4a3c; --meterBg:rgba(31,74,60,.15); --ring:rgba(255,92,157,.2);
+       --overBg:#ffd3e3; --over:#c2185b; --sentBg:#dcd9ff; --sent:#4b3fc1; --unpaidBg:#fff0b8; --unpaid:#7a5a00; --paidBg:#c8f1e1; --paid:#1f6b50; --barBg:#fff; }
+  .v2 .S .shop { font-weight: 700; font-size: 21px; }
+  .v2 .S .hero .big { font-weight: 700; font-size: 46px; }
+  .v2 .S .hero::before { content: "🛒"; position: absolute; right: 18px; top: 12px; font-size: 32px; transform: rotate(14deg); filter: drop-shadow(0 0 0 #fff) drop-shadow(2px 2px 0 #fff) drop-shadow(-2px -2px 0 #fff); }
+  .v2 .S .hero::after { content: "💸"; position: absolute; right: 62px; top: 46px; font-size: 24px; transform: rotate(-12deg); filter: drop-shadow(2px 2px 0 #fff) drop-shadow(-2px -2px 0 #fff); }
+  .v2 .S .act { border: none; box-shadow: 0 6px 16px rgba(255,92,157,.12); font-weight: 600; }
+  .v2 .S .act.primary { box-shadow: 0 8px 18px rgba(255,92,157,.4); }
+  .v2 .S .list, .v2 .S .form { border: none; box-shadow: 0 10px 26px rgba(255,92,157,.1); }
+  .v2 .S .av { border: 3px solid #fff; box-shadow: 0 3px 8px rgba(58,33,64,.15); font-weight: 700; }
+  .v2 .S .item:nth-child(odd) .av { transform: rotate(-8deg); }
+  .v2 .S .item:nth-child(even) .av { transform: rotate(7deg); }
+  .v2 .S .who { font-weight: 600; }
+  .v2 .S .st { font-weight: 600; }
 </style>
 </head>
 <body>
 <header class="page">
   <h1>555 Buku: style options</h1>
-  <p>Thirteen looks for the shop owner's app. A–G show the ledger and the "Add debt" form; H–M show a full home screen. Scroll inside a phone to see more. Pick one, or mix two.</p>
+  <p>Nineteen looks for the shop owner's app. A–G show the ledger and the "Add debt" form; H–S show a full home screen. Scroll inside a phone to see more. Pick one, or mix two.</p>
 </header>
 <div class="grouphead"><h2>First set (A–G)</h2><p>Ledger and "Add debt" form only.</p></div>
 <div class="grid v1">
@@ -480,6 +579,8 @@
 </div>
 <div class="grouphead"><h2>Full home screens (H–M)</h2><p>The newer, more polished set.</p></div>
 <div class="grid v2" id="grid2"></div>
+<div class="grouphead"><h2>Third set (N–S)</h2><p>Full home screens again, in six new directions.</p></div>
+<div class="grid v2" id="grid3"></div>
 <footer>Mockups only: static pictures, not the real app. The PayPal wordmark is a placeholder; the real app uses PayPal's official logo and buttons.</footer>
 <script>
 const I = {
@@ -507,7 +608,15 @@ const opts = [
 ];
 const spark = '<svg class="spark" viewBox="0 0 110 44"><path d="M2 36 L16 30 L28 33 L42 22 L56 26 L70 14 L84 18 L98 8 L108 10" stroke="#c8f542" stroke-width="2"/><path d="M2 36 L16 30 L28 33 L42 22 L56 26 L70 14 L84 18 L98 8 L108 10 L108 44 L2 44Z" fill="rgba(200,245,66,.12)" stroke="none"/></svg>';
 
-document.getElementById('grid2').innerHTML = opts.map(([k,name,why]) => `
+const opts2 = [
+  ['N','Kopitiam','Kopi brown, kopitiam-green checker tiles and a classic serif, like an old coffee shop sign. Warm, nostalgic and very Malaysian, without being cartoonish.'],
+  ['O','iPhone Native','Looks like a built-in iPhone app: big bold title, grey background, white grouped lists and blue buttons. Instantly familiar and very clean on the demo iPhone. Risk: little personality of its own.'],
+  ['P','Android Material','Google’s Android style: soft green surfaces, rounded pill buttons and a highlighted menu icon. Most kedai owners in Malaysia use Android, so it feels at home on their phones.'],
+  ['Q','Terracotta','Clay orange, sand and olive with soft blob shapes and a friendly serif. Earthy, calm and handmade-feeling. Stands out from blue-and-white finance apps.'],
+  ['R','Retro 70s','Brown, orange and mustard stripes with a rounded retro font, like a vintage Malaysian shop sign or old Milo tin. Fun and memorable; bold outlines keep it readable.'],
+  ['S','Pastel Stickers','Pink and mint pastels, a round soft font and tilted sticker-style avatars. Cute and cheerful; very shareable on social media. Risk: may feel too playful for money.'],
+];
+const render = (list, id) => document.getElementById(id).innerHTML = list.map(([k,name,why]) => `
 <section class="option ${k}">
   <h2>${k} · ${name}</h2>
   <p class="why">${why}</p>
@@ -545,6 +654,8 @@ document.getElementById('grid2').innerHTML = opts.map(([k,name,why]) => `
     <div class="on">${I.book}Ledger</div><div>${I.scan}Scan</div><div>${I.doc}Invoices</div><div>${I.user}Customers</div>
   </nav></div>
 </section>`).join('');
+render(opts, 'grid2');
+render(opts2, 'grid3');
 </script>
 </body>
 </html>
