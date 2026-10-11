@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import NavLinks from "./NavLinks";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -23,13 +24,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             555 Buku
           </Link>
           <nav aria-label="Main">
-            <ul className="site-nav">
-              {NAV_LINKS.map((link) => (
-                <li key={link.href}>
-                  <Link href={link.href}>{link.label}</Link>
-                </li>
-              ))}
-            </ul>
+            <NavLinks links={NAV_LINKS} />
           </nav>
         </header>
         <main className="site-main">{children}</main>
