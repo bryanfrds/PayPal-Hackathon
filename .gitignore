@@ -6,3 +6,6 @@ out/
 .DS_Store
 *.log
 .vercel
+
+# TypeScript incremental build info
+*.tsbuildinfo
