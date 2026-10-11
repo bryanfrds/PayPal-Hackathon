@@ -10,7 +10,7 @@ import {
   type GridApi,
   type ModelUpdatedEvent,
 } from "ag-grid-community";
-import { sortLedgerRows, type LedgerRow, type LedgerStatus } from "./sample-data";
+import { formatSen, outstanding, sortDebts, type Debt, type DebtStatus } from "@/lib/debts";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -24,8 +24,10 @@ type LayoutMode = "phone" | "tablet" | "desktop";
 const ROW_HEIGHT = 42;
 const HEADER_HEIGHT = 44;
 
+type LedgerRow = Debt;
+
 function StatusBadge(props: CustomCellRendererProps<LedgerRow>) {
-  const status = props.value as LedgerStatus | undefined;
+  const status = props.value as DebtStatus | undefined;
   if (!status) return null;
   return (
     <span className="status-cell">
@@ -34,48 +36,68 @@ function StatusBadge(props: CustomCellRendererProps<LedgerRow>) {
   );
 }
 
+type DeleteContext = { onDelete: (debt: Debt) => void };
+
+function DeleteButton(props: CustomCellRendererProps<LedgerRow, unknown, DeleteContext>) {
+  const debt = props.data;
+  // The pinned "Still owed" row has no id to delete.
+  if (!debt || props.node.rowPinned) return null;
+  return (
+    <button
+      type="button"
+      className="row-delete"
+      aria-label={`Delete ${debt.customerName}'s tab of RM ${formatSen(debt.amountSen)}`}
+      title="Delete"
+      onClick={() => props.context.onDelete(debt)}
+    >
+      ×
+    </button>
+  );
+}
+
 // Minimum widths are set so the visible columns fit: phone columns total about
-// 290px (fits a 360px phone), tablet about 510px (fits a 700px screen).
+// 320px with the delete button (fits a 360px phone), tablet about 550px (fits a 700px screen).
 function buildColumnDefs(mode: LayoutMode): ColDef<LedgerRow>[] {
   const phone = mode === "phone";
   return [
-    { field: "customerName", headerName: "Name", flex: 1.2, minWidth: phone ? 110 : 120 },
+    { field: "customerName", headerName: "Name", flex: 1.2, minWidth: phone ? 100 : 120 },
     { field: "item", headerName: "Item", flex: 2, minWidth: 150, hide: phone },
     {
-      field: "amountRm",
+      field: "amountSen",
       headerName: mode === "desktop" ? "Amount (RM)" : "RM",
       flex: 1,
       minWidth: phone ? 80 : 130,
       type: "rightAligned",
-      valueFormatter: (p) => (p.value == null ? "" : Number(p.value).toFixed(2)),
+      valueFormatter: (p) => (p.value == null ? "" : formatSen(Number(p.value))),
     },
     { field: "date", headerName: "Date", flex: 1, minWidth: 110, hide: mode !== "desktop" },
     { field: "status", headerName: "Status", flex: 1, minWidth: phone ? 96 : 110, cellRenderer: StatusBadge },
+    {
+      colId: "delete",
+      headerName: "",
+      width: 44,
+      minWidth: 44,
+      maxWidth: 44,
+      sortable: false,
+      filter: false,
+      resizable: false,
+      cellRenderer: DeleteButton,
+    },
   ];
 }
 
 type LedgerView = {
   /** Rows the grid is showing after the quick filter, paid included. */
   visibleCount: number;
-  /** Sum still owed across the visible rows (paid excluded). */
+  /** Sum still owed across the visible rows (paid excluded), in sen. */
   outstandingTotal: number;
   /** Visible rows that are not paid. */
   outstandingCount: number;
 };
 
 function summariseRows(rows: LedgerRow[]): LedgerView {
-  let outstandingTotal = 0;
-  let outstandingCount = 0;
-  for (const row of rows) {
-    if (row.status === "paid") continue;
-    outstandingTotal += row.amountRm;
-    outstandingCount += 1;
-  }
-  return {
-    visibleCount: rows.length,
-    outstandingTotal: Math.round(outstandingTotal * 100) / 100,
-    outstandingCount,
-  };
+  const owed = outstanding(rows);
+  return { visibleCount: rows.length, outstandingTotal: owed.totalSen, outstandingCount: owed.count };
 }
 
 /** Same summary, over the rows the grid is showing after the quick filter. */
@@ -104,12 +126,10 @@ function useLayoutMode(): LayoutMode {
   return mode;
 }
 
-// TODO(Teammate 3): replace SAMPLE_LEDGER_ROWS with live rows from the server,
-// and add loading and error states around the grid.
-export default function LedgerGrid({ rows }: { rows: LedgerRow[] }) {
+export default function LedgerGrid({ rows, onDelete }: { rows: Debt[]; onDelete: (debt: Debt) => void }) {
   const [quickFilter, setQuickFilter] = useState("");
   const layout = useLayoutMode();
-  const sortedRows = useMemo(() => sortLedgerRows(rows), [rows]);
+  const sortedRows = useMemo(() => sortDebts(rows), [rows]);
   const columnDefs = useMemo(() => buildColumnDefs(layout), [layout]);
 
   // Starts from all rows, then follows the quick filter once the grid reports its model.
@@ -134,7 +154,7 @@ export default function LedgerGrid({ rows }: { rows: LedgerRow[] }) {
         id: "OUTSTANDING",
         customerName: "Still owed",
         item: `${view.outstandingCount} ${view.outstandingCount === 1 ? "tab" : "tabs"}, paid excluded`,
-        amountRm: view.outstandingTotal,
+        amountSen: view.outstandingTotal,
       },
     ],
     [view],
@@ -169,6 +189,7 @@ export default function LedgerGrid({ rows }: { rows: LedgerRow[] }) {
           rowHeight={ROW_HEIGHT}
           headerHeight={HEADER_HEIGHT}
           getRowId={(params) => params.data.id}
+          context={{ onDelete } satisfies DeleteContext}
         />
       </div>
     </div>
