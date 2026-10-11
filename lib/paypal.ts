@@ -293,12 +293,14 @@ export function createPayPalClient(config: PayPalConfig, deps: PayPalDeps = {}):
     const text = await res.text();
     const body = parseJson(text);
 
-    if (res.status === 401) {
-      // Token was revoked or expired early: drop it so the next call fetches a new one.
-      cachedToken = null;
-    }
     if (!res.ok) {
-      throw failureMessage(operation, res.status, body);
+      // Build the error first, while the token is still cached, so it gets redacted.
+      const error = failureMessage(operation, res.status, body);
+      if (res.status === 401) {
+        // Token was revoked or expired early: drop it so the next call fetches a new one.
+        cachedToken = null;
+      }
+      throw error;
     }
     return body as T | undefined;
   }

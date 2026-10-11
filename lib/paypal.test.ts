@@ -316,6 +316,23 @@ describe("createDraftInvoice", () => {
     expect((error as PayPalError).debugId).toBe("dbg-123");
   });
 
+  it("redacts the access token from a 401 error message", async () => {
+    const { fetchImpl } = fakeFetch((call) =>
+      call.url.endsWith("/v1/oauth2/token")
+        ? tokenResponse("token-secret-401")
+        : json({ name: "AUTHENTICATION_FAILURE", message: "Token token-secret-401 is invalid" }, 401),
+    );
+    const client = createPayPalClient(CONFIG, { fetch: fetchImpl, now: () => 0 });
+
+    const error = await client
+      .createDraftInvoice({ recipientEmail: "buyer@example.com", recipientName: "x", items: [{ name: "x", amount: 1 }] })
+      .catch((e: unknown) => e);
+
+    expect((error as PayPalError).message).toContain("[redacted]");
+    expect((error as PayPalError).message).not.toContain("token-secret-401");
+    expect((error as PayPalError).status).toBe(401);
+  });
+
   it("drops the cached token on 401 so the next call fetches a new one", async () => {
     let tokenCount = 0;
     const { fetchImpl, calls } = fakeFetch((call) => {
