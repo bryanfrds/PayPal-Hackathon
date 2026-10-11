@@ -11,6 +11,18 @@ Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/) by a
 3. **Chase**: a polite reminder agent follows up, gentler for regulars, firmer when overdue; the owner approves anything unusual.
 4. **Ledger**: an AG Grid dashboard of who owes what, overdue first, with totals and filters.
 
+## Getting started
+
+You need Node.js 20.9 or newer.
+
+1. Install packages: `npm install`
+2. Copy the env template: `cp .env.example .env.local`
+3. Fill in the PayPal sandbox keys in `.env.local`. Get them from [developer.paypal.com](https://developer.paypal.com) → Apps & Credentials → Sandbox. Also set `PAYPAL_SANDBOX_BUYER_EMAIL` to a sandbox buyer account.
+4. Start the app: `npm run dev`, then open http://localhost:3000
+5. Send one test invoice: `npm run paypal:test-invoice`. It prints the invoice id and payer link.
+
+Other useful commands: `npm test` (unit tests), `npm run typecheck`, `npm run build`.
+
 ## Working on it
 
 See [CLAUDE.md](CLAUDE.md) for the team rules. In short: branch from `dev`, open a PR into `dev`, get it reviewed. `main` only gets `dev` at the end.
