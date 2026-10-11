@@ -173,6 +173,76 @@ describe("createDraftInvoice", () => {
     });
   });
 
+  it("asks PayPal to return the full invoice on create", async () => {
+    const { fetchImpl, calls } = fakeFetch((call) =>
+      call.url.endsWith("/v1/oauth2/token") ? tokenResponse() : json({ id: "INV2-PREFER" }, 201),
+    );
+    const client = createPayPalClient(CONFIG, { fetch: fetchImpl, now: () => 0 });
+
+    await client.createDraftInvoice({
+      recipientEmail: "buyer@example.com",
+      recipientName: "Ah Seng",
+      items: [{ name: "Milo", amount: 3 }],
+    });
+
+    expect(headerOf(calls[1].init, "Prefer")).toBe("return=representation");
+  });
+
+  it("reads the invoice id from the self link when the create response is link-only", async () => {
+    const { fetchImpl } = fakeFetch((call) =>
+      call.url.endsWith("/v1/oauth2/token")
+        ? tokenResponse()
+        : json(
+            {
+              href: `${API_BASE}/v2/invoicing/invoices/INV2-LINK-ONLY?fields=all`,
+              rel: "self",
+              method: "GET",
+            },
+            201,
+          ),
+    );
+    const client = createPayPalClient(CONFIG, { fetch: fetchImpl, now: () => 0 });
+
+    const invoice = await client.createDraftInvoice({
+      recipientEmail: "buyer@example.com",
+      recipientName: "Ah Seng",
+      items: [{ name: "Milo", amount: 3 }],
+    });
+
+    expect(invoice.id).toBe("INV2-LINK-ONLY");
+  });
+
+  it("fails clearly when the create response has neither an id nor a self link", async () => {
+    const { fetchImpl } = fakeFetch((call) =>
+      call.url.endsWith("/v1/oauth2/token") ? tokenResponse() : json({ status: "DRAFT" }, 201),
+    );
+    const client = createPayPalClient(CONFIG, { fetch: fetchImpl, now: () => 0 });
+
+    await expect(
+      client.createDraftInvoice({
+        recipientEmail: "buyer@example.com",
+        recipientName: "Ah Seng",
+        items: [{ name: "Milo", amount: 3 }],
+      }),
+    ).rejects.toThrow(/did not return an invoice id/);
+  });
+
+  it("uses a caller-supplied requestId as the idempotency key", async () => {
+    const { fetchImpl, calls } = fakeFetch((call) =>
+      call.url.endsWith("/v1/oauth2/token") ? tokenResponse() : json({ id: "INV2-KEY" }, 201),
+    );
+    const client = createPayPalClient(CONFIG, { fetch: fetchImpl, now: () => 0 });
+
+    await client.createDraftInvoice({
+      recipientEmail: "buyer@example.com",
+      recipientName: "Ah Seng",
+      items: [{ name: "Milo", amount: 3 }],
+      requestId: "order-42-create",
+    });
+
+    expect(headerOf(calls[1].init, "PayPal-Request-Id")).toBe("order-42-create");
+  });
+
   it("uses the configured currency for detail and every item", async () => {
     const { fetchImpl, calls } = fakeFetch((call) =>
       call.url.endsWith("/v1/oauth2/token") ? tokenResponse() : json({ id: "INV2-USD" }, 201),

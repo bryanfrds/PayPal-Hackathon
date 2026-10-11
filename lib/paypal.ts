@@ -31,6 +31,12 @@ export type CreateDraftInvoiceInput = {
   recipientEmail: string;
   recipientName: string;
   items: InvoiceItem[];
+  /**
+   * Idempotency key (PayPal-Request-Id). Pass a stable value, such as our own
+   * order id, so a retried create does not make a second invoice. If omitted,
+   * a random one is generated per call.
+   */
+  requestId?: string;
 };
 
 export type PayPalLink = {
@@ -257,7 +263,7 @@ export function createPayPalClient(config: PayPalConfig, deps: PayPalDeps = {}):
     operation: string,
     method: "GET" | "POST",
     path: string,
-    options: { body?: unknown; idempotent?: boolean } = {},
+    options: { body?: unknown; idempotent?: boolean; requestId?: string; prefer?: string } = {},
   ): Promise<T | undefined> {
     const token = await getAccessToken();
     const headers: Record<string, string> = {
@@ -265,7 +271,10 @@ export function createPayPalClient(config: PayPalConfig, deps: PayPalDeps = {}):
       Accept: "application/json",
     };
     if (options.body !== undefined) headers["Content-Type"] = "application/json";
-    if (options.idempotent) headers["PayPal-Request-Id"] = globalThis.crypto.randomUUID();
+    if (options.prefer) headers.Prefer = options.prefer;
+    if (options.idempotent) {
+      headers["PayPal-Request-Id"] = options.requestId ?? globalThis.crypto.randomUUID();
+    }
 
     const url = `${config.apiBase}${path}`;
     let res: Response;
@@ -319,14 +328,19 @@ export function createPayPalClient(config: PayPalConfig, deps: PayPalDeps = {}):
       })),
     };
 
-    const invoice = await request<PayPalInvoice>("createDraftInvoice", "POST", "/v2/invoicing/invoices", {
+    // Prefer asks PayPal to send the full invoice back. If it still sends only a
+    // HATEOAS link, the id is the last segment of the self link.
+    const response = await request<PayPalInvoice | PayPalLink>("createDraftInvoice", "POST", "/v2/invoicing/invoices", {
       body,
       idempotent: true,
+      requestId: input.requestId,
+      prefer: "return=representation",
     });
-    if (!invoice || typeof invoice.id !== "string") {
+    const id = invoiceIdFromCreateResponse(response);
+    if (!id) {
       throw new PayPalError("PayPal created the invoice but did not return an invoice id.");
     }
-    return invoice;
+    return isInvoice(response) ? response : { id, links: [] };
   }
 
   async function sendInvoice(invoiceId: string): Promise<void> {
@@ -354,6 +368,21 @@ export function createPayPalClient(config: PayPalConfig, deps: PayPalDeps = {}):
   }
 
   return { getAccessToken, createDraftInvoice, sendInvoice, getInvoice };
+}
+
+function isInvoice(value: unknown): value is PayPalInvoice {
+  const record = asRecord(value);
+  return typeof record?.id === "string" && record.id.length > 0;
+}
+
+/** Gets the invoice id from a create response: the body id, else the last segment of the self link. */
+function invoiceIdFromCreateResponse(value: unknown): string | undefined {
+  if (isInvoice(value)) return value.id;
+  const record = asRecord(value);
+  if (record?.rel !== "self" || typeof record.href !== "string") return undefined;
+  const path = record.href.split(/[?#]/)[0].replace(/\/+$/, "");
+  const last = path.slice(path.lastIndexOf("/") + 1);
+  return last || undefined;
 }
 
 /** Returns the link a payer opens to view and pay the invoice, if PayPal gave one. */
