@@ -32,16 +32,18 @@ async function main(): Promise<void> {
   console.log(`Draft created: ${draft.id}`);
 
   console.log("Sending the invoice to the sandbox buyer...");
-  await sendInvoice(draft.id);
+  const sendPayerLink = await sendInvoice(draft.id);
+  console.log(`Send result payer link: ${sendPayerLink ?? "none in the send response"}`);
 
-  // Read it back so the payer link is included even if the send response omits it.
+  // Read it back for the current status and the metadata payer URL.
   const invoice = await getInvoice(draft.id);
-  const payerLink = getPayerLink(invoice);
+  const invoicePayerLink = getPayerLink(invoice);
 
   console.log("");
-  console.log(`Invoice id:  ${invoice.id}`);
-  console.log(`Status:      ${invoice.status ?? "unknown"}`);
-  console.log(`Payer link:  ${payerLink ?? "not returned by PayPal; check the sandbox dashboard"}`);
+  console.log(`Invoice id:          ${invoice.id}`);
+  console.log(`Status:              ${invoice.status ?? "unknown"}`);
+  console.log(`Get-invoice payer link: ${invoicePayerLink ?? "none in the get-invoice response"}`);
+  console.log(`Payer link to open:  ${sendPayerLink ?? invoicePayerLink ?? "not returned by PayPal; check the sandbox dashboard"}`);
 }
 
 main().catch((err: unknown) => {

@@ -45,17 +45,29 @@ export type PayPalLink = {
   method?: string;
 };
 
+export type PayPalInvoiceDetail = {
+  invoice_number?: string;
+  currency_code?: string;
+  metadata?: {
+    create_time?: string;
+    /** The payer-facing URL to view and pay the invoice. */
+    recipient_view_url?: string;
+    invoicer_view_url?: string;
+  };
+};
+
 export type PayPalInvoice = {
   id: string;
   status?: string;
-  invoice_number?: string;
+  detail?: PayPalInvoiceDetail;
   links?: PayPalLink[];
 };
 
 export type PayPalClient = {
   getAccessToken: () => Promise<string>;
   createDraftInvoice: (input: CreateDraftInvoiceInput) => Promise<PayPalInvoice>;
-  sendInvoice: (invoiceId: string) => Promise<void>;
+  /** Sends the invoice to the payer. Returns the payer link from PayPal's response, if any. */
+  sendInvoice: (invoiceId: string) => Promise<string | undefined>;
   getInvoice: (invoiceId: string) => Promise<PayPalInvoice>;
 };
 
@@ -345,8 +357,9 @@ export function createPayPalClient(config: PayPalConfig, deps: PayPalDeps = {}):
     return isInvoice(response) ? response : { id, links: [] };
   }
 
-  async function sendInvoice(invoiceId: string): Promise<void> {
-    await request<unknown>(
+  async function sendInvoice(invoiceId: string): Promise<string | undefined> {
+    // The documented response is a link: { href, rel: "payer-view", method }.
+    const link = await request<PayPalLink>(
       "sendInvoice",
       "POST",
       `/v2/invoicing/invoices/${encodeURIComponent(invoiceId)}/send`,
@@ -355,6 +368,8 @@ export function createPayPalClient(config: PayPalConfig, deps: PayPalDeps = {}):
         idempotent: true,
       },
     );
+    const record = asRecord(link);
+    return record?.rel === "payer-view" && typeof record.href === "string" ? record.href : undefined;
   }
 
   async function getInvoice(invoiceId: string): Promise<PayPalInvoice> {
@@ -387,9 +402,15 @@ function invoiceIdFromCreateResponse(value: unknown): string | undefined {
   return last || undefined;
 }
 
-/** Returns the link a payer opens to view and pay the invoice, if PayPal gave one. */
+/**
+ * Returns the URL a payer opens to view and pay the invoice. Uses
+ * detail.metadata.recipient_view_url, then falls back to a payer-view link.
+ */
 export function getPayerLink(invoice: PayPalInvoice): string | undefined {
-  return invoice.links?.find((link) => link.rel === "payer-view")?.href;
+  return (
+    invoice.detail?.metadata?.recipient_view_url ??
+    invoice.links?.find((link) => link.rel === "payer-view")?.href
+  );
 }
 
 function errorText(err: unknown): string {
@@ -416,7 +437,7 @@ export function createDraftInvoice(input: CreateDraftInvoiceInput): Promise<PayP
   return getDefaultClient().createDraftInvoice(input);
 }
 
-export function sendInvoice(invoiceId: string): Promise<void> {
+export function sendInvoice(invoiceId: string): Promise<string | undefined> {
   return getDefaultClient().sendInvoice(invoiceId);
 }
 

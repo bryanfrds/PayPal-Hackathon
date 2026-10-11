@@ -370,23 +370,81 @@ describe("sendInvoice and getInvoice", () => {
     expect(JSON.parse(send.init.body as string)).toEqual({ send_to_recipient: true, send_to_invoicer: false });
   });
 
-  it("fetches an invoice by id with GET", async () => {
+  it("returns the payer link from the documented 202 send response", async () => {
+    const { fetchImpl } = fakeFetch((call) =>
+      call.url.endsWith("/v1/oauth2/token")
+        ? tokenResponse()
+        : json(
+            { href: "https://api-m.paypal.com/invoice/p#INV2-Z56S-5LLA-Q52L-CPZ5", rel: "payer-view", method: "GET" },
+            202,
+          ),
+    );
+    const client = createPayPalClient(CONFIG, { fetch: fetchImpl, now: () => 0 });
+
+    await expect(client.sendInvoice("INV2-Z56S-5LLA-Q52L-CPZ5")).resolves.toBe(
+      "https://api-m.paypal.com/invoice/p#INV2-Z56S-5LLA-Q52L-CPZ5",
+    );
+  });
+
+  it("returns undefined from send when the response has no body", async () => {
+    const { fetchImpl } = fakeFetch((call) =>
+      call.url.endsWith("/v1/oauth2/token") ? tokenResponse() : new Response(null, { status: 202 }),
+    );
+    const client = createPayPalClient(CONFIG, { fetch: fetchImpl, now: () => 0 });
+
+    await expect(client.sendInvoice("INV2-TEST-1")).resolves.toBeUndefined();
+  });
+
+  it("fetches an invoice by id with GET, using the documented get-invoice shape", async () => {
+    // Shape from PayPal's get-invoice example: no payer-view link in `links`;
+    // the payer URL lives in detail.metadata.recipient_view_url.
     const invoice = {
-      id: "INV2-TEST-1",
+      id: "INV2-Z56S-5LLA-Q52L-CPZ5",
       status: "SENT",
-      links: [{ href: "https://www.sandbox.paypal.com/invoice/p/#INV2-TEST-1", rel: "payer-view", method: "GET" }],
+      detail: {
+        invoice_number: "#123",
+        currency_code: "MYR",
+        metadata: {
+          create_time: "2018-11-12T08:00:20Z",
+          recipient_view_url: "https://www.api-m.paypal.com/invoice/p#Z56S5LLAQ52LCPZ5",
+          invoicer_view_url: "https://www.api-m.paypal.com/invoice/details/INV2-Z56S-5LLA-Q52L-CPZ5",
+        },
+      },
+      links: [
+        { href: `${API_BASE}/v2/invoicing/invoices/INV2-Z56S-5LLA-Q52L-CPZ5`, rel: "self", method: "GET" },
+        { href: `${API_BASE}/v2/invoicing/invoices/INV2-Z56S-5LLA-Q52L-CPZ5/send`, rel: "send", method: "POST" },
+      ],
     };
     const { fetchImpl, calls } = fakeFetch((call) =>
       call.url.endsWith("/v1/oauth2/token") ? tokenResponse() : json(invoice),
     );
     const client = createPayPalClient(CONFIG, { fetch: fetchImpl, now: () => 0 });
 
-    const result = await client.getInvoice("INV2-TEST-1");
+    const result = await client.getInvoice("INV2-Z56S-5LLA-Q52L-CPZ5");
 
     expect(result).toEqual(invoice);
-    expect(calls[1].url).toBe(`${API_BASE}/v2/invoicing/invoices/INV2-TEST-1`);
+    expect(calls[1].url).toBe(`${API_BASE}/v2/invoicing/invoices/INV2-Z56S-5LLA-Q52L-CPZ5`);
     expect(calls[1].init.method).toBe("GET");
-    expect(getPayerLink(result)).toBe("https://www.sandbox.paypal.com/invoice/p/#INV2-TEST-1");
+    expect(getPayerLink(result)).toBe("https://www.api-m.paypal.com/invoice/p#Z56S5LLAQ52LCPZ5");
+  });
+
+  it("falls back to a payer-view link when there is no metadata URL", () => {
+    expect(
+      getPayerLink({
+        id: "INV2-X",
+        links: [{ href: "https://www.sandbox.paypal.com/invoice/p/#INV2-X", rel: "payer-view", method: "GET" }],
+      }),
+    ).toBe("https://www.sandbox.paypal.com/invoice/p/#INV2-X");
+  });
+
+  it("prefers detail.metadata.recipient_view_url over a payer-view link", () => {
+    expect(
+      getPayerLink({
+        id: "INV2-X",
+        detail: { metadata: { recipient_view_url: "https://metadata.example/p" } },
+        links: [{ href: "https://links.example/p", rel: "payer-view" }],
+      }),
+    ).toBe("https://metadata.example/p");
   });
 
   it("returns undefined for a payer link when PayPal gives none", () => {
