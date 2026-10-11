@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AgGridReact, type CustomCellRendererProps } from "ag-grid-react";
 import {
   AllCommunityModule,
@@ -130,6 +130,13 @@ export default function LedgerGrid({ rows, onDelete }: { rows: Debt[]; onDelete:
   const [quickFilter, setQuickFilter] = useState("");
   const layout = useLayoutMode();
   const sortedRows = useMemo(() => sortDebts(rows), [rows]);
+  // AG Grid only reads `context` once, so it gets a stable function that always calls
+  // the latest onDelete instead of the one from the first render.
+  const onDeleteRef = useRef(onDelete);
+  useEffect(() => {
+    onDeleteRef.current = onDelete;
+  });
+  const gridContext = useMemo<DeleteContext>(() => ({ onDelete: (debt) => onDeleteRef.current(debt) }), []);
   const columnDefs = useMemo(() => buildColumnDefs(layout), [layout]);
 
   // Starts from all rows, then follows the quick filter once the grid reports its model.
@@ -189,7 +196,7 @@ export default function LedgerGrid({ rows, onDelete }: { rows: Debt[]; onDelete:
           rowHeight={ROW_HEIGHT}
           headerHeight={HEADER_HEIGHT}
           getRowId={(params) => params.data.id}
-          context={{ onDelete } satisfies DeleteContext}
+          context={gridContext}
         />
       </div>
     </div>

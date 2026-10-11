@@ -17,7 +17,7 @@ function describe(debt: Debt) {
 }
 
 export default function LedgerScreen() {
-  const { debts, ready, persistent, add, remove, reset } = useDebts();
+  const { debts, ready, persistent, unreadable, add, remove, reset, clear } = useDebts();
   const router = useRouter();
   const addedId = useSearchParams().get("added");
   const added = addedId ? debts.find((d) => d.id === addedId) : undefined;
@@ -65,6 +65,23 @@ export default function LedgerScreen() {
         </Link>
       </div>
 
+      {ready && unreadable && (
+        <div className="notice notice-error" role="alert">
+          <p className="notice-text">
+            Your saved tabs couldn&apos;t be read on this device. They&apos;re left as they are until you choose
+            what to do.
+          </p>
+          <div className="notice-actions">
+            <button type="button" className="button" onClick={() => run(reset)}>
+              Start over with sample tabs
+            </button>
+            <button type="button" className="button" onClick={() => run(clear)}>
+              Start empty
+            </button>
+          </div>
+        </div>
+      )}
+
       {ready && !persistent && (
         <p className="notice notice-warning" role="status">
           This browser isn&apos;t saving data (private mode or storage blocked). Entries disappear when you close
@@ -100,7 +117,7 @@ export default function LedgerScreen() {
         <p className="card loading" aria-busy="true">
           Loading your ledger…
         </p>
-      ) : debts.length === 0 ? (
+      ) : unreadable ? null : debts.length === 0 ? (
         <div className="card empty-state">
           <h2>No tabs yet</h2>
           <p>Add the first debt from your buku 555, or load the sample tabs to try things out.</p>
