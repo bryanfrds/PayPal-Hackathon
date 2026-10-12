@@ -19,8 +19,11 @@ function describe(debt: Debt) {
 export default function LedgerScreen() {
   const { debts, ready, persistent, unreadable, add, remove, reset, clear } = useDebts();
   const router = useRouter();
-  const addedId = useSearchParams().get("added");
+  const searchParams = useSearchParams();
+  const addedId = searchParams.get("added");
   const added = addedId ? debts.find((d) => d.id === addedId) : undefined;
+  // Set by the scanner after it saves the lines the owner ticked.
+  const scanned = Number(searchParams.get("scanned")) || 0;
   const [notice, setNotice] = useState<Notice | null>(null);
 
   function clearAdded() {
@@ -95,6 +98,12 @@ export default function LedgerScreen() {
           <button type="button" className="link-button" onClick={() => undoAdd(added)}>
             Undo
           </button>
+        </p>
+      )}
+
+      {scanned > 0 && (
+        <p className="notice notice-success" role="status">
+          Added {scanned} {scanned === 1 ? "debt" : "debts"} from your scan.
         </p>
       )}
 

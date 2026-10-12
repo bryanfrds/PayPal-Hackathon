@@ -1149,3 +1149,557 @@ a.tab-back:focus-visible,
 .card .bill-left-amt {
   color: var(--ink);
 }
+
+/* Home: Scan button beside the total, like Shopee's "Scan & Pay" */
+.hero-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.hero-scan {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.9rem;
+  padding: 0 1.05rem;
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: var(--accent-ink);
+  text-decoration: none;
+  background: var(--accent);
+  border-radius: 14px;
+  box-shadow: 0 0 0 4px rgba(20, 20, 20, 0.08);
+}
+
+.hero-scan .icon {
+  width: 20px;
+  height: 20px;
+}
+
+.hero-scan:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
+.quick-actions {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+/* Scanner (app/scan): full-screen camera, reading sheet, check screen */
+.scan-camera {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  overflow: hidden;
+  color: #ffffff;
+  background: radial-gradient(ellipse at 50% 40%, #3b3a36, #0d0d0d 70%);
+}
+
+.scan-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.scan-photo-dim {
+  filter: brightness(0.45);
+}
+
+.scan-camtop {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: min(100%, var(--column));
+  padding: max(1rem, env(safe-area-inset-top)) 1.1rem 0.5rem;
+  transform: translateX(-50%);
+}
+
+.scan-camtop h1 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.scan-round {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  font: inherit;
+  font-size: 1.1rem;
+  color: #ffffff;
+  text-decoration: none;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.16);
+  border: 0;
+  border-radius: 50%;
+}
+
+.scan-round[aria-pressed="true"] {
+  color: var(--ink);
+  background: #ffffff;
+}
+
+.scan-round-empty {
+  background: none;
+}
+
+.scan-round:focus-visible,
+.scan-mode button:focus-visible,
+.scan-gallery:focus-visible,
+.scan-shutter:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 3px;
+}
+
+.scan-frame {
+  position: absolute;
+  top: 16%;
+  left: 50%;
+  z-index: 1;
+  width: min(80vw, 380px);
+  height: min(52vh, 460px);
+  transform: translateX(-50%);
+}
+
+.scan-frame i {
+  position: absolute;
+  width: 36px;
+  height: 36px;
+  border: 4px solid #ffffff;
+}
+
+.scan-frame i:nth-child(1) {
+  top: 0;
+  left: 0;
+  border-right: 0;
+  border-bottom: 0;
+  border-radius: 14px 0 0 0;
+}
+
+.scan-frame i:nth-child(2) {
+  top: 0;
+  right: 0;
+  border-bottom: 0;
+  border-left: 0;
+  border-radius: 0 14px 0 0;
+}
+
+.scan-frame i:nth-child(3) {
+  bottom: 0;
+  left: 0;
+  border-top: 0;
+  border-right: 0;
+  border-radius: 0 0 0 14px;
+}
+
+.scan-frame i:nth-child(4) {
+  right: 0;
+  bottom: 0;
+  border-top: 0;
+  border-left: 0;
+  border-radius: 0 0 14px 0;
+}
+
+.scan-line {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #ffffff, transparent);
+  box-shadow: 0 0 12px #ffffff;
+  animation: scan-sweep 2.4s ease-in-out infinite;
+}
+
+@keyframes scan-sweep {
+  0%,
+  100% {
+    top: 8%;
+  }
+  50% {
+    top: 90%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scan-line {
+    top: 50%;
+    animation: none;
+  }
+}
+
+.scan-tip {
+  position: absolute;
+  top: calc(16% + min(52vh, 460px) + 0.8rem);
+  left: 0;
+  right: 0;
+  z-index: 1;
+  margin: 0;
+  font-size: 0.85rem;
+  text-align: center;
+  color: #e5e5e5;
+}
+
+.scan-tip-mid {
+  top: 45%;
+}
+
+.scan-fallback {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
+  display: grid;
+  gap: 0.6rem;
+  width: min(calc(100% - 2.5rem), 360px);
+  text-align: center;
+  transform: translate(-50%, -60%);
+}
+
+.scan-fallback p {
+  margin: 0;
+  color: #d4d4d4;
+}
+
+.scan-fallback .scan-fallback-title {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.scan-fallback .button-primary {
+  margin-top: 0.6rem;
+  color: var(--ink);
+  background: #ffffff;
+  border-color: #ffffff;
+}
+
+.scan-fallback-alt {
+  color: #ffffff;
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.scan-camfoot {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  padding: 2.5rem 1.25rem max(1.6rem, env(safe-area-inset-bottom));
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.75) 35%);
+}
+
+.scan-mode {
+  display: flex;
+  justify-content: center;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+
+.scan-mode button {
+  min-height: 2.5rem;
+  padding: 0 1.05rem;
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: #d4d4d4;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+}
+
+.scan-mode button[aria-pressed="true"] {
+  color: var(--ink);
+  background: #ffffff;
+}
+
+.scan-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: min(100%, 360px);
+  margin: 0 auto;
+}
+
+.scan-gallery {
+  display: grid;
+  justify-items: center;
+  gap: 0.25rem;
+  width: 4rem;
+  padding: 0;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #e5e5e5;
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+
+.scan-gallery span {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  font-size: 1.3rem;
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 12px;
+}
+
+.scan-shutter {
+  display: grid;
+  place-items: center;
+  width: 4.6rem;
+  height: 4.6rem;
+  padding: 0;
+  cursor: pointer;
+  background: none;
+  border: 4px solid #ffffff;
+  border-radius: 50%;
+}
+
+.scan-shutter b {
+  display: block;
+  width: 3.6rem;
+  height: 3.6rem;
+  background: #ffffff;
+  border-radius: 50%;
+}
+
+.scan-shutter-off {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.scan-sheet {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: min(100%, var(--column));
+  padding: 1.4rem 1.25rem max(2rem, env(safe-area-inset-bottom));
+  color: var(--ink);
+  background: var(--paper);
+  border-radius: 26px 26px 0 0;
+  transform: translateX(-50%);
+}
+
+.scan-sheet h1 {
+  margin: 0 0 0.2rem;
+  font-size: 1.15rem;
+}
+
+.scan-sheet > p {
+  margin: 0 0 0.9rem;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.scan-bar {
+  height: 6px;
+  overflow: hidden;
+  background: #e2ded6;
+  border-radius: 3px;
+}
+
+.scan-bar b {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+.scan-steps {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.9rem 0 0;
+  padding: 0;
+  font-size: 0.88rem;
+  list-style: none;
+}
+
+.scan-steps li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.scan-steps span {
+  width: 1.1rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.scan-steps .done span {
+  color: var(--paid);
+}
+
+.scan-steps .later {
+  color: #a8a39a;
+}
+
+.scan-thumb {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin-bottom: 0.75rem;
+  padding: 0.8rem 1rem;
+}
+
+.scan-thumb p {
+  margin: 0;
+}
+
+.scan-thumb img,
+.scan-thumb-empty {
+  width: 54px;
+  height: 64px;
+  flex: none;
+  object-fit: cover;
+  background: repeating-linear-gradient(#f4ecd6 0 7px, #c9d6e6 7px 8px);
+  border-radius: 10px;
+}
+
+.scan-thumb .tab-name,
+.scan-thumb .tab-item {
+  display: block;
+}
+
+.scan-retake {
+  margin-left: auto;
+  color: var(--ink);
+}
+
+.scan-sample {
+  font-size: 0.82rem;
+}
+
+.scan-who {
+  display: grid;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.scan-who label {
+  font-weight: 700;
+}
+
+.scan-who select,
+.scan-who input {
+  min-height: 2.75rem;
+  padding: 0.5rem 0.75rem;
+  font: inherit;
+  font-size: 1rem;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1.5px solid var(--field-line);
+  border-radius: 12px;
+}
+
+.scan-who select:focus,
+.scan-who input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(20, 20, 20, 0.1);
+}
+
+.scan-row {
+  display: grid;
+  border-bottom: 1px solid var(--line);
+}
+
+.scan-row:last-child {
+  border-bottom: 0;
+}
+
+.scan-row-main {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.scan-row-main input[type="checkbox"] {
+  width: 1.4rem;
+  height: 1.4rem;
+  flex: none;
+  accent-color: var(--accent);
+}
+
+.scan-row-open {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+  padding: 0.8rem 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+
+.scan-row-open .tab-who {
+  justify-items: start;
+  gap: 0.15rem;
+}
+
+.scan-row-open:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 10px;
+}
+
+.scan-row-error .tab-name {
+  color: var(--overdue);
+}
+
+.scan-edit {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0 0 1rem 2.15rem;
+}
+
+button.tab-back {
+  padding: 0;
+  font: inherit;
+  font-size: 1.3rem;
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+
+button.tab-back:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* .card p is muted by default; errors and names inside cards keep their own colour. */
+.card .field-error {
+  color: var(--overdue);
+}
+
+.card .tab-name {
+  color: var(--ink);
+}
+
+.scan-who select[aria-invalid="true"] {
+  border-color: var(--overdue);
+}
+
+.scan-fallback .button:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 3px;
+}
