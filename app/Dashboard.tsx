@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { formatSen, sortDebts, type Debt } from "@/lib/debts";
+import { customerSlug } from "@/lib/customer-tab";
 import { colourIndex, greeting, initials, summariseHome } from "@/lib/home";
 import { useDebts } from "./useDebts";
 import { BellIcon, PlusIcon, ScanIcon } from "./components/icons";
@@ -26,17 +27,20 @@ function TabRow({ debt }: { debt: Debt }) {
   const [bg, fg] = avatarColours(debt.customerName);
   return (
     <li className="tab-row">
-      <span className="avatar" style={{ background: bg, color: fg }} aria-hidden="true">
-        {initials(debt.customerName)}
-      </span>
-      <span className="tab-who">
-        <span className="tab-name">{debt.customerName}</span>
-        <span className="tab-item">{debt.item || "No item written"}</span>
-      </span>
-      <span className="tab-amt">
-        RM {formatSen(debt.amountSen)}
-        <span className={`badge badge-${debt.status}`}>{debt.status}</span>
-      </span>
+      {/* Opens the customer's own tab page, the one the shop sends them a link to. */}
+      <Link href={`/tab/${customerSlug(debt.customerName)}`} className="tab-row-link">
+        <span className="avatar" style={{ background: bg, color: fg }} aria-hidden="true">
+          {initials(debt.customerName)}
+        </span>
+        <span className="tab-who">
+          <span className="tab-name">{debt.customerName}</span>
+          <span className="tab-item">{debt.item || "No item written"}</span>
+        </span>
+        <span className="tab-amt">
+          RM {formatSen(debt.amountSen)}
+          <span className={`badge badge-${debt.status}`}>{debt.status}</span>
+        </span>
+      </Link>
     </li>
   );
 }

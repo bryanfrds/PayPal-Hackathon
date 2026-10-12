@@ -25,4 +25,9 @@ export const SAMPLE_DEBTS: Debt[] = [
   sample("T-1008", "Mr. Raj", "Kopi O x2", 500, "2026-10-08", "unpaid"),
   sample("T-1009", "Ah Hock", "Air mineral 12 botol", 1200, "2026-09-15", "paid"),
   sample("T-1010", "Nurul", "Biskut Marie x4, sos cili", 1660, "2026-09-22", "paid"),
+  // Kak Lina's older, paid tabs, so her customer page (/tab/kak-lina) has bills to show.
+  sample("T-1011", "Kak Lina", "Roti Gardenia x2", 480, "2026-10-06", "unpaid"),
+  sample("T-1012", "Kak Lina", "Milo 1kg, susu pekat", 1990, "2026-08-03", "paid"),
+  sample("T-1013", "Kak Lina", "Beras 5kg", 1160, "2026-08-01", "paid"),
+  sample("T-1014", "Kak Lina", "Sardin x3, bawang 1kg", 1350, "2026-07-14", "paid"),
 ];
