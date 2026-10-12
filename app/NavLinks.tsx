@@ -2,8 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { BookIcon, HomeIcon, ScanIcon, SendIcon } from "./components/icons";
 
-export type NavLink = { href: string; label: string };
+const ICONS = { home: HomeIcon, scan: ScanIcon, ledger: BookIcon, collect: SendIcon };
+
+export type NavLink = { href: string; label: string; icon: keyof typeof ICONS };
 
 // Marks the link for the current page with aria-current="page" (styled in globals.css).
 export default function NavLinks({ links }: { links: NavLink[] }) {
@@ -11,11 +14,14 @@ export default function NavLinks({ links }: { links: NavLink[] }) {
   return (
     <ul className="site-nav">
       {links.map((link) => {
-        const active = pathname === link.href || pathname.startsWith(`${link.href}/`);
+        const active =
+          link.href === "/" ? pathname === "/" : pathname === link.href || pathname.startsWith(`${link.href}/`);
+        const Icon = ICONS[link.icon];
         return (
           <li key={link.href}>
             <Link href={link.href} aria-current={active ? "page" : undefined}>
-              {link.label}
+              <Icon />
+              <span>{link.label}</span>
             </Link>
           </li>
         );
