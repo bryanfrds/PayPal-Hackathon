@@ -9,6 +9,7 @@ import {
   formatDay,
   formatMonth,
   groupBills,
+  initialPayCount,
   slugFromParam,
   tabPath,
   payableSen,
@@ -42,7 +43,7 @@ describe("customerSlug", () => {
 
   it("never returns an empty slug", () => {
     const slug = customerSlug("!!!");
-    expect(slug).toMatch(/^c-[a-z0-9]+$/);
+    expect(slug).toMatch(/^~[a-z0-9]+$/);
     expect(customerSlug("!!!")).toBe(slug);
     expect(customerSlug("???")).not.toBe(slug);
   });
@@ -156,6 +157,15 @@ describe("toggleBill and payableSen", () => {
   it("unticking a bill unticks every newer one", () => {
     expect(toggleBill(3, 1)).toBe(1);
     expect(toggleBill(3, 0)).toBe(0);
+  });
+
+  it("starts with every bill ticked, or up to the bill you came from", () => {
+    expect(initialPayCount(toPay)).toBe(3);
+    expect(initialPayCount(toPay, "2026-09")).toBe(2);
+    expect(initialPayCount(toPay, "2026-07")).toBe(1);
+    expect(initialPayCount(toPay, "2025-01")).toBe(3);
+    expect(initialPayCount(toPay, "not-a-month")).toBe(3);
+    expect(initialPayCount([], "2026-09")).toBe(0);
   });
 
   it("adds up the ticked bills", () => {

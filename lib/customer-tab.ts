@@ -60,9 +60,10 @@ export function customerSlug(name: string): string {
     .replace(/^-+|-+$/g, "");
   if (slug) return slug;
   // Nothing usable (e.g. only punctuation): a stable id from the name, so it still has a page.
+  // "~" never appears in a normal slug, so this can't clash with a real name's slug.
   let hash = 0;
   for (const ch of name) hash = (hash * 31 + ch.codePointAt(0)!) >>> 0;
-  return `c-${hash.toString(36)}`;
+  return `~${hash.toString(36)}`;
 }
 
 /** "/tab/<slug>" plus an optional "/bills" etc., with the slug encoded for the URL. */
@@ -146,6 +147,15 @@ export function customerTab(debts: Debt[], slug: string, today: string): Custome
  */
 export function toggleBill(count: number, index: number): number {
   return index < count ? index : index + 1;
+}
+
+/**
+ * How many bills start ticked on the pay screen. Coming from one bill's page (`upto` is
+ * its YYYY-MM), that bill and every older one; otherwise, or if the month isn't there, all.
+ */
+export function initialPayCount(toPay: Bill[], upto?: string): number {
+  const index = upto ? toPay.findIndex((b) => b.month === upto) : -1;
+  return index >= 0 ? index + 1 : toPay.length;
 }
 
 /** Sum of the oldest `count` unpaid bills, in sen. */

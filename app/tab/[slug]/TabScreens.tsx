@@ -11,6 +11,7 @@ import {
   daysBetween,
   formatDay,
   formatMonth,
+  initialPayCount,
   payableSen,
   tabPath,
   toggleBill,
@@ -229,7 +230,7 @@ export function TabBills({ slug }: { slug: string }) {
         const bills = view === "toPay" ? tab.toPay : tab.paid;
         return (
           <div className="tab-page">
-            <TopBar title="My bills" back={`${tabPath(slug)}`} />
+            <TopBar title="My bills" back={tabPath(slug)} />
             <div className="segmented" role="group" aria-label="Which bills">
               <button type="button" aria-pressed={view === "toPay"} onClick={() => setView("toPay")}>
                 To pay
@@ -345,7 +346,7 @@ export function TabHistory({ slug }: { slug: string }) {
         }
         return (
           <div className="tab-page">
-            <TopBar title="History" back={`${tabPath(slug)}`} />
+            <TopBar title="History" back={tabPath(slug)} />
             <div className="chips" role="group" aria-label="Show">
               {(
                 [
@@ -385,15 +386,12 @@ export function TabHistory({ slug }: { slug: string }) {
 /* 5 · Amount to pay */
 function PayPicker({ tab, today, slug, upto }: Loaded & { slug: string; upto?: string }) {
   // From a bill's page, tick that bill and every older one (older bills must be paid first).
-  const [count, setCount] = useState(() => {
-    const index = upto ? tab.toPay.findIndex((b) => b.month === upto) : -1;
-    return index >= 0 ? index + 1 : tab.toPay.length;
-  });
+  const [count, setCount] = useState(() => initialPayCount(tab.toPay, upto));
   const total = payableSen(tab.toPay, count);
   const year = Number(today.slice(0, 4));
   return (
     <div className="tab-page tab-page-paybar">
-      <TopBar title="Amount to pay" back={`${tabPath(slug)}`} />
+      <TopBar title="Amount to pay" back={tabPath(slug)} />
       <section className="card pay-total">
         <p className="tab-hero-label">Total unpaid</p>
         <p className="bill-left-amt">
