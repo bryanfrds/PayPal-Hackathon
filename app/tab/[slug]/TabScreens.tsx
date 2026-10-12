@@ -12,6 +12,7 @@ import {
   formatDay,
   formatMonth,
   payableSen,
+  tabPath,
   toggleBill,
   type Bill,
   type CustomerTab,
@@ -25,12 +26,20 @@ type Loaded = { tab: CustomerTab; today: string };
 
 /** Loads the tab, and shows loading / not-found states so each screen only handles the happy path. */
 function WithTab({ slug, children }: { slug: string; children: (loaded: Loaded) => ReactNode }) {
-  const { debts, ready } = useDebts();
+  const { debts, ready, unreadable } = useDebts();
   if (!ready) {
     return (
       <p className="card loading" aria-busy="true">
         Loading your tab…
       </p>
+    );
+  }
+  if (unreadable) {
+    return (
+      <div className="card empty-state" role="alert">
+        <h1 className="tab-empty-title">Your tab couldn&apos;t be loaded</h1>
+        <p>Something went wrong reading the saved tabs. Ask {SHOP_NAME} to check the app.</p>
+      </div>
     );
   }
   const today = todayLocal();
@@ -98,7 +107,7 @@ function DebtRow({ debt, label }: { debt: Debt; label?: string }) {
 function BillCard({ bill, today, slug, year }: { bill: Bill; today: string; slug: string; year: number }) {
   return (
     <li>
-      <Link href={`/tab/${slug}/bills/${bill.month}`} className="card bill-card">
+      <Link href={`${tabPath(slug)}/bills/${bill.month}`} className="card bill-card">
         <span className="tab-who">
           <span className="bill-month">{formatMonth(bill.month, year)}</span>
           <BillBadge bill={bill} today={today} />
@@ -125,6 +134,7 @@ export function TabHome({ slug }: { slug: string }) {
         const usedPct = Math.min(100, Math.round(((tab.limitSen - tab.leftSen) / tab.limitSen) * 100));
         const overdue = tab.toPay.filter((b) => b.status === "overdue");
         const next = tab.toPay.find((b) => b.status === "due");
+        const year = Number(today.slice(0, 4));
         return (
           <div className="tab-page">
             <div className="dash-head">
@@ -176,20 +186,20 @@ export function TabHome({ slug }: { slug: string }) {
                   <p className="tab-bill-due">
                     <span className={`dot ${overdue.length ? "dot-over" : "dot-due"}`} aria-hidden="true" />
                     {overdue.length > 0
-                      ? `${overdue.map((b) => formatMonth(b.month)).join(", ")} overdue`
+                      ? `${overdue.map((b) => formatMonth(b.month, year)).join(", ")} overdue`
                       : null}
                     {overdue.length > 0 && next ? " · " : null}
-                    {next ? `${formatMonth(next.month)} due ${formatDay(next.dueDate)}` : null}
+                    {next ? `${formatMonth(next.month, year)} due ${formatDay(next.dueDate)}` : null}
                   </p>
-                  <Link href={`/tab/${slug}/pay`} className="button button-primary tab-pay">
+                  <Link href={`${tabPath(slug)}/pay`} className="button button-primary tab-pay">
                     Pay now
                   </Link>
                   <p className="tab-note">Pick which bills to pay, then pay through PayPal.</p>
                 </>
               )}
               <div className="tab-links">
-                <Link href={`/tab/${slug}/bills`}>My bills ›</Link>
-                <Link href={`/tab/${slug}/history`}>History ›</Link>
+                <Link href={`${tabPath(slug)}/bills`}>My bills ›</Link>
+                <Link href={`${tabPath(slug)}/history`}>History ›</Link>
               </div>
             </section>
 
@@ -219,7 +229,7 @@ export function TabBills({ slug }: { slug: string }) {
         const bills = view === "toPay" ? tab.toPay : tab.paid;
         return (
           <div className="tab-page">
-            <TopBar title="My bills" back={`/tab/${slug}`} />
+            <TopBar title="My bills" back={`${tabPath(slug)}`} />
             <div className="segmented" role="group" aria-label="Which bills">
               <button type="button" aria-pressed={view === "toPay"} onClick={() => setView("toPay")}>
                 To pay
@@ -255,7 +265,7 @@ export function TabBillDetail({ slug, month }: { slug: string; month: string }) 
         if (!bill) {
           return (
             <div className="tab-page">
-              <TopBar title="Bill" back={`/tab/${slug}/bills`} />
+              <TopBar title="Bill" back={`${tabPath(slug)}/bills`} />
               <div className="card empty-state">
                 <p>There&apos;s no bill for that month.</p>
               </div>
@@ -266,7 +276,7 @@ export function TabBillDetail({ slug, month }: { slug: string; month: string }) 
         const last = bill.debts[bill.debts.length - 1].date;
         return (
           <div className="tab-page">
-            <TopBar title={`${formatMonth(bill.month, Number(today.slice(0, 4)))} bill`} back={`/tab/${slug}/bills`} />
+            <TopBar title={`${formatMonth(bill.month, Number(today.slice(0, 4)))} bill`} back={`${tabPath(slug)}/bills`} />
             <section className="card bill-breakdown">
               <div className="bill-left">
                 <p className="tab-hero-label">Left to pay</p>
@@ -303,8 +313,8 @@ export function TabBillDetail({ slug, month }: { slug: string; month: string }) 
               ))}
             </ul>
             {bill.unpaidSen > 0 && (
-              <Link href={`/tab/${slug}/pay`} className="button button-primary tab-pay">
-                Pay {rm(bill.unpaidSen)}
+              <Link href={`${tabPath(slug)}/pay?upto=${bill.month}`} className="button button-primary tab-pay">
+                Pay this bill
               </Link>
             )}
           </div>
@@ -335,7 +345,7 @@ export function TabHistory({ slug }: { slug: string }) {
         }
         return (
           <div className="tab-page">
-            <TopBar title="History" back={`/tab/${slug}`} />
+            <TopBar title="History" back={`${tabPath(slug)}`} />
             <div className="chips" role="group" aria-label="Show">
               {(
                 [
@@ -373,13 +383,17 @@ export function TabHistory({ slug }: { slug: string }) {
 }
 
 /* 5 · Amount to pay */
-function PayPicker({ tab, today, slug }: Loaded & { slug: string }) {
-  const [count, setCount] = useState(tab.toPay.length);
+function PayPicker({ tab, today, slug, upto }: Loaded & { slug: string; upto?: string }) {
+  // From a bill's page, tick that bill and every older one (older bills must be paid first).
+  const [count, setCount] = useState(() => {
+    const index = upto ? tab.toPay.findIndex((b) => b.month === upto) : -1;
+    return index >= 0 ? index + 1 : tab.toPay.length;
+  });
   const total = payableSen(tab.toPay, count);
   const year = Number(today.slice(0, 4));
   return (
     <div className="tab-page tab-page-paybar">
-      <TopBar title="Amount to pay" back={`/tab/${slug}`} />
+      <TopBar title="Amount to pay" back={`${tabPath(slug)}`} />
       <section className="card pay-total">
         <p className="tab-hero-label">Total unpaid</p>
         <p className="bill-left-amt">
@@ -418,14 +432,13 @@ function PayPicker({ tab, today, slug }: Loaded & { slug: string }) {
           Pay {rm(total)} with PayPal
         </button>
         <p className="tab-note" id="pay-soon">
-          Paying here opens once the shop&apos;s PayPal invoices are connected. Until then, pay from the invoice PayPal
-          emailed you.
+          Paying here opens once the shop&apos;s PayPal invoices are connected. Until then, ask the shop how to pay.
         </p>
       </div>
     </div>
   );
 }
 
-export function TabPay({ slug }: { slug: string }) {
-  return <WithTab slug={slug}>{(loaded) => <PayPicker {...loaded} slug={slug} />}</WithTab>;
+export function TabPay({ slug, upto }: { slug: string; upto?: string }) {
+  return <WithTab slug={slug}>{(loaded) => <PayPicker {...loaded} slug={slug} upto={upto} />}</WithTab>;
 }

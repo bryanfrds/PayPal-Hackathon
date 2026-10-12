@@ -9,6 +9,8 @@ import {
   formatDay,
   formatMonth,
   groupBills,
+  slugFromParam,
+  tabPath,
   payableSen,
   toggleBill,
 } from "./customer-tab";
@@ -28,8 +30,29 @@ describe("customerSlug", () => {
     ["Mr. Raj", "mr-raj"],
     ["  Ah   Hock ", "ah-hock"],
     ["Café Zoë", "cafe-zoe"],
+    ["陈先生", "陈先生"],
+    ["Murugan முருகன்", "murugan-முருகன்"],
   ])("%j → %s", (name, slug) => {
     expect(customerSlug(name)).toBe(slug);
+  });
+
+  it("gives different non-Latin names different slugs", () => {
+    expect(customerSlug("陈先生")).not.toBe(customerSlug("林太太"));
+  });
+
+  it("never returns an empty slug", () => {
+    const slug = customerSlug("!!!");
+    expect(slug).toMatch(/^c-[a-z0-9]+$/);
+    expect(customerSlug("!!!")).toBe(slug);
+    expect(customerSlug("???")).not.toBe(slug);
+  });
+
+  it("round-trips through the URL", () => {
+    const slug = customerSlug("陈先生");
+    const segment = tabPath(slug).split("/")[2];
+    expect(segment).toBe(encodeURIComponent("陈先生"));
+    expect(slugFromParam(segment)).toBe(slug);
+    expect(slugFromParam("%E0%A4%A")).toBe("%E0%A4%A");
   });
 });
 

@@ -44,14 +44,39 @@ export type CustomerTab = {
   history: Debt[];
 };
 
-/** "Pak Ali (Bengkel)" → "pak-ali-bengkel". Used in the customer's link. */
+/**
+ * "Pak Ali (Bengkel)" → "pak-ali-bengkel", "陈先生" → "陈先生". Used in the customer's link
+ * (pass it through tabPath, which encodes it). Spellings that differ only in case,
+ * accents or punctuation ("Mr. Raj", "mr raj") share a slug on purpose: they're the same
+ * customer written two ways. Swap to Person 1's customer IDs once the directory exists.
+ */
 export function customerSlug(name: string): string {
-  return name
+  const slug = name
     .normalize("NFKD")
-    .replace(/[̀-ͯ]/g, "")
+    // Drop Latin accents only (é → e); other scripts' vowel signs are part of the letter.
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/[^\p{L}\p{M}\p{N}]+/gu, "-")
     .replace(/^-+|-+$/g, "");
+  if (slug) return slug;
+  // Nothing usable (e.g. only punctuation): a stable id from the name, so it still has a page.
+  let hash = 0;
+  for (const ch of name) hash = (hash * 31 + ch.codePointAt(0)!) >>> 0;
+  return `c-${hash.toString(36)}`;
+}
+
+/** "/tab/<slug>" plus an optional "/bills" etc., with the slug encoded for the URL. */
+export function tabPath(slug: string, rest = ""): string {
+  return `/tab/${encodeURIComponent(slug)}${rest}`;
+}
+
+/** The slug back out of a URL segment. Next.js may hand it over still percent-encoded. */
+export function slugFromParam(param: string): string {
+  try {
+    return decodeURIComponent(param);
+  } catch {
+    return param;
+  }
 }
 
 /** "2026-09" → "2026-10-10" (the due day in the month after). */

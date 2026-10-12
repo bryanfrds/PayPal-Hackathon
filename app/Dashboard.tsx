@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { formatSen, sortDebts, type Debt } from "@/lib/debts";
-import { customerSlug } from "@/lib/customer-tab";
+import { customerSlug, tabPath } from "@/lib/customer-tab";
 import { colourIndex, greeting, initials, summariseHome } from "@/lib/home";
 import { useDebts } from "./useDebts";
 import { BellIcon, PlusIcon, ScanIcon } from "./components/icons";
@@ -28,7 +28,7 @@ function TabRow({ debt }: { debt: Debt }) {
   return (
     <li className="tab-row">
       {/* Opens the customer's own tab page, the one the shop sends them a link to. */}
-      <Link href={`/tab/${customerSlug(debt.customerName)}`} className="tab-row-link">
+      <Link href={tabPath(customerSlug(debt.customerName))} className="tab-row-link">
         <span className="avatar" style={{ background: bg, color: fg }} aria-hidden="true">
           {initials(debt.customerName)}
         </span>
