@@ -28,9 +28,10 @@ const ledgerTheme = themeQuartz.withParams({
   rowHoverColor: "#f7f5f1",
 });
 
-// Phones hide Item and Date; tablets hide Date. Desktop shows every column.
-const PHONE_QUERY = "(max-width: 600px)";
-const TABLET_QUERY = "(max-width: 820px)";
+// Narrow grids hide Item and Date; medium ones hide Date; wide ones show every column.
+// Measured on the grid itself, since the app is a phone-width column even on a laptop.
+const PHONE_MAX_WIDTH = 440;
+const TABLET_MAX_WIDTH = 700;
 
 type LayoutMode = "phone" | "tablet" | "desktop";
 
@@ -82,6 +83,8 @@ function buildColumnDefs(mode: LayoutMode): ColDef<LedgerRow>[] {
       flex: 1,
       minWidth: phone ? 80 : 130,
       type: "rightAligned",
+      // Right-aligned headers put the filter button before the label, where it looks like an empty column.
+      suppressHeaderFilterButton: true,
       valueFormatter: (p) => (p.value == null ? "" : formatSen(Number(p.value))),
     },
     { field: "date", headerName: "Date", flex: 1, minWidth: 110, hide: mode !== "desktop" },
@@ -123,26 +126,30 @@ function summariseVisible(api: GridApi<LedgerRow>): LedgerView {
   return summariseRows(visible);
 }
 
-function useLayoutMode(): LayoutMode {
-  const [mode, setMode] = useState<LayoutMode>("desktop");
+function modeForWidth(width: number): LayoutMode {
+  if (width <= PHONE_MAX_WIDTH) return "phone";
+  if (width <= TABLET_MAX_WIDTH) return "tablet";
+  return "desktop";
+}
+
+function useLayoutMode(ref: React.RefObject<HTMLElement | null>): LayoutMode {
+  const [mode, setMode] = useState<LayoutMode>("phone");
   useEffect(() => {
-    const phone = window.matchMedia(PHONE_QUERY);
-    const tablet = window.matchMedia(TABLET_QUERY);
-    const update = () => setMode(phone.matches ? "phone" : tablet.matches ? "tablet" : "desktop");
+    const el = ref.current;
+    if (!el) return;
+    const update = () => setMode(modeForWidth(el.getBoundingClientRect().width));
     update();
-    phone.addEventListener("change", update);
-    tablet.addEventListener("change", update);
-    return () => {
-      phone.removeEventListener("change", update);
-      tablet.removeEventListener("change", update);
-    };
-  }, []);
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [ref]);
   return mode;
 }
 
 export default function LedgerGrid({ rows, onDelete }: { rows: Debt[]; onDelete: (debt: Debt) => void }) {
   const [quickFilter, setQuickFilter] = useState("");
-  const layout = useLayoutMode();
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const layout = useLayoutMode(wrapperRef);
   const sortedRows = useMemo(() => sortDebts(rows), [rows]);
   // AG Grid only reads `context` once, so it gets a stable function that always calls
   // the latest onDelete instead of the one from the first render.
@@ -185,7 +192,7 @@ export default function LedgerGrid({ rows, onDelete }: { rows: Debt[]; onDelete:
   const gridHeight = HEADER_HEIGHT + (view.visibleCount + 1) * ROW_HEIGHT + 2;
 
   return (
-    <div className="ledger">
+    <div className="ledger" ref={wrapperRef}>
       <div className="ledger-toolbar">
         <label className="visually-hidden" htmlFor="ledger-search">
           Search the ledger
