@@ -5,7 +5,7 @@
   --paper: #f3f1ec;
   --card: #ffffff;
   --line: #ebe7df;
-  --field-line: #cfc9bd; /* darker so input outlines stay visible */
+  --field-line: #8a8579; /* 3:1 or more on white and paper, so input edges stay visible */
   --accent: #141414;
   --accent-ink: #ffffff;
   --overdue: #c23b22;
