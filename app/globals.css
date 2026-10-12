@@ -5,6 +5,7 @@
   --paper: #f3f1ec;
   --card: #ffffff;
   --line: #ebe7df;
+  --field-line: #cfc9bd; /* darker so input outlines stay visible */
   --accent: #141414;
   --accent-ink: #ffffff;
   --overdue: #c23b22;
@@ -167,7 +168,7 @@ a {
 }
 
 .card h2 a::after {
-  content: " →";
+  content: " →" / "";
   color: var(--muted);
 }
 
@@ -231,7 +232,7 @@ a {
   padding: 0.5rem 1rem;
   font: inherit;
   font-size: 1rem;
-  border: 1.5px solid var(--line);
+  border: 1.5px solid var(--field-line);
   border-radius: 999px;
   background: var(--card);
 }
@@ -382,7 +383,7 @@ a {
   font: inherit;
   font-size: 1rem; /* 16px stops iOS zooming into the field */
   color: var(--ink);
-  border: 1.5px solid var(--line);
+  border: 1.5px solid var(--field-line);
   border-radius: 12px;
   background: var(--paper);
 }
@@ -440,10 +441,6 @@ a {
 
   .form-actions .button {
     flex: 1;
-  }
-
-  .site-nav {
-    gap: 0.9rem;
   }
 }
 
