@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { formatSen, outstanding, sortDebts, type Debt } from "@/lib/debts";
+import { formatSen, sortDebts, type Debt } from "@/lib/debts";
+import { colourIndex, greeting, initials, summariseHome } from "@/lib/home";
 import { useDebts } from "./useDebts";
 import { BellIcon, PlusIcon, ScanIcon } from "./components/icons";
 
@@ -18,24 +19,7 @@ const AVATAR_COLOURS = [
 ] as const;
 
 function avatarColours(name: string) {
-  let hash = 0;
-  for (const ch of name) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
-  return AVATAR_COLOURS[hash % AVATAR_COLOURS.length];
-}
-
-/** "Mak Cik Siti" → "MS", "Nurul" → "N". Ignores brackets like "(Bengkel)". */
-function initials(name: string): string {
-  const words = name.replace(/\(.*?\)/g, "").trim().split(/\s+/).filter(Boolean);
-  if (words.length === 0) return "?";
-  const first = words[0][0];
-  const last = words.length > 1 ? words[words.length - 1][0] : "";
-  return (first + last).toUpperCase();
-}
-
-function greeting(hour: number): string {
-  if (hour < 12) return "Selamat pagi";
-  if (hour < 19) return "Selamat petang";
-  return "Selamat malam";
+  return AVATAR_COLOURS[colourIndex(name, AVATAR_COLOURS.length)];
 }
 
 function TabRow({ debt }: { debt: Debt }) {
@@ -59,11 +43,7 @@ function TabRow({ debt }: { debt: Debt }) {
 
 export default function Dashboard() {
   const { debts, ready } = useDebts();
-  const owed = outstanding(debts);
-  const overdue = debts.filter((d) => d.status === "overdue").length;
-  const paidSen = debts.reduce((sum, d) => (d.status === "paid" ? sum + d.amountSen : sum), 0);
-  const allSen = paidSen + owed.totalSen;
-  const collectedPct = allSen === 0 ? 0 : Math.round((paidSen / allSen) * 100);
+  const { owedSen, openCount, overdueCount, paidSen, collectedPct } = summariseHome(debts);
   const openTabs = sortDebts(debts.filter((d) => d.status !== "paid"));
 
   return (
@@ -84,11 +64,11 @@ export default function Dashboard() {
         </p>
         <p className="hero-big">
           <small>RM</small>
-          {ready ? formatSen(owed.totalSen) : "—"}
+          {ready ? formatSen(owedSen) : "—"}
         </p>
         <p className="hero-sub">
           {ready
-            ? `${owed.count} open ${owed.count === 1 ? "tab" : "tabs"} · ${overdue} overdue`
+            ? `${openCount} open ${openCount === 1 ? "tab" : "tabs"} · ${overdueCount} overdue`
             : "Loading your tabs…"}
         </p>
         <div
@@ -97,13 +77,13 @@ export default function Dashboard() {
           aria-label="Share of all tabs already paid"
           aria-valuemin={0}
           aria-valuemax={100}
-          aria-valuenow={collectedPct}
+          aria-valuenow={ready ? collectedPct : undefined}
         >
-          <b style={{ width: `${collectedPct}%` }} />
+          <b style={{ width: `${ready ? collectedPct : 0}%` }} />
         </div>
         <p className="meter-label">
-          <span>RM {formatSen(paidSen)} collected</span>
-          <span>{collectedPct}%</span>
+          <span>{ready ? `RM ${formatSen(paidSen)} collected` : "—"}</span>
+          <span>{ready ? `${collectedPct}%` : ""}</span>
         </p>
       </section>
 

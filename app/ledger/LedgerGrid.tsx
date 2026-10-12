@@ -30,7 +30,9 @@ const ledgerTheme = themeQuartz.withParams({
 
 // Narrow grids hide Item and Date; medium ones hide Date; wide ones show every column.
 // Measured on the grid itself, since the app is a phone-width column even on a laptop.
-const PHONE_MAX_WIDTH = 440;
+// The column caps the grid at about 448px, so today it is always "phone"; the wider
+// modes stay for if the ledger ever gets a wider layout.
+const PHONE_MAX_WIDTH = 460;
 const TABLET_MAX_WIDTH = 700;
 
 type LayoutMode = "phone" | "tablet" | "desktop";
