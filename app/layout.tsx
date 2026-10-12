@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Manrope } from "next/font/google";
-import Link from "next/link";
 import type { ReactNode } from "react";
-import NavLinks, { type NavLink } from "./NavLinks";
+import type { NavLink } from "./NavLinks";
+import SiteHeader from "./SiteHeader";
 import "./globals.css";
 
 const manrope = Manrope({ subsets: ["latin"], variable: "--font-manrope" });
@@ -23,14 +23,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className={manrope.variable}>
       <body>
-        <header className="site-header">
-          <Link href="/" className="brand">
-            555 Buku
-          </Link>
-          <nav aria-label="Main">
-            <NavLinks links={NAV_LINKS} />
-          </nav>
-        </header>
+        <SiteHeader links={NAV_LINKS} />
         <main className="site-main">{children}</main>
       </body>
     </html>
