@@ -558,7 +558,7 @@ a {
 
 .quick-actions {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 0.65rem;
   margin: 1rem 0 1.6rem;
 }
@@ -1184,10 +1184,6 @@ a.tab-back:focus-visible,
   outline-offset: 4px;
 }
 
-.quick-actions {
-  grid-template-columns: repeat(2, 1fr);
-}
-
 /* Scanner (app/scan): full-screen camera, reading sheet, check screen */
 .scan-camera {
   position: fixed;
@@ -1221,6 +1217,12 @@ a.tab-back:focus-visible,
   width: min(100%, var(--column));
   padding: max(1rem, env(safe-area-inset-top)) 1.1rem 0.5rem;
   transform: translateX(-50%);
+}
+
+.scan-camtop h1,
+.scan-sheet h1,
+.tab-top h1 {
+  outline: none;
 }
 
 .scan-camtop h1 {
@@ -1695,7 +1697,8 @@ button.tab-back:focus-visible {
   color: var(--ink);
 }
 
-.scan-who select[aria-invalid="true"] {
+.scan-who select[aria-invalid="true"],
+.scan-who input[aria-invalid="true"] {
   border-color: var(--overdue);
 }
 

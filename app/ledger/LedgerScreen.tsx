@@ -23,7 +23,8 @@ export default function LedgerScreen() {
   const addedId = searchParams.get("added");
   const added = addedId ? debts.find((d) => d.id === addedId) : undefined;
   // Set by the scanner after it saves the lines the owner ticked.
-  const scanned = Number(searchParams.get("scanned")) || 0;
+  const scannedParam = searchParams.get("scanned") ?? "";
+  const scanned = /^[1-9]\d{0,3}$/.test(scannedParam) ? Number(scannedParam) : 0;
   const [notice, setNotice] = useState<Notice | null>(null);
 
   function clearAdded() {

@@ -28,6 +28,15 @@ function readingSteps(mode: ScanMode): string[] {
 }
 const STEP_MS = 650;
 
+/** Moves focus to a screen's heading when it appears, so screen readers announce the new screen. */
+function useFocusOnMount<T extends HTMLElement>(enabled = true) {
+  const ref = useRef<T>(null);
+  useEffect(() => {
+    if (enabled) ref.current?.focus();
+  }, [enabled]);
+  return ref;
+}
+
 export default function ScanFlow() {
   const [phase, setPhase] = useState<Phase>("camera");
   const [mode, setMode] = useState<ScanMode>("notebook");
@@ -45,17 +54,41 @@ export default function ScanFlow() {
     setPhase("reading");
   }
   const onRead = useCallback(() => setPhase("check"), []);
+  // On first load the page itself has focus; only move it when coming back from Retake.
+  const [returned, setReturned] = useState(false);
 
-  if (phase === "camera") return <Camera mode={mode} onMode={setMode} onPhoto={onPhoto} />;
+  if (phase === "camera") return <Camera mode={mode} onMode={setMode} onPhoto={onPhoto} focusTitle={returned} />;
   if (phase === "reading") return <Reading mode={mode} photo={photo} onDone={onRead} />;
-  return <Check mode={mode} photo={photo} onRetake={() => setPhase("camera")} />;
+  return (
+    <Check
+      mode={mode}
+      photo={photo}
+      onRetake={() => {
+        setReturned(true);
+        setPhase("camera");
+      }}
+    />
+  );
 }
 
 /* 1 · Camera */
 
 type CameraState = "starting" | "live" | "unavailable";
 
-function Camera({ mode, onMode, onPhoto }: { mode: ScanMode; onMode: (m: ScanMode) => void; onPhoto: (url: string) => void }) {
+function Camera({
+  mode,
+  onMode,
+  onPhoto,
+  focusTitle,
+}: {
+  mode: ScanMode;
+  onMode: (m: ScanMode) => void;
+  onPhoto: (url: string) => void;
+  focusTitle: boolean;
+}) {
+  const titleRef = useFocusOnMount<HTMLHeadingElement>(focusTitle);
+  // True once the video has a frame to capture; the shutter waits for it.
+  const [videoReady, setVideoReady] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
@@ -87,6 +120,8 @@ function Camera({ mode, onMode, onPhoto }: { mode: ScanMode; onMode: (m: ScanMod
           void videoRef.current.play().catch(() => {});
         }
         const track = stream.getVideoTracks()[0];
+        // Camera taken by another app or unplugged: offer the photo options instead.
+        if (track) track.onended = () => setState("unavailable");
         const caps = (track?.getCapabilities?.() ?? {}) as MediaTrackCapabilities & { torch?: boolean };
         setTorch({ supported: Boolean(caps.torch), on: false });
         setState("live");
@@ -136,7 +171,14 @@ function Camera({ mode, onMode, onPhoto }: { mode: ScanMode; onMode: (m: ScanMod
   return (
     <div className="scan-camera">
       {state === "live" ? (
-        <video ref={videoRef} className="scan-video" playsInline muted aria-label="Camera view" />
+        <video
+          ref={videoRef}
+          className="scan-video"
+          playsInline
+          muted
+          aria-label="Camera view"
+          onLoadedData={() => setVideoReady(true)}
+        />
       ) : (
         <video ref={videoRef} className="scan-video" playsInline muted hidden />
       )}
@@ -145,7 +187,9 @@ function Camera({ mode, onMode, onPhoto }: { mode: ScanMode; onMode: (m: ScanMod
         <Link href="/" className="scan-round" aria-label="Close scanner">
           ✕
         </Link>
-        <h1>Scan</h1>
+        <h1 ref={titleRef} tabIndex={-1}>
+          Scan
+        </h1>
         {torch.supported ? (
           <button
             type="button"
@@ -176,7 +220,11 @@ function Camera({ mode, onMode, onPhoto }: { mode: ScanMode; onMode: (m: ScanMod
         </>
       )}
 
-      {state === "starting" && <p className="scan-tip scan-tip-mid">Starting the camera…</p>}
+      {(state === "starting" || (state === "live" && !videoReady)) && (
+        <p className="scan-tip scan-tip-mid" role="status">
+          Starting the camera…
+        </p>
+      )}
 
       {state === "unavailable" && (
         <div className="scan-fallback">
@@ -205,7 +253,7 @@ function Camera({ mode, onMode, onPhoto }: { mode: ScanMode; onMode: (m: ScanMod
             <span aria-hidden="true">🖼</span>
             Gallery
           </button>
-          {state === "live" ? (
+          {state === "live" && videoReady ? (
             <button type="button" className="scan-shutter" aria-label="Take photo" onClick={snap}>
               <b />
             </button>
@@ -229,6 +277,7 @@ function Camera({ mode, onMode, onPhoto }: { mode: ScanMode; onMode: (m: ScanMod
 function Reading({ mode, photo, onDone }: { mode: ScanMode; photo: string | null; onDone: () => void }) {
   const [step, setStep] = useState(0);
   const [steps] = useState(() => readingSteps(mode));
+  const titleRef = useFocusOnMount<HTMLHeadingElement>();
   useEffect(() => {
     if (step >= steps.length) {
       onDone();
@@ -246,7 +295,9 @@ function Reading({ mode, photo, onDone }: { mode: ScanMode; photo: string | null
         <img src={photo} alt="" className="scan-video scan-photo-dim" />
       )}
       <div className="scan-sheet" role="status" aria-live="polite">
-        <h1>{mode === "notebook" ? "Reading your buku…" : "Reading your receipt…"}</h1>
+        <h1 ref={titleRef} tabIndex={-1}>
+          {mode === "notebook" ? "Reading your buku…" : "Reading your receipt…"}
+        </h1>
         <p>This takes a few seconds.</p>
         <div className="scan-bar" role="progressbar" aria-label="Reading progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
           <b style={{ width: `${pct}%` }} />
@@ -270,7 +321,10 @@ const NEW_NAME = "__new__";
 
 function Check({ mode, photo, onRetake }: { mode: ScanMode; photo: string | null; onRetake: () => void }) {
   const router = useRouter();
-  const { debts, ready, add, remove } = useDebts();
+  const { debts, ready, addMany } = useDebts();
+  const titleRef = useFocusOnMount<HTMLHeadingElement>();
+  // After a refused save: the line whose first bad field gets focus once it's open.
+  const [focusLine, setFocusLine] = useState<{ key: string; n: number } | null>(null);
   const [today] = useState(() => todayLocal());
   const [lines, setLines] = useState<ScanLine[]>(() => sampleRead(mode, todayLocal()));
   const [open, setOpen] = useState<string | null>(mode === "receipt" ? "r1" : null);
@@ -282,11 +336,27 @@ function Check({ mode, photo, onRetake }: { mode: ScanMode; photo: string | null
   const known = customerNames(debts);
   const included = lines.filter((l) => l.include);
   const total = includedTotalSen(lines, today);
+  // Lines still showing an error; the notice goes away as they're fixed or unticked.
+  const problemCount = lines.filter((l) => l.include && Object.values(errors[l.key] ?? {}).some(Boolean)).length;
 
-  function update(key: string, patch: Partial<ScanLine>) {
-    setLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch, unsure: patch.include === undefined ? undefined : l.unsure } : l)));
-    if (errors[key]) setErrors((prev) => ({ ...prev, [key]: {} }));
+  // Editing a line clears its "unsure" flag (the owner has looked at it) and that field's error only.
+  function update(key: string, field: "customerName" | "item" | "amount", value: string) {
+    setLines((prev) => prev.map((l) => (l.key === key ? { ...l, [field]: value, unsure: undefined } : l)));
+    if (errors[key]?.[field]) setErrors((prev) => ({ ...prev, [key]: { ...prev[key], [field]: undefined } }));
   }
+
+  useEffect(() => {
+    if (!focusLine) return;
+    const lineErrors = errors[focusLine.key] ?? {};
+    const field = (["customerName", "item", "amount"] as const).find((name) => lineErrors[name]);
+    const id =
+      mode === "receipt" && field === "customerName"
+        ? "scan-customer"
+        : `${focusLine.key}-${field === "customerName" ? "name" : field ?? "amount"}`;
+    document.getElementById(id)?.focus();
+    // Runs once per refused save; errors are read as they were then.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusLine]);
 
   function toggle(key: string, include: boolean) {
     setLines((prev) => prev.map((l) => (l.key === key ? { ...l, include } : l)));
@@ -300,18 +370,13 @@ function Check({ mode, photo, onRetake }: { mode: ScanMode; photo: string | null
     if (!result.ok) {
       setErrors(Object.fromEntries(result.problems.map((p) => [p.key, p.errors])));
       setOpen(result.problems[0].key);
+      setFocusLine((prev) => ({ key: result.problems[0].key, n: (prev?.n ?? 0) + 1 }));
       return;
     }
     setSaving(true);
-    const added: string[] = [];
     try {
-      for (const debt of result.debts) {
-        add(debt);
-        added.push(debt.id);
-      }
+      addMany(result.debts); // one write: all of them or none
     } catch (error) {
-      // All or nothing: take back the ones that did save.
-      for (const id of added) remove(id);
       setSaveError(error instanceof DebtStoreError ? error.message : "Couldn't save. Try again.");
       setSaving(false);
       return;
@@ -327,7 +392,9 @@ function Check({ mode, photo, onRetake }: { mode: ScanMode; photo: string | null
         <button type="button" className="tab-back" aria-label="Back to camera" onClick={onRetake}>
           ←
         </button>
-        <h1>{mode === "notebook" ? "Check the page" : "Check the receipt"}</h1>
+        <h1 ref={titleRef} tabIndex={-1}>
+          {mode === "notebook" ? "Check the page" : "Check the receipt"}
+        </h1>
         <span className="tab-back" aria-hidden="true" />
       </div>
 
@@ -353,6 +420,12 @@ function Check({ mode, photo, onRetake }: { mode: ScanMode; photo: string | null
         Sample reading: the AI reader isn&apos;t connected yet, so these lines are examples, not your photo.
       </p>
 
+      {problemCount > 0 && (
+        <p className="notice notice-error" role="alert">
+          {problemCount === 1 ? "1 line needs fixing" : `${problemCount} lines need fixing`} before saving.
+        </p>
+      )}
+
       {saveError && (
         <p className="notice notice-error" role="alert">
           {saveError}
@@ -370,10 +443,10 @@ function Check({ mode, photo, onRetake }: { mode: ScanMode; photo: string | null
             onChange={(e) => {
               if (e.target.value === NEW_NAME) {
                 setPickNew(true);
-                update(receipt.key, { customerName: "" });
+                update(receipt.key, "customerName", "");
               } else {
                 setPickNew(false);
-                update(receipt.key, { customerName: e.target.value });
+                update(receipt.key, "customerName", e.target.value);
               }
             }}
           >
@@ -394,7 +467,9 @@ function Check({ mode, photo, onRetake }: { mode: ScanMode; photo: string | null
               placeholder="Customer's name"
               maxLength={MAX_NAME_LENGTH}
               value={receipt.customerName}
-              onChange={(e) => update(receipt.key, { customerName: e.target.value })}
+              aria-invalid={Boolean(errors[receipt.key]?.customerName) || undefined}
+              aria-describedby={errors[receipt.key]?.customerName ? "scan-customer-error" : undefined}
+              onChange={(e) => update(receipt.key, "customerName", e.target.value)}
             />
           )}
           {errors[receipt.key]?.customerName && (
@@ -453,7 +528,7 @@ function Check({ mode, photo, onRetake }: { mode: ScanMode; photo: string | null
                       value={l.customerName}
                       max={MAX_NAME_LENGTH}
                       error={lineErrors.customerName}
-                      onChange={(v) => update(l.key, { customerName: v })}
+                      onChange={(v) => update(l.key, "customerName", v)}
                     />
                   )}
                   <EditField
@@ -462,7 +537,7 @@ function Check({ mode, photo, onRetake }: { mode: ScanMode; photo: string | null
                     value={l.item}
                     max={MAX_ITEM_LENGTH}
                     error={lineErrors.item}
-                    onChange={(v) => update(l.key, { item: v })}
+                    onChange={(v) => update(l.key, "item", v)}
                   />
                   <EditField
                     id={`${l.key}-amount`}
@@ -470,9 +545,13 @@ function Check({ mode, photo, onRetake }: { mode: ScanMode; photo: string | null
                     value={l.amount}
                     inputMode="decimal"
                     error={lineErrors.amount}
-                    onChange={(v) => update(l.key, { amount: v })}
+                    onChange={(v) => update(l.key, "amount", v)}
                   />
-                  {lineErrors.date && <p className="field-error">{lineErrors.date}</p>}
+                  {lineErrors.date && (
+                    <p className="field-error" id={`${l.key}-date-error`}>
+                      {lineErrors.date}
+                    </p>
+                  )}
                 </div>
               )}
             </li>
