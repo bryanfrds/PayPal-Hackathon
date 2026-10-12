@@ -14,6 +14,20 @@ import { formatSen, outstanding, sortDebts, type Debt, type DebtStatus } from "@
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
+// Style H, Soft Premium: matches the colours in globals.css.
+const ledgerTheme = themeQuartz.withParams({
+  fontFamily: "inherit",
+  foregroundColor: "#141414",
+  accentColor: "#141414",
+  backgroundColor: "#ffffff",
+  headerBackgroundColor: "#ffffff",
+  headerFontWeight: 700,
+  borderColor: "#ebe7df",
+  wrapperBorder: false,
+  wrapperBorderRadius: 24,
+  rowHoverColor: "#f7f5f1",
+});
+
 // Phones hide Item and Date; tablets hide Date. Desktop shows every column.
 const PHONE_QUERY = "(max-width: 600px)";
 const TABLET_QUERY = "(max-width: 820px)";
@@ -192,7 +206,7 @@ export default function LedgerGrid({ rows, onDelete }: { rows: Debt[]; onDelete:
           pinnedBottomRowData={pinnedTotals}
           quickFilterText={quickFilter}
           onModelUpdated={onModelUpdated}
-          theme={themeQuartz}
+          theme={ledgerTheme}
           rowHeight={ROW_HEIGHT}
           headerHeight={HEADER_HEIGHT}
           getRowId={(params) => params.data.id}

@@ -1,16 +1,23 @@
 :root {
-  --ink: #1d2433;
-  --muted: #5b6475;
-  --paper: #fbfaf7;
+  /* Style H, Soft Premium (docs/design/style-options.html) */
+  --ink: #141414;
+  --muted: #6f6b64;
+  --paper: #f3f1ec;
   --card: #ffffff;
-  --line: #e3e0d8;
-  --accent: #0070ba;
+  --line: #ebe7df;
+  --accent: #141414;
   --accent-ink: #ffffff;
-  --overdue: #b42318;
-  --paid: #067647;
-  --sent: #175cd3;
-  --unpaid: #6b5300;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --overdue: #c23b22;
+  --overdue-bg: #ffe9e4;
+  --paid: #2b7a46;
+  --paid-bg: #e6f3ea;
+  --sent: #2f55c4;
+  --sent-bg: #e8eefc;
+  --unpaid: #8c6512;
+  --unpaid-bg: #f6efdc;
+  --radius: 24px;
+  --shadow: 0 1px 0 var(--line), 0 12px 30px rgba(0, 0, 0, 0.05);
+  font-family: var(--font-manrope), system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   color: var(--ink);
   background: var(--paper);
 }
@@ -33,36 +40,54 @@ a {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 0.9rem 1.5rem;
-  background: var(--card);
-  border-bottom: 1px solid var(--line);
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1.1rem 1.5rem 0;
 }
 
 .brand {
-  font-weight: 700;
-  font-size: 1.1rem;
+  font-weight: 800;
+  font-size: 1.2rem;
+  letter-spacing: -0.02em;
   color: var(--ink);
   text-decoration: none;
 }
 
+/* The floating black menu from style H: a pill at the top on wide screens, at the bottom on phones. */
 .site-nav {
   display: flex;
-  gap: 1.25rem;
+  gap: 0.25rem;
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 0.35rem;
+  background: var(--accent);
+  border-radius: 999px;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.18);
 }
 
 .site-nav a {
+  display: block;
+  padding: 0.45rem 0.95rem;
+  color: #a3a3a3;
+  font-weight: 600;
+  font-size: 0.9rem;
   text-decoration: none;
-  font-weight: 500;
-  padding-bottom: 0.15rem;
-  border-bottom: 2px solid transparent;
+  border-radius: 999px;
+}
+
+.site-nav a:hover,
+.site-nav a:focus-visible {
+  color: #ffffff;
+}
+
+.site-nav a:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: -2px;
 }
 
 .site-nav a[aria-current="page"] {
-  color: var(--ink);
-  border-bottom-color: var(--accent);
+  color: var(--accent);
+  background: #ffffff;
 }
 
 .site-main {
@@ -73,17 +98,43 @@ a {
 
 @media (max-width: 600px) {
   .site-header {
-    padding: 0.75rem 1rem;
+    padding: 1rem 1rem 0;
   }
 
   .site-main {
-    padding: 1.25rem 1rem 2rem;
+    /* room for the floating menu */
+    padding: 1.25rem 1rem 6.5rem;
+  }
+
+  .site-header nav {
+    position: fixed;
+    left: 1rem;
+    right: 1rem;
+    bottom: max(1rem, env(safe-area-inset-bottom));
+    z-index: 10;
+  }
+
+  .site-nav {
+    justify-content: space-between;
+  }
+
+  .site-nav li {
+    flex: 1;
+  }
+
+  .site-nav a {
+    padding: 0.7rem 0.25rem;
+    text-align: center;
+    font-size: 0.85rem;
   }
 }
 
 .page-title {
   margin: 0 0 0.5rem;
-  font-size: 1.75rem;
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
 }
 
 .page-intro {
@@ -93,9 +144,9 @@ a {
 
 .card {
   background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 1.25rem;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1.4rem;
 }
 
 .card-grid {
@@ -106,7 +157,18 @@ a {
 
 .card h2 {
   margin: 0 0 0.4rem;
-  font-size: 1.1rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.card h2 a {
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.card h2 a::after {
+  content: " →";
+  color: var(--muted);
 }
 
 .card p {
@@ -136,22 +198,22 @@ a {
 
 .badge-overdue {
   color: var(--overdue);
-  background: #fef3f2;
+  background: var(--overdue-bg);
 }
 
 .badge-sent {
   color: var(--sent);
-  background: #eff8ff;
+  background: var(--sent-bg);
 }
 
 .badge-paid {
   color: var(--paid);
-  background: #ecfdf3;
+  background: var(--paid-bg);
 }
 
 .badge-unpaid {
   color: var(--unpaid);
-  background: #fefbe8;
+  background: var(--unpaid-bg);
 }
 
 .placeholder {
@@ -165,11 +227,19 @@ a {
 
 .ledger-toolbar input {
   width: min(360px, 100%);
-  padding: 0.5rem 0.75rem;
+  min-height: 2.75rem;
+  padding: 0.5rem 1rem;
   font: inherit;
-  border: 1px solid var(--line);
-  border-radius: 8px;
+  font-size: 1rem;
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
   background: var(--card);
+}
+
+.ledger-toolbar input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(20, 20, 20, 0.1);
 }
 
 .visually-hidden {
@@ -203,13 +273,13 @@ a {
   align-items: center;
   justify-content: center;
   min-height: 2.75rem;
-  padding: 0 1.1rem;
+  padding: 0 1.3rem;
   font: inherit;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--ink);
   background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: 8px;
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
   text-decoration: none;
   cursor: pointer;
 }
@@ -238,26 +308,26 @@ a {
 
 .notice {
   margin: 0 0 1rem;
-  padding: 0.7rem 0.9rem;
+  padding: 0.8rem 1rem;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 14px;
   background: var(--card);
 }
 
 .notice-success {
-  border-color: #abefc6;
-  background: #ecfdf3;
+  border-color: transparent;
+  background: var(--paid-bg);
 }
 
 .notice-warning {
-  border-color: #fedf89;
-  background: #fffaeb;
+  border-color: transparent;
+  background: var(--unpaid-bg);
 }
 
 .notice-error {
   color: var(--overdue);
-  border-color: #fecdca;
-  background: #fef3f2;
+  border-color: transparent;
+  background: var(--overdue-bg);
 }
 
 .loading {
@@ -296,7 +366,9 @@ a {
 }
 
 .field label {
+  font-size: 0.9rem;
   font-weight: 600;
+  color: var(--muted);
 }
 
 .optional {
@@ -310,14 +382,15 @@ a {
   font: inherit;
   font-size: 1rem; /* 16px stops iOS zooming into the field */
   color: var(--ink);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--card);
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper);
 }
 
 .field input:focus {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(20, 20, 20, 0.1);
 }
 
 .field input[aria-invalid="true"] {
@@ -357,7 +430,7 @@ a {
 .row-delete:hover,
 .row-delete:focus-visible {
   color: var(--overdue);
-  background: #fef3f2;
+  background: var(--overdue-bg);
 }
 
 @media (max-width: 600px) {
@@ -382,4 +455,11 @@ a {
   display: flex;
   gap: 0.6rem;
   flex-wrap: wrap;
+}
+
+/* AG Grid sits in a card like the lists in style H. */
+.ledger-grid {
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
 }
