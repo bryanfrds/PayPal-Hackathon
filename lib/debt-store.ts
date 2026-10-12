@@ -9,6 +9,8 @@ export interface DebtStore {
   list(): Debt[];
   /** Saves a new debt. Throws DebtStoreError if it can't be saved. */
   add(debt: Debt): void;
+  /** Saves several new debts in one write: all of them or, if it throws, none. */
+  addMany(debts: Debt[]): void;
   /** Changes some fields of a debt. Returns the updated debt, or undefined if there's none with that id. */
   update(id: string, patch: Partial<Omit<Debt, "id">>): Debt | undefined;
   /** Removes a debt and returns it (so it can be restored), or undefined if there's none with that id. */
@@ -119,6 +121,16 @@ export function createDebtStore(storage: StorageLike | null, seed: Debt[]): Debt
       change((current) => {
         if (current.some((d) => d.id === debt.id)) throw new DebtStoreError(`A debt with id ${debt.id} already exists.`);
         return [...current, debt];
+      });
+    },
+    addMany(newDebts) {
+      change((current) => {
+        const ids = new Set(current.map((d) => d.id));
+        for (const debt of newDebts) {
+          if (ids.has(debt.id)) throw new DebtStoreError(`A debt with id ${debt.id} already exists.`);
+          ids.add(debt.id);
+        }
+        return [...current, ...newDebts];
       });
     },
     update(id, patch) {

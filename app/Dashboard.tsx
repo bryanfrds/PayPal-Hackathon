@@ -66,10 +66,17 @@ export default function Dashboard() {
         <p className="hero-label" id="owed-label">
           Still owed to you
         </p>
-        <p className="hero-big">
-          <small>RM</small>
-          {ready ? formatSen(owedSen) : "—"}
-        </p>
+        <div className="hero-row">
+          <p className="hero-big">
+            <small>RM</small>
+            {ready ? formatSen(owedSen) : "—"}
+          </p>
+          {/* Like Shopee's "Scan & Pay": the scanner is always one tap away. */}
+          <Link href="/scan" className="hero-scan">
+            <ScanIcon />
+            Scan
+          </Link>
+        </div>
         <p className="hero-sub">
           {ready
             ? `${openCount} open ${openCount === 1 ? "tab" : "tabs"} · ${overdueCount} overdue`
@@ -92,10 +99,6 @@ export default function Dashboard() {
       </section>
 
       <nav className="quick-actions" aria-label="Quick actions">
-        <Link href="/scan" className="quick">
-          <ScanIcon />
-          Scan buku
-        </Link>
         <Link href="/add" className="quick quick-primary">
           <PlusIcon />
           Add debt

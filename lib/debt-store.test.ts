@@ -66,6 +66,23 @@ describe("createDebtStore", () => {
     expect(() => store.add(debt("S1"))).toThrow(DebtStoreError);
   });
 
+  it("adds several debts in one save", () => {
+    const storage = new FakeStorage();
+    const store = createDebtStore(storage, SEED);
+    store.addMany([debt("N1"), debt("N2")]);
+    expect(createDebtStore(storage, []).list().map((d) => d.id)).toEqual(["S1", "S2", "N1", "N2"]);
+  });
+
+  it("adds none of them when one can't be added", () => {
+    const storage = new FakeStorage();
+    const store = createDebtStore(storage, SEED);
+    expect(() => store.addMany([debt("N1"), debt("S1")])).toThrow(DebtStoreError);
+    expect(() => store.addMany([debt("N2"), debt("N2")])).toThrow(DebtStoreError);
+    storage.failWrites = true;
+    expect(() => store.addMany([debt("N3")])).toThrow(DebtStoreError);
+    expect(store.list().map((d) => d.id)).toEqual(["S1", "S2"]);
+  });
+
   it("updates only the named debt", () => {
     const store = createDebtStore(new FakeStorage(), SEED);
     expect(store.update("S1", { status: "sent" })?.status).toBe("sent");

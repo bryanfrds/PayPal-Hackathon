@@ -54,6 +54,8 @@ export type DebtsApi = {
   unreadable: boolean;
   /** These throw DebtStoreError if the save fails; the debts are then unchanged. */
   add(debt: Debt): void;
+  /** All or none. */
+  addMany(debts: Debt[]): void;
   remove(id: string): Debt | undefined;
   reset(): void;
   clear(): void;
@@ -78,6 +80,10 @@ export function useDebts(): DebtsApi {
     getStore().add(debt);
     changed();
   }, []);
+  const addMany = useCallback((list: Debt[]) => {
+    getStore().addMany(list);
+    changed();
+  }, []);
   const remove = useCallback((id: string) => {
     const removed = getStore().remove(id);
     changed();
@@ -98,6 +104,7 @@ export function useDebts(): DebtsApi {
     persistent: ready ? getStore().persistent : true,
     unreadable: ready ? getStore().unreadable : false,
     add,
+    addMany,
     remove,
     reset,
     clear,
