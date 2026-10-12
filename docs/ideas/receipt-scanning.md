@@ -22,9 +22,9 @@ So the app accepts two kinds of photo:
 
 ## How customers are told to pay (same for both)
 
-1. **Invoice:** after the owner approves, PayPal emails the customer an invoice with a Pay button. The app can also give a link to share on WhatsApp.
-2. **Reminders:** if it's still unpaid, the scheduler asks PayPal to send reminder emails, firmer when overdue.
-3. **Paid:** paying on PayPal updates the ledger automatically, and the reminders stop.
+1. **Invoice:** after the owner approves, PayPal emails the customer an invoice with a Pay button (in sandbox the email lands in the developer dashboard notifications, not a real inbox). The app can also give a link to share on WhatsApp.
+2. **Reminders:** if it's still unpaid, the scheduler asks PayPal to send a reminder email; our message gets firmer when overdue.
+3. **Paid:** once Person 2's webhook is in, paying on PayPal updates the ledger automatically and the reminders stop.
 
 Each customer needs an email address on file.
 
