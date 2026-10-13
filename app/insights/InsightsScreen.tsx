@@ -7,10 +7,9 @@ import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { todayLocal } from "@/lib/debts";
 import { toInsightRows } from "@/lib/insights";
 import { useDebts } from "../useDebts";
+import { canvasHeight, layoutKind } from "./tiles";
 import {
-  PHONE_MAX,
   type BukuRegistry,
-  canvasHeight,
   dataFor,
   initialStateFor,
   themeFor,
@@ -67,24 +66,30 @@ export default function InsightsScreen() {
     return () => observer.disconnect();
   }, []);
 
-  const narrow = width !== null && width <= PHONE_MAX;
-  const layoutKey = width === null ? null : narrow ? "phone" : "wide";
+  const kind = width === null ? null : layoutKind(width);
+  // Days late depend on today, so a page left open past midnight catches up on its next render.
+  const today = todayLocal();
   // Studio reads data and the starting layout once, so it's remounted (via key) when the
-  // ledger changes or the screen crosses between the phone and wide layouts.
+  // ledger or the date changes, or the screen crosses between the phone and wide layouts.
   const data = useMemo(
-    () => dataFor(toInsightRows(debts, todayLocal())),
-    [debts],
+    () => dataFor(toInsightRows(debts, today)),
+    [debts, today],
   );
   const initialState = useMemo(
-    () =>
-      layoutKey === null
-        ? null
-        : initialStateFor(layoutKey === "phone" ? 0 : Infinity),
-    [layoutKey],
+    () => (kind === null ? null : initialStateFor(kind)),
+    [kind],
   );
   const theme = useMemo(() => themeFor(manropeFamily()), []);
+  // Every field the dashboard shows, so any edit to a tab remounts it.
   const version = useMemo(
-    () => debts.map((d) => `${d.id}:${d.status}:${d.amountSen}`).join("|"),
+    () =>
+      debts
+        .map((d) =>
+          [d.id, d.customerName, d.item, d.amountSen, d.date, d.status].join(
+            ":",
+          ),
+        )
+        .join("|"),
     [debts],
   );
 
@@ -101,11 +106,11 @@ export default function InsightsScreen() {
       <div
         className="insights-studio"
         ref={boxRef}
-        style={width === null ? undefined : { height: canvasHeight(width) }}
+        style={kind === null ? undefined : { height: canvasHeight(kind) }}
       >
         {ready && initialState && (
           <AgStudio
-            key={`${layoutKey}-${version}`}
+            key={`${kind}-${today}-${version}`}
             data={data}
             mode="view"
             theme={theme}
