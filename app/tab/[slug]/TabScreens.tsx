@@ -20,7 +20,7 @@ import {
 } from "@/lib/customer-tab";
 import Logo from "../../components/Logo";
 import { BackIcon, BagIcon, CheckIcon, ChevronIcon, ClockIcon, NoteIcon } from "../../components/icons";
-import { payPlan } from "@/lib/customer-pay";
+import { invoicePayState, isPayPalUrl, payPlan, type InvoicePayState } from "@/lib/customer-pay";
 import type { InvoiceRecord } from "@/lib/collect-store";
 import { useCollect } from "../../useCollect";
 import { useDebts } from "../../useDebts";
@@ -399,6 +399,9 @@ function PayPicker({ tab, today, slug, upto }: Loaded & { slug: string; upto?: s
     invoices,
   );
   const single = plan.invoices.length === 1 && plan.notInvoiced.length === 0 ? plan.invoices[0] : null;
+  // Paying is per PayPal invoice, so the amount shown is what paying actually costs.
+  const toPayNow = count > 0 && plan.invoices.length > 0 ? plan.totalSen : total;
+  const coversMore = plan.invoices.some((i) => i.coversMore);
   return (
     <div className="tab-page tab-page-paybar">
       <TopBar title="Amount to pay" back={tabPath(slug)} />
@@ -443,6 +446,12 @@ function PayPicker({ tab, today, slug, upto }: Loaded & { slug: string; upto?: s
           </ul>
         </section>
       )}
+      {count > 0 && coversMore && (
+        <p className="notice pay-not-invoiced">
+          {plan.invoices.length === 1 ? "Your PayPal invoice" : "One of your PayPal invoices"} also covers later bills, so paying it
+          pays those too.
+        </p>
+      )}
       {count > 0 && plan.notInvoiced.length > 0 && (
         <p className="notice notice-warning pay-not-invoiced">
           {rm(plan.notInvoicedSen)} of this hasn&apos;t been invoiced yet, so it can&apos;t be paid online. Ask {SHOP_NAME}{" "}
@@ -452,75 +461,108 @@ function PayPicker({ tab, today, slug, upto }: Loaded & { slug: string; upto?: s
       <div className="paybar">
         <p className="paybar-sum">
           <span>To pay now</span>
-          <b>{rm(total)}</b>
+          <b>{rm(toPayNow)}</b>
         </p>
         {single ? (
-          <PayLink record={single.record} label={`Pay ${rm(single.amountSen)} with PayPal`} wide />
+          <PayLink record={single.record} label={`Pay ${rm(single.amountSen)} with PayPal`} wide describedBy="pay-why" />
         ) : (
           <button type="button" className="button button-primary tab-pay" disabled aria-describedby="pay-why">
-            {count === 0 ? "Tick a bill to pay" : plan.invoices.length > 1 ? "Pay each invoice above" : "Not invoiced yet"}
+            {count === 0 ? "Tick a bill to pay" : plan.invoices.length > 0 ? "Pay the invoices above" : "Not invoiced yet"}
           </button>
         )}
         <p className="tab-note" id="pay-why">
-          {single || plan.invoices.length > 0
-            ? "Opens PayPal. Pay with your PayPal account or a card."
-            : count === 0
-              ? "Choose which bills to pay first."
-              : "The shop hasn't sent a PayPal invoice for these yet."}
+          {single
+            ? "Opens PayPal in a new tab. Pay with your PayPal account or a card."
+            : plan.invoices.length > 0
+              ? "Each invoice opens on PayPal. Pay with your PayPal account or a card."
+              : count === 0
+                ? "Choose which bills to pay first."
+                : "The shop hasn't sent a PayPal invoice for these yet."}
         </p>
       </div>
     </div>
   );
 }
 
-type InvoiceState = { state: "checking" } | { state: "open" } | { state: "paid" } | { state: "unknown" };
+type InvoiceLive = { state: InvoicePayState | "checking"; payerLink?: string };
 
-/** Asks PayPal whether an invoice is already paid (read-only). */
-function useInvoiceState(id: string): InvoiceState {
-  const [state, setState] = useState<InvoiceState>({ state: "checking" });
+/** Asks PayPal where an invoice stands (read-only), again whenever the customer comes back to the page. */
+function useInvoiceLive(id: string): InvoiceLive {
+  const [live, setLive] = useState<InvoiceLive>({ state: "checking" });
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/invoices/${encodeURIComponent(id)}`)
-      .then(async (res) => {
-        const data = (await res.json().catch(() => ({}))) as { status?: string };
-        if (cancelled) return;
-        if (!res.ok || !data.status) setState({ state: "unknown" });
-        else setState({ state: data.status === "PAID" || data.status === "MARKED_AS_PAID" ? "paid" : "open" });
-      })
-      .catch(() => {
-        if (!cancelled) setState({ state: "unknown" });
-      });
+    function check() {
+      fetch(`/api/invoices/${encodeURIComponent(id)}`)
+        .then(async (res) => {
+          const data = (await res.json().catch(() => ({}))) as { status?: string; payerLink?: string };
+          if (cancelled) return;
+          setLive(res.ok ? { state: invoicePayState(data.status), payerLink: data.payerLink } : { state: "unknown" });
+        })
+        .catch(() => {
+          if (!cancelled) setLive((prev) => ({ ...prev, state: "unknown" }));
+        });
+    }
+    check();
+    // Back from paying in the PayPal tab: refresh so a paid invoice stops offering Pay.
+    const onVisible = () => {
+      if (document.visibilityState === "visible") check();
+    };
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       cancelled = true;
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [id]);
-  return state;
+  return live;
 }
 
-function PayLink({ record, label, wide }: { record: InvoiceRecord; label: string; wide?: boolean }) {
-  const status = useInvoiceState(record.id);
-  if (status.state === "paid") {
-    return (
+function PayLink({
+  record,
+  label,
+  wide,
+  describedBy,
+}: {
+  record: InvoiceRecord;
+  label: string;
+  wide?: boolean;
+  describedBy?: string;
+}) {
+  const live = useInvoiceLive(record.id);
+  const link = [live.payerLink, record.payerLink].find(isPayPalUrl);
+  const name = record.number ? `invoice ${record.number}` : "your invoice";
+  let content: ReactNode;
+  if (live.state === "paid") {
+    content = (
       <span className={`pay-done${wide ? " pay-done-wide" : ""}`}>
         <CheckIcon />
         Paid on PayPal
       </span>
     );
-  }
-  if (!record.payerLink) {
-    return (
-      <span className="tab-note">Ask {SHOP_NAME} for the PayPal link.</span>
+  } else if (live.state === "processing") {
+    content = <span className="pay-state">PayPal is processing the payment</span>;
+  } else if (live.state === "closed") {
+    content = <span className="pay-state">This invoice was cancelled. Ask {SHOP_NAME}.</span>;
+  } else if (!link) {
+    content = <span className="pay-state">Ask {SHOP_NAME} for the PayPal link.</span>;
+  } else {
+    content = (
+      <a
+        className={`button button-primary${wide ? " tab-pay" : " pay-small"}`}
+        href={link}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label={`${label === "Pay" ? `Pay ${name}, ${rm(record.amountSen)}, on PayPal` : label} (opens in a new tab)`}
+        aria-describedby={describedBy}
+      >
+        {label}
+      </a>
     );
   }
+  // Announces the change when PayPal reports the invoice paid.
   return (
-    <a
-      className={`button button-primary${wide ? " tab-pay" : " pay-small"}`}
-      href={record.payerLink}
-      target="_blank"
-      rel="noopener noreferrer"
-    >
-      {label}
-    </a>
+    <span role="status" className={wide ? "pay-status-wide" : undefined}>
+      {content}
+    </span>
   );
 }
 

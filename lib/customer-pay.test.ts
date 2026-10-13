@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { InvoiceRecord } from "./collect-store";
-import { payPlan } from "./customer-pay";
+import { invoicePayState, isPayPalUrl, payPlan } from "./customer-pay";
 import type { Debt } from "./debts";
 
 function debt(id: string, amountSen: number, status: Debt["status"] = "sent"): Debt {
@@ -34,5 +34,55 @@ describe("payPlan", () => {
     expect(plan.notInvoiced.map((d) => d.id)).toEqual(["a"]);
     expect(plan.notInvoicedSen).toBe(1000);
     expect(plan.invoices.map((i) => i.record.id)).toEqual(["INV1"]);
+  });
+});
+
+describe("payPlan totals", () => {
+  it("charges a whole invoice that spans unticked bills, and says so", () => {
+    const plan = payPlan([debt("aug", 1000)], [rec("INV1", ["aug", "sep", "oct"], 3000, "2026-10-01T00:00:00Z")]);
+    expect(plan.totalSen).toBe(3000);
+    expect(plan.invoices[0].coversMore).toBe(true);
+  });
+
+  it("adds tabs not invoiced to the total", () => {
+    const plan = payPlan([debt("a", 1000), debt("b", 250, "unpaid")], [rec("INV1", ["a"], 1000, "2026-10-01T00:00:00Z")]);
+    expect(plan.totalSen).toBe(1250);
+    expect(plan.invoices[0].coversMore).toBe(false);
+  });
+
+  it("uses the newest invoice when a tab was invoiced twice", () => {
+    const plan = payPlan([debt("a", 1000)], [rec("OLD", ["a"], 1000, "2026-09-01T00:00:00Z"), rec("NEW", ["a"], 1000, "2026-10-01T00:00:00Z")]);
+    expect(plan.invoices.map((i) => i.record.id)).toEqual(["NEW"]);
+  });
+});
+
+describe("invoicePayState", () => {
+  it.each([
+    ["SENT", "open"],
+    ["UNPAID", "open"],
+    ["PAYMENT_PENDING", "processing"],
+    ["PAID", "paid"],
+    ["MARKED_AS_PAID", "paid"],
+    ["CANCELLED", "closed"],
+    ["REFUNDED", "closed"],
+    [undefined, "unknown"],
+    ["SOMETHING_NEW", "unknown"],
+  ])("%s → %s", (status, state) => {
+    expect(invoicePayState(status)).toBe(state);
+  });
+});
+
+describe("isPayPalUrl", () => {
+  it.each([
+    ["https://www.sandbox.paypal.com/invoice/p/#INV2-1", true],
+    ["https://paypal.com/x", true],
+    ["http://www.paypal.com/x", false],
+    ["https://paypal.com.evil.io/x", false],
+    ["https://evilpaypal.com/x", false],
+    ["javascript:alert(1)", false],
+    ["data:text/html,hi", false],
+    [undefined, false],
+  ])("%s → %s", (url, ok) => {
+    expect(isPayPalUrl(url)).toBe(ok);
   });
 });

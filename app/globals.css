@@ -2875,3 +2875,22 @@ a.button.tab-pay {
   background: var(--paid-bg);
   border-radius: 16px;
 }
+
+.pay-state {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.pay-status-wide {
+  display: block;
+}
+
+.pay-status-wide .pay-state {
+  display: block;
+  margin-top: 1rem;
+  padding: 0.9rem;
+  text-align: center;
+  background: #f7f5f1;
+  border-radius: 16px;
+}

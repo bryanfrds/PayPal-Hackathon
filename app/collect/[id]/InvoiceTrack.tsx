@@ -5,6 +5,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { isPayPalUrl } from "@/lib/customer-pay";
 import { formatDay } from "@/lib/customer-tab";
 import { formatSen } from "@/lib/debts";
 import Avatar from "../../components/Avatar";
@@ -69,7 +70,7 @@ export default function InvoiceTrack({ id }: { id: string }) {
   }
 
   const paid = live.state === "ok" && PAID.has(live.status);
-  const payerLink = (live.state === "ok" && live.payerLink) || record.payerLink;
+  const payerLink = [live.state === "ok" ? live.payerLink : undefined, record.payerLink].find(isPayPalUrl);
   const items = debts.filter((d) => record.debtIds.includes(d.id));
   const sentDay = formatDay(record.sentAt.slice(0, 10));
   const shareText = `Hi ${record.customerName}, here's your invoice from Kedai Ah Seng for RM ${formatSen(record.amountSen)}. You can pay with PayPal or card: ${payerLink}`;
