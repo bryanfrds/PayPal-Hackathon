@@ -66,12 +66,18 @@ export default function NudgeChat() {
     return links;
   }, [invoices]);
 
-  // Follow new messages, unless the owner has scrolled up to read something.
+  // Follow new messages, unless the owner has scrolled up to read something. Whether they're
+  // following is decided when they scroll, so a tall draft card arriving doesn't switch it off.
+  const following = useRef(true);
   useEffect(() => {
-    const end = endRef.current;
-    if (!end) return;
-    const fromBottom = end.getBoundingClientRect().bottom - window.innerHeight;
-    if (fromBottom < 240) end.scrollIntoView({ block: "end" });
+    const onScroll = () => {
+      following.current = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 160;
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+  useEffect(() => {
+    if (following.current) endRef.current?.scrollIntoView({ block: "end" });
   }, [messages, status]);
 
   function send(text: string) {

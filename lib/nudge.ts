@@ -122,12 +122,25 @@ const MAX_REPLY_CHARS = 4_000;
 
 const textPart = (max: number) => z.object({ type: z.literal("text"), text: z.string().max(max) });
 
+// Same limits as the draft_reminder tool in app/api/nudge/route.ts.
+const draftInput = z.object({ slug: z.string().max(80), message: z.string().max(500) });
+const draftOutput = z.union([
+  z.object({ ok: z.literal(true), slug: z.string().max(80), name: z.string().max(80), owedSen: z.number().int().min(0), message: z.string().max(500) }),
+  z.object({ ok: z.literal(false), error: z.string().max(200) }),
+]);
 const draftPart = z.object({
   type: z.literal("tool-draft_reminder"),
   toolCallId: z.string().max(100),
   state: z.string(),
   input: z.unknown().optional(),
   output: z.unknown().optional(),
+});
+const finishedDraft = z.object({
+  type: z.literal("tool-draft_reminder"),
+  toolCallId: z.string().max(100),
+  state: z.literal("output-available"),
+  input: draftInput,
+  output: draftOutput,
 });
 
 const rawMessage = z.object({
@@ -168,8 +181,11 @@ export function cleanMessages(value: unknown): CleanMessage[] | null {
         const draft = draftPart.safeParse(part);
         // Only finished drafts: a half-written one would leave a tool call with no result.
         if (draft.success && draft.data.state === "output-available") {
-          total += JSON.stringify(draft.data.output ?? "").length;
-          parts.push({ ...draft.data, state: "output-available", input: draft.data.input, output: draft.data.output });
+          // A finished draft must look exactly like one the tool made; its input and output both count.
+          const finished = finishedDraft.safeParse(part);
+          if (!finished.success) return null;
+          total += JSON.stringify(finished.data.input).length + JSON.stringify(finished.data.output).length;
+          parts.push(finished.data);
         }
       } else if (message.role === "user") {
         // Files, images and anything else from the owner's side aren't supported.
