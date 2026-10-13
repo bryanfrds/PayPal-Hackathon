@@ -1,5 +1,5 @@
 import { ImageResponse } from "next/og";
-import { AppIconArt, iconFonts } from "../../components/appIcon";
+import { AppIconArt, iconFontOptions } from "../../components/appIcon";
 
 // Home-screen icons listed in app/manifest.ts. Built once at build time.
 const VARIANTS = {
@@ -24,6 +24,6 @@ export async function GET(_req: Request, { params }: { params: Promise<{ variant
   return new ImageResponse(<AppIconArt size={spec.size} rounded={spec.rounded} inset={spec.inset} />, {
     width: spec.size,
     height: spec.size,
-    fonts: await iconFonts(),
+    ...(await iconFontOptions()),
   });
 }

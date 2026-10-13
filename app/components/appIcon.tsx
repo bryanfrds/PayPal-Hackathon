@@ -1,3 +1,6 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+
 // Draws the 555 Buku app icon for ImageResponse (home-screen icons, favicon, Apple touch icon).
 // Matches the logo mark in app/components/Logo.tsx: black notebook, spiral holes, "555".
 
@@ -63,31 +66,20 @@ export function AppIconArt({ size, rounded, inset = 0 }: { size: number; rounded
   );
 }
 
-/** First bytes of a real font file: TrueType (0x00010000 or "true") or OpenType ("OTTO"). */
-function looksLikeFont(data: ArrayBuffer): boolean {
-  if (data.byteLength < 4) return false;
-  const sig = new DataView(data).getUint32(0);
-  return sig === 0x00010000 || sig === 0x4f54544f || sig === 0x74727565;
-}
-
 /**
- * Manrope ExtraBold for the icon's "555", fetched when the icon is built. Any failure
- * (no network, an error page, a slow server) falls back to the default font rather than
- * failing the build.
+ * ImageResponse options for the icon's bold "555": Manrope ExtraBold, kept in the repo
+ * (app/components/fonts, only the glyph "5", SIL Open Font License alongside) so building
+ * never depends on the network. If the file can't be read, the options are left out and
+ * the icon uses next/og's built-in font; passing an empty `fonts` list would throw.
  */
-export async function iconFonts(): Promise<{ name: string; data: ArrayBuffer; weight: 800; style: "normal" }[]> {
+export async function iconFontOptions(): Promise<
+  { fonts: { name: string; data: ArrayBuffer; weight: 800; style: "normal" }[] } | Record<string, never>
+> {
   try {
-    const cssRes = await fetch("https://fonts.googleapis.com/css2?family=Manrope:wght@800&text=555", {
-      signal: AbortSignal.timeout(5000),
-    });
-    if (!cssRes.ok) return [];
-    const url = (await cssRes.text()).match(/src: url\((.+?)\) format\('(?:opentype|truetype)'\)/)?.[1];
-    if (!url) return [];
-    const fontRes = await fetch(url, { signal: AbortSignal.timeout(5000) });
-    if (!fontRes.ok) return [];
-    const data = await fontRes.arrayBuffer();
-    return looksLikeFont(data) ? [{ name: "Manrope", data, weight: 800, style: "normal" }] : [];
+    const file = await readFile(join(process.cwd(), "app/components/fonts/Manrope-ExtraBold-555.ttf"));
+    const data = file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength) as ArrayBuffer;
+    return { fonts: [{ name: "Manrope", data, weight: 800, style: "normal" }] };
   } catch {
-    return [];
+    return {};
   }
 }
