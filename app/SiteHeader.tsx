@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import Logo from "./components/Logo";
 import NavLinks, { type NavLink } from "./NavLinks";
 
 // The shop owner's header and menu. Hidden on a customer's own tab page (/tab/...),
@@ -13,7 +14,7 @@ export default function SiteHeader({ links }: { links: NavLink[] }) {
   return (
     <header className="site-header">
       <Link href="/" className="brand">
-        555 Buku
+        <Logo />
       </Link>
       <nav aria-label="Main">
         <NavLinks links={links} />

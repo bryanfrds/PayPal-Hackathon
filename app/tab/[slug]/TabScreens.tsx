@@ -18,7 +18,8 @@ import {
   type Bill,
   type CustomerTab,
 } from "@/lib/customer-tab";
-import { initials } from "@/lib/home";
+import Logo from "../../components/Logo";
+import { BackIcon, BagIcon, CheckIcon, ChevronIcon, ClockIcon, NoteIcon } from "../../components/icons";
 import { useDebts } from "../../useDebts";
 
 const SHOP_NAME = "Kedai Ah Seng";
@@ -60,7 +61,7 @@ function TopBar({ title, back }: { title: string; back: string }) {
   return (
     <div className="tab-top">
       <Link href={back} className="tab-back" aria-label="Back">
-        ←
+        <BackIcon />
       </Link>
       <h1>{title}</h1>
       <span className="tab-back" aria-hidden="true" />
@@ -90,14 +91,14 @@ function DebtRow({ debt, label }: { debt: Debt; label?: string }) {
   return (
     <li className="tab-row">
       <span className={`tab-icon${paid ? " tab-icon-paid" : ""}`} aria-hidden="true">
-        {paid ? "✓" : "🧺"}
+        {paid ? <CheckIcon /> : <BagIcon />}
       </span>
       <span className="tab-who">
         {label && <span className="tab-name">{label}</span>}
         <span className={label ? "tab-item" : "tab-name"}>{debt.item || "No item written"}</span>
         <span className="tab-item">
           {formatDay(debt.date)}
-          {paid ? " · paid" : ""}
+          {paid ? " · Paid" : ""}
         </span>
       </span>
       <span className="tab-amt">{rm(debt.amountSen)}</span>
@@ -118,9 +119,7 @@ function BillCard({ bill, today, slug, year }: { bill: Bill; today: string; slug
         </span>
         <span className="tab-amt">
           {rm(bill.status === "paid" ? bill.totalSen : bill.unpaidSen)}
-          <span className="chev" aria-hidden="true">
-            ›
-          </span>
+          <ChevronIcon className="icon chev" />
         </span>
       </Link>
     </li>
@@ -138,16 +137,12 @@ export function TabHome({ slug }: { slug: string }) {
         const year = Number(today.slice(0, 4));
         return (
           <div className="tab-page">
-            <div className="dash-head">
-              <div className="tab-shop">
-                <span className="avatar avatar-me" aria-hidden="true">
-                  {initials(SHOP_NAME.replace(/^Kedai\s+/i, ""))}
-                </span>
-                <div>
-                  <p className="dash-hello">{tab.customerName}, your tab at</p>
-                  <h1 className="dash-shop">{SHOP_NAME}</h1>
-                </div>
-              </div>
+            <div className="app-head">
+              <Logo />
+            </div>
+            <div className="tab-intro">
+              <p className="dash-hello">{tab.customerName}, your tab at</p>
+              <h1 className="dash-shop">{SHOP_NAME}</h1>
             </div>
 
             <section className="tab-hero" aria-labelledby="owe-label">
@@ -199,8 +194,14 @@ export function TabHome({ slug }: { slug: string }) {
                 </>
               )}
               <div className="tab-links">
-                <Link href={`${tabPath(slug)}/bills`}>My bills ›</Link>
-                <Link href={`${tabPath(slug)}/history`}>History ›</Link>
+                <Link href={`${tabPath(slug)}/bills`}>
+                  <NoteIcon />
+                  My bills
+                </Link>
+                <Link href={`${tabPath(slug)}/history`}>
+                  <ClockIcon />
+                  History
+                </Link>
               </div>
             </section>
 

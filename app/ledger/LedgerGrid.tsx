@@ -10,7 +10,9 @@ import {
   type GridApi,
   type ModelUpdatedEvent,
 } from "ag-grid-community";
-import { formatSen, outstanding, sortDebts, type Debt, type DebtStatus } from "@/lib/debts";
+import { formatSen, outstanding, sortDebts, STATUS_ORDER, type Debt, type DebtStatus } from "@/lib/debts";
+import StatusBadge, { STATUS_LABEL } from "../components/StatusBadge";
+import { CloseIcon } from "../components/icons";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -43,12 +45,12 @@ const HEADER_HEIGHT = 44;
 
 type LedgerRow = Debt;
 
-function StatusBadge(props: CustomCellRendererProps<LedgerRow>) {
+function StatusCell(props: CustomCellRendererProps<LedgerRow>) {
   const status = props.value as DebtStatus | undefined;
   if (!status) return null;
   return (
     <span className="status-cell">
-      <span className={`badge badge-${status}`}>{status}</span>
+      <StatusBadge status={status} />
     </span>
   );
 }
@@ -67,7 +69,7 @@ function DeleteButton(props: CustomCellRendererProps<LedgerRow, unknown, DeleteC
       title="Delete"
       onClick={() => props.context.onDelete(debt)}
     >
-      ×
+      <CloseIcon className="icon row-delete-icon" />
     </button>
   );
 }
@@ -90,7 +92,19 @@ function buildColumnDefs(mode: LayoutMode): ColDef<LedgerRow>[] {
       valueFormatter: (p) => (p.value == null ? "" : formatSen(Number(p.value))),
     },
     { field: "date", headerName: "Date", flex: 1, minWidth: 110, hide: mode !== "desktop" },
-    { field: "status", headerName: "Status", flex: 1, minWidth: phone ? 96 : 110, cellRenderer: StatusBadge },
+    {
+      field: "status",
+      headerName: "Status",
+      flex: 1,
+      minWidth: phone ? 112 : 120,
+      cellRenderer: StatusCell,
+      // Search and filter by the words on the badge ("Invoice sent"), not the stored value ("sent").
+      getQuickFilterText: (p) => (p.value ? STATUS_LABEL[p.value as DebtStatus] : ""),
+      filterValueGetter: (p) => (p.data?.status ? STATUS_LABEL[p.data.status] : ""),
+      // Header sort goes by urgency (overdue → invoice sent → not sent → paid), not A–Z.
+      comparator: (a, b) => (a ? STATUS_ORDER[a as DebtStatus] : 9) - (b ? STATUS_ORDER[b as DebtStatus] : 9),
+      valueFormatter: (p) => (p.value ? STATUS_LABEL[p.value as DebtStatus] : ""),
+    },
     {
       colId: "delete",
       headerName: "",

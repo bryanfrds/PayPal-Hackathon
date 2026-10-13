@@ -59,3 +59,76 @@ export const BellIcon = (p: IconProps) => (
     <path d="M10 20.5a2 2 0 0 0 4 0" />
   </Svg>
 );
+
+export const CloseIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M6 6l12 12M18 6 6 18" />
+  </Svg>
+);
+
+export const BoltIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M13 3 5 13.5h6L10 21l8-10.5h-6z" />
+  </Svg>
+);
+
+export const ImageIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" />
+    <circle cx="9" cy="10" r="1.6" />
+    <path d="m4 17 5-4.5 4 3.5 2.5-2 4.5 3.5" />
+  </Svg>
+);
+
+export const NoteIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M6 3.5h10.5L19 6v14.5H6z" />
+    <path d="M9 9h7M9 13h7M9 17h4" />
+  </Svg>
+);
+
+export const ReceiptIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M6 3h12v18l-2-1.4-2 1.4-2-1.4-2 1.4-2-1.4L6 21z" />
+    <path d="M9 8h6M9 12h6" />
+  </Svg>
+);
+
+export const BagIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M5 8h14l-1 12H6z" />
+    <path d="M9 8V6a3 3 0 0 1 6 0v2" />
+  </Svg>
+);
+
+export const CheckIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="m5 12.5 4.5 4.5L19 7.5" />
+  </Svg>
+);
+
+export const ClockIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="M12 7.5V12l3 2" />
+  </Svg>
+);
+
+export const BackIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M19 12H5M11 6l-6 6 6 6" />
+  </Svg>
+);
+
+export const ChevronIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="m9 6 6 6-6 6" />
+  </Svg>
+);
+
+export const SearchIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="11" cy="11" r="6" />
+    <path d="m20 20-4.5-4.5" />
+  </Svg>
+);

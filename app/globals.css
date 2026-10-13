@@ -195,7 +195,6 @@ a {
   font-weight: 600;
   line-height: 1;
   white-space: nowrap;
-  text-transform: capitalize;
 }
 
 .badge-overdue {
@@ -427,6 +426,16 @@ a {
   border: 0;
   border-radius: 6px;
   cursor: pointer;
+}
+
+.row-delete {
+  display: inline-grid;
+  place-items: center;
+}
+
+.row-delete-icon {
+  width: 16px;
+  height: 16px;
 }
 
 .row-delete:hover,
@@ -701,12 +710,6 @@ a {
 
 .tab-page-paybar {
   padding-bottom: 9rem;
-}
-
-.tab-shop {
-  display: flex;
-  align-items: center;
-  gap: 0.7rem;
 }
 
 .tab-empty-title {
@@ -1705,4 +1708,109 @@ button.tab-back:focus-visible {
 .scan-fallback .button:focus-visible {
   outline: 2px solid #ffffff;
   outline-offset: 3px;
+}
+
+/* Logo: black notebook mark with spiral holes and "555" (see app/components/Logo.tsx) */
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-weight: 800;
+  font-size: 1.15rem;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.logo-mark {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+  color: #ffffff;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  background: var(--accent);
+  border-radius: 30%;
+}
+
+.logo-mark::before {
+  content: "";
+  position: absolute;
+  left: 13%;
+  top: 20%;
+  bottom: 20%;
+  width: 7%;
+  background: repeating-linear-gradient(#ffffff 0 2px, transparent 2px 5px);
+  opacity: 0.7;
+}
+
+.logo-mark span {
+  margin-left: 14%;
+}
+
+.app-head {
+  margin: 0.25rem 0 1rem;
+}
+
+.tab-intro {
+  margin-bottom: 1rem;
+}
+
+.tab-intro p,
+.tab-intro h1 {
+  margin: 0;
+}
+
+/* Line icons inside controls */
+.scan-mode button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.scan-mode .icon,
+.tab-links .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.scan-round .icon,
+.scan-gallery .icon {
+  width: 20px;
+  height: 20px;
+}
+
+.tab-back .icon {
+  width: 22px;
+  height: 22px;
+}
+
+.tab-icon {
+  color: var(--unpaid);
+}
+
+.tab-icon .icon {
+  width: 19px;
+  height: 19px;
+}
+
+.chev.icon {
+  width: 16px;
+  height: 16px;
+  margin-left: 0.3rem;
+  vertical-align: -3px;
+  color: #b9b5ad;
+}
+
+.tab-links a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.scan-steps .icon {
+  width: 16px;
+  height: 16px;
 }

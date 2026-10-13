@@ -120,7 +120,8 @@ export function createManualDebt(
   return { ...value, id: opts.id, status: "unpaid", source: "manual", createdAt: opts.now.toISOString() };
 }
 
-const STATUS_ORDER: Record<DebtStatus, number> = { overdue: 0, sent: 1, unpaid: 2, paid: 3 };
+/** Most urgent first. Used for sorting the ledger. */
+export const STATUS_ORDER: Record<DebtStatus, number> = { overdue: 0, sent: 1, unpaid: 2, paid: 3 };
 
 /** Overdue first, then by status, then oldest date first within a status. */
 export function sortDebts(debts: Debt[]): Debt[] {

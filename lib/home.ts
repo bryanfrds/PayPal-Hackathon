@@ -1,5 +1,6 @@
 // Numbers and labels for the home dashboard. Pure functions so they can be tested in Node.
 
+import { customerSlug } from "./customer-tab";
 import { outstanding, type Debt } from "./debts";
 
 export type HomeSummary = {
@@ -53,4 +54,43 @@ export function colourIndex(name: string, size: number): number {
   let hash = 0;
   for (const ch of name) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
   return hash % size;
+}
+
+export type CustomerSummary = {
+  customerName: string;
+  /** Still owed across this customer's unpaid debts, in sen. */
+  owedSen: number;
+  /** Unpaid debts. */
+  count: number;
+  /** Oldest unpaid debt's date, YYYY-MM-DD. */
+  since: string;
+  /** The most urgent status among their unpaid debts. */
+  status: Exclude<Debt["status"], "paid">;
+};
+
+const URGENCY: Record<Exclude<Debt["status"], "paid">, number> = { overdue: 0, sent: 1, unpaid: 2 };
+
+/**
+ * One row per customer who still owes something, most urgent first (overdue, then
+ * invoice sent, then not sent), then oldest first. Names are grouped the same way as the
+ * customer's own page (customerSlug), so "Kak Lina" and "kak lina." are one row.
+ */
+export function customerSummaries(debts: Debt[]): CustomerSummary[] {
+  const byName = new Map<string, CustomerSummary>();
+  for (const debt of debts) {
+    if (debt.status === "paid") continue;
+    const key = customerSlug(debt.customerName);
+    const row = byName.get(key);
+    if (!row) {
+      byName.set(key, { customerName: debt.customerName, owedSen: debt.amountSen, count: 1, since: debt.date, status: debt.status });
+      continue;
+    }
+    row.owedSen += debt.amountSen;
+    row.count += 1;
+    if (debt.date < row.since) row.since = debt.date;
+    if (URGENCY[debt.status] < URGENCY[row.status]) row.status = debt.status;
+  }
+  return [...byName.values()].sort(
+    (a, b) => URGENCY[a.status] - URGENCY[b.status] || a.since.localeCompare(b.since),
+  );
 }
