@@ -125,9 +125,12 @@ export type CollectStore = {
   clearPending(slug: string): void;
 };
 
-/** Every call reads what's saved now, so two tabs don't overwrite each other's changes. */
-export function createCollectStore(storage: StorageLike | null): CollectStore {
-  let memEmails: Record<string, string> = {};
+/**
+ * Every call reads what's saved now, so two tabs don't overwrite each other's changes.
+ * `seedEmails` fill in for any customer the owner hasn't saved an email for (demo data).
+ */
+export function createCollectStore(storage: StorageLike | null, seedEmails: Record<string, string> = {}): CollectStore {
+  let memEmails: Record<string, string> = { ...seedEmails };
   let memInvoices: InvoiceRecord[] = [];
   let memPending: Record<string, PendingSend> = {};
   function savePending(change: (current: Record<string, PendingSend>) => Record<string, PendingSend>) {
@@ -136,7 +139,7 @@ export function createCollectStore(storage: StorageLike | null): CollectStore {
     memPending = next;
   }
   return {
-    emails: () => (storage ? read(storage, EMAILS_KEY, isEmailMap, {}) : { ...memEmails }),
+    emails: () => (storage ? { ...seedEmails, ...read(storage, EMAILS_KEY, isEmailMap, {}) } : { ...memEmails }),
     setEmail(slug, email) {
       const next = { ...(storage ? readForWrite(storage, EMAILS_KEY, isEmailMap, {}) : memEmails), [slug]: email.trim() };
       write(storage, EMAILS_KEY, next);
