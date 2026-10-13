@@ -4,35 +4,19 @@ import Link from "next/link";
 import { formatSen } from "@/lib/debts";
 import { customerSlug, formatDay, tabPath } from "@/lib/customer-tab";
 import StatusBadge from "./components/StatusBadge";
-import { colourIndex, customerSummaries, greeting, initials, summariseHome, type CustomerSummary } from "@/lib/home";
+import { customerSummaries, greeting, summariseHome, type CustomerSummary } from "@/lib/home";
+import Avatar from "./components/Avatar";
 import { useDebts } from "./useDebts";
 import { BellIcon, PlusIcon, ScanIcon } from "./components/icons";
 
 const CUSTOMERS_SHOWN = 5;
 
-// Soft avatar colours; a name always gets the same one.
-const AVATAR_COLOURS = [
-  ["#fde8df", "#b4441f"],
-  ["#e3ecfb", "#2f55c4"],
-  ["#e6f3ea", "#2b7a46"],
-  ["#f6efdc", "#8c6512"],
-  ["#efe6f8", "#6b3fa0"],
-  ["#e0f2f1", "#1d6f69"],
-] as const;
-
-function avatarColours(name: string) {
-  return AVATAR_COLOURS[colourIndex(name, AVATAR_COLOURS.length)];
-}
-
 function CustomerRow({ row }: { row: CustomerSummary }) {
-  const [bg, fg] = avatarColours(row.customerName);
   return (
     <li className="tab-row">
       {/* Opens the customer's own tab page, the one the shop sends them a link to. */}
       <Link href={tabPath(customerSlug(row.customerName))} className="tab-row-link">
-        <span className="avatar" style={{ background: bg, color: fg }} aria-hidden="true">
-          {initials(row.customerName)}
-        </span>
+        <Avatar name={row.customerName} />
         <span className="tab-who">
           <span className="tab-name">{row.customerName}</span>
           <span className="tab-item">
