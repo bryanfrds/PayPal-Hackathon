@@ -66,8 +66,12 @@ export default function NudgeChat() {
     return links;
   }, [invoices]);
 
+  // Follow new messages, unless the owner has scrolled up to read something.
   useEffect(() => {
-    endRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
+    const end = endRef.current;
+    if (!end) return;
+    const fromBottom = end.getBoundingClientRect().bottom - window.innerHeight;
+    if (fromBottom < 240) end.scrollIntoView({ block: "end" });
   }, [messages, status]);
 
   function send(text: string) {
@@ -94,7 +98,8 @@ export default function NudgeChat() {
         )}
       </div>
 
-      <div className="nudge-log" aria-live="polite">
+      {/* Busy while a reply streams in, so screen readers don't read every word as it lands. */}
+      <div className="nudge-log" aria-busy={busy} aria-live="polite">
         {messages.length === 0 && (
           <div className="nudge-hello">
             <p>
@@ -111,12 +116,20 @@ export default function NudgeChat() {
               const key = `${message.id}-${i}`;
               if (part.type === "text") return <p key={key}>{part.text}</p>;
               if (part.type === "tool-draft_reminder") {
-                if (part.state !== "output-available") {
+                if (part.state === "output-error") {
                   return (
+                    <p key={key} className="nudge-working">
+                      That draft didn't work. Ask again.
+                    </p>
+                  );
+                }
+                if (part.state !== "output-available") {
+                  // Still being written, unless the reply stopped or failed part-way.
+                  return busy ? (
                     <p key={key} className="nudge-working">
                       Writing a reminder…
                     </p>
-                  );
+                  ) : null;
                 }
                 const draft = part.output as Draft;
                 if (!draft.ok) return null;
