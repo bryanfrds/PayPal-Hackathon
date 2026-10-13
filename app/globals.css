@@ -2832,3 +2832,65 @@ button.tab-back:focus-visible {
   font-weight: 700;
   color: var(--unpaid);
 }
+
+/* Customer pay screen: PayPal invoice links */
+.pay-invoices {
+  margin-top: 0.25rem;
+}
+
+.pay-not-invoiced {
+  margin: 0.75rem 0 0;
+  font-size: 0.85rem;
+}
+
+.pay-small {
+  min-height: 2.5rem;
+  padding: 0 1rem;
+  border-radius: 12px;
+}
+
+a.button.tab-pay {
+  display: flex;
+}
+
+.pay-done {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  font-weight: 800;
+  font-size: 0.88rem;
+  color: var(--paid);
+}
+
+.pay-done .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.pay-done-wide {
+  width: 100%;
+  min-height: 3.1rem;
+  margin-top: 1rem;
+  background: var(--paid-bg);
+  border-radius: 16px;
+}
+
+.pay-state {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.pay-status-wide {
+  display: block;
+}
+
+.pay-status-wide .pay-state {
+  display: block;
+  margin-top: 1rem;
+  padding: 0.9rem;
+  text-align: center;
+  background: #f7f5f1;
+  border-radius: 16px;
+}
