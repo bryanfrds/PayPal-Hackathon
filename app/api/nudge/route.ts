@@ -7,28 +7,25 @@
 
 import { convertToModelMessages, createUIMessageStreamResponse, isStepCount, streamText, tool, toUIMessageStream, type UIMessage } from "ai";
 import { z } from "zod";
-import { MAX_MESSAGE_CHARS, MAX_MESSAGES, nudgeContextSchema, nudgeSystemPrompt } from "@/lib/nudge";
+import { MAX_MESSAGE_CHARS, cleanMessages, nudgeContextSchema, nudgeSystemPrompt } from "@/lib/nudge";
 
 /** Fast and cheap enough for short drafts; override with AI_GATEWAY_MODEL. */
 const DEFAULT_MODEL = "anthropic/claude-haiku-5.5";
 
 export const maxDuration = 60;
 
-function connected(): boolean {
-  // A key locally; on Vercel the project's OIDC token also works.
-  return Boolean(process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN);
+function connected(req: Request): boolean {
+  // A key locally. On Vercel the project's OIDC token also works: the gateway reads it from
+  // this request header first, then the environment.
+  return Boolean(process.env.AI_GATEWAY_API_KEY || req.headers.get("x-vercel-oidc-token") || process.env.VERCEL_OIDC_TOKEN);
 }
 
 function fail(status: number, error: string) {
   return Response.json({ error }, { status });
 }
 
-function textLength(message: UIMessage): number {
-  return message.parts.reduce((n, part) => n + (part.type === "text" ? part.text.length : 0), 0);
-}
-
 export async function POST(req: Request) {
-  if (!connected()) {
+  if (!connected(req)) {
     return fail(503, "Nudge isn't connected yet. Add an AI Gateway key to .env.local (AI_GATEWAY_API_KEY), then restart.");
   }
 
@@ -38,17 +35,13 @@ export async function POST(req: Request) {
   } catch {
     return fail(400, "That message couldn't be read.");
   }
-  const { messages, context } = (body ?? {}) as { messages?: UIMessage[]; context?: unknown };
+  const { messages: raw, context } = (body ?? {}) as { messages?: unknown; context?: unknown };
   const parsed = nudgeContextSchema.safeParse(context);
-  if (!Array.isArray(messages) || messages.length === 0 || !parsed.success) {
-    return fail(400, "That message couldn't be read.");
-  }
-  if (messages.length > MAX_MESSAGES) {
-    return fail(413, "This chat is long. Start a new one to keep going.");
-  }
-  const last = messages[messages.length - 1];
-  if (last?.role !== "user" || textLength(last) > MAX_MESSAGE_CHARS) {
-    return fail(413, `Keep messages under ${MAX_MESSAGE_CHARS} characters.`);
+  if (!parsed.success) return fail(400, "That message couldn't be read.");
+  // Every message is checked, not just the newest: roles, part types and sizes.
+  const messages = cleanMessages(raw);
+  if (!messages) {
+    return fail(413, `This chat is too long or has something Nudge can't read. Keep messages under ${MAX_MESSAGE_CHARS} characters, or start a new chat.`);
   }
 
   const shop = parsed.data;
@@ -57,7 +50,7 @@ export async function POST(req: Request) {
   const result = streamText({
     model: process.env.AI_GATEWAY_MODEL || DEFAULT_MODEL,
     system: nudgeSystemPrompt(shop),
-    messages: await convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages as UIMessage[], { ignoreIncompleteToolCalls: true }),
     maxOutputTokens: 800,
     stopWhen: isStepCount(4),
     tools: {
