@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { InvoiceRecord } from "./collect-store";
 import type { Debt } from "./debts";
-import { DEFAULT_RULES, addDays, buildSchedule, normaliseRules, reminderMessage, sendHourOn } from "./reminders";
+import { DEFAULT_RULES, addDays, buildSchedule, earliestMoveDay, isDay, normaliseRules, reminderMessage, sendHourOn } from "./reminders";
 
 function debt(over: Partial<Debt>): Debt {
   return {
@@ -187,5 +187,24 @@ describe("reminderMessage", () => {
   it("includes the amount and the pay link when there is one", () => {
     expect(reminderMessage("Kak Lina", 4100, "https://www.paypal.com/invoice/p/#X")).toContain("RM 41.00");
     expect(reminderMessage("Kak Lina", 4100, "https://www.paypal.com/invoice/p/#X")).toContain("https://www.paypal.com/invoice/p/#X");
+  });
+});
+
+describe("isDay", () => {
+  it("accepts a complete real day and nothing half-typed", () => {
+    expect(isDay("2026-10-19")).toBe(true);
+    expect(isDay("2026-02-30")).toBe(false);
+    expect(isDay("0052-02-10")).toBe(false);
+    expect(isDay("52026-02-10")).toBe(false);
+    expect(isDay("")).toBe(false);
+  });
+});
+
+describe("earliestMoveDay", () => {
+  it("is the day after the reminder before it, or today if that's later", () => {
+    const items = buildSchedule([debt({})], [], DEFAULT_RULES, {}, TODAY);
+    const [first, second] = reminders(items);
+    expect(earliestMoveDay(items, first, TODAY)).toBe(TODAY);
+    expect(earliestMoveDay(items, second, TODAY)).toBe("2026-10-14");
   });
 });

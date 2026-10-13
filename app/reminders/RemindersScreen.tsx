@@ -2,10 +2,10 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { formatSen, todayLocal } from "@/lib/debts";
 import { ReminderStoreError } from "@/lib/reminder-store";
-import { buildSchedule, reminderMessage, type ScheduleItem } from "@/lib/reminders";
+import { buildSchedule, earliestMoveDay, isDay, reminderMessage, type ScheduleItem } from "@/lib/reminders";
 import { isPayPalUrl } from "@/lib/customer-pay";
 import { colourIndex, initials } from "@/lib/home";
 import { ChatIcon } from "../components/icons";
@@ -46,6 +46,12 @@ export default function RemindersScreen() {
   const { invoices } = useCollect();
   const { rules, moves, sent, move, markSent, unmarkSent } = useReminders();
   const [justSent, setJustSent] = useState<ScheduleItem | null>(null);
+  // The Undo offer fades after a while; acting again clears it sooner.
+  useEffect(() => {
+    if (!justSent) return;
+    const timer = setTimeout(() => setJustSent(null), 15_000);
+    return () => clearTimeout(timer);
+  }, [justSent]);
   const [error, setError] = useState<string | null>(null);
   const boxRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState<number | null>(null);
@@ -81,12 +87,28 @@ export default function RemindersScreen() {
     return links;
   }, [invoices]);
 
-  function onMove(id: string, day: string) {
+  // First day each reminder can move to, for the drag check and the date boxes.
+  const earliest = useMemo(() => Object.fromEntries(reminders.map((r) => [r.id, earliestMoveDay(items, r, today)])), [items, reminders, today]);
+
+  /** Saves a move, or says why not. Returns whether it was saved. */
+  function onMove(id: string, day: string): boolean {
+    const min = earliest[id];
+    if (!isDay(day) || !min) {
+      setError("That isn't a day. Pick one from the calendar.");
+      return false;
+    }
+    if (day < min) {
+      setError(`Pick ${formatDay(min, today)} or later: not in the past, and after the reminder before it.`);
+      return false;
+    }
     try {
       move(id, day);
       setError(null);
+      setJustSent(null);
+      return true;
     } catch (e) {
       setError(e instanceof ReminderStoreError ? e.message : "Couldn't move that reminder. Try again.");
+      return false;
     }
   }
 
@@ -158,7 +180,7 @@ export default function RemindersScreen() {
           </div>
         ) : (
           <>
-            <ReminderBoard items={items} today={today} wide={wide} onMove={onMove} />
+            <ReminderBoard items={items} today={today} wide={wide} earliest={earliest} onMove={onMove} />
             {wide && <p className="reminder-hint">Drag a black reminder to another day to move it, or pick a new day under Coming up.</p>}
           </>
         )}
@@ -214,15 +236,12 @@ export default function RemindersScreen() {
                   </span>
                 </span>
                 {/* Same as dragging on the Scheduler, for keyboards, screen readers and phones. */}
-                <input
-                  type="date"
-                  className="reminder-date"
-                  min={today}
-                  value={item.day}
-                  aria-label={`Move ${item.customer}'s ${item.label}`}
-                  onChange={(event) => {
-                    if (event.target.value) onMove(item.id, event.target.value);
-                  }}
+                <DateMove
+                  key={`${item.id}:${item.day}`}
+                  day={item.day}
+                  min={earliest[item.id] ?? today}
+                  label={`Move ${item.customer}'s ${item.label}`}
+                  onMove={(day) => onMove(item.id, day)}
                 />
               </li>
             ))}
@@ -230,5 +249,34 @@ export default function RemindersScreen() {
         </section>
       )}
     </div>
+  );
+}
+
+/**
+ * A date box that saves when you leave it or press Enter, not on every keystroke: typing a
+ * date passes through half-finished ones ("0052-02-10") that mustn't be saved.
+ */
+function DateMove({ day, min, label, onMove }: { day: string; min: string; label: string; onMove: (day: string) => boolean }) {
+  const [draft, setDraft] = useState(day);
+
+  function commit() {
+    if (draft === day) return;
+    if (!onMove(draft)) setDraft(day);
+  }
+
+  return (
+    <input
+      type="date"
+      className="reminder-date"
+      min={min}
+      value={draft}
+      aria-label={label}
+      onChange={(event) => setDraft(event.target.value)}
+      onBlur={commit}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") commit();
+        if (event.key === "Escape") setDraft(day);
+      }}
+    />
   );
 }

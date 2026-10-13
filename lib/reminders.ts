@@ -239,3 +239,19 @@ export function reminderMessage(customer: string, amountSen: number, payLink?: s
   const pay = payLink ? ` You can pay on PayPal here whenever it suits: ${payLink}` : " You can pay on PayPal from the link in your invoice email.";
   return `Hi ${customer}! Just a friendly reminder about RM ${rm} on your tab.${pay} Thank you!`;
 }
+
+/** True for a complete, real YYYY-MM-DD day (not "0052-02-10" or "52026-02-10"). */
+export function isDay(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || value < "2000-01-01") return false;
+  return addDays(value, 0) === value;
+}
+
+/**
+ * The first day a reminder can move to: today, and after the reminder before it, so one
+ * customer never gets two nudges on a day or the 2nd before the 1st.
+ */
+export function earliestMoveDay(items: ScheduleItem[], item: ScheduleItem, today: string): string {
+  const before = items.find((i) => i.kind === "reminder" && i.slug === item.slug && i.n === item.n - 1);
+  const afterBefore = before ? addDays(before.day, 1) : today;
+  return afterBefore > today ? afterBefore : today;
+}

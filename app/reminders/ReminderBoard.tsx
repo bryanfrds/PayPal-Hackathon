@@ -105,13 +105,16 @@ type Props = {
   items: ScheduleItem[];
   today: string;
   wide: boolean;
-  onMove: (id: string, day: string) => void;
+  /** Reminder id → the first day it can move to. */
+  earliest: Record<string, string>;
+  onMove: (id: string, day: string) => boolean;
 };
 
-export default function ReminderBoard({ items, today, wide, onMove }: Props) {
+export default function ReminderBoard({ items, today, wide, earliest, onMove }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<Scheduler | Calendar | null>(null);
   const onMoveRef = useRef(onMove);
+  const earliestRef = useRef(earliest);
   const [failed, setFailed] = useState(false);
   const events = useMemo(() => toEvents(items), [items]);
   const resources = useMemo(() => toResources(items), [items]);
@@ -120,6 +123,7 @@ export default function ReminderBoard({ items, today, wide, onMove }: Props) {
 
   useEffect(() => {
     onMoveRef.current = onMove;
+    earliestRef.current = earliest;
     latest.current = { events, resources };
   });
 
@@ -149,8 +153,9 @@ export default function ReminderBoard({ items, today, wide, onMove }: Props) {
               features: {
                 eventDrag: {
                   constrainDragToResource: true,
-                  // A reminder can't be moved into the past.
-                  validatorFn: ({ startDate }: { startDate: Date }) => dayOf(startDate) >= today,
+                  // Not into the past, and not onto or before the reminder ahead of it.
+                  validatorFn: ({ eventRecords, startDate }: { eventRecords: { id: string | number }[]; startDate: Date }) =>
+                    dayOf(startDate) >= (earliestRef.current[String(eventRecords[0]?.id)] ?? today),
                 },
                 eventResize: false,
                 eventEdit: false,
