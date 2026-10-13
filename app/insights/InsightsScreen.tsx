@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import type { ComponentType } from "react";
 import type { AgStudioReactProperties } from "ag-studio-react";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -102,6 +103,9 @@ export default function InsightsScreen() {
             Who owes you and how fast people pay, from your ledger.
           </p>
         </div>
+        <Link href="/reminders" className="button">
+          Reminders
+        </Link>
       </div>
       <div
         className="insights-studio"
