@@ -2826,3 +2826,9 @@ button.tab-back:focus-visible {
 .track-lines span {
   color: var(--muted);
 }
+
+.collect-pending {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--unpaid);
+}

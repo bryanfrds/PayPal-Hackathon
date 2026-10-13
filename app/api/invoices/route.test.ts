@@ -25,14 +25,18 @@ function post(body: unknown) {
   return POST(new Request("http://x/api/invoices", { method: "POST", body: JSON.stringify(body) }));
 }
 
+const SENT = { id: "INV2-1", status: "SENT", detail: { invoice_number: "0042", metadata: { recipient_view_url: "https://pay/1" } } };
+
 beforeEach(() => {
   vi.resetAllMocks();
-  paypal.getInvoice.mockResolvedValue({ id: "INV2-1", status: "SENT", detail: { invoice_number: "0042", metadata: { recipient_view_url: "https://pay/1" } } });
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  paypal.getInvoice.mockResolvedValue(SENT);
 });
 
 describe("POST /api/invoices", () => {
   it("creates the draft with the request id, sends it and returns the number and pay link", async () => {
     paypal.createDraftInvoice.mockResolvedValue({ id: "INV2-1", status: "DRAFT" });
+    paypal.getInvoice.mockResolvedValueOnce({ id: "INV2-1", status: "DRAFT" });
     paypal.sendInvoice.mockResolvedValue("https://pay/1");
     const res = await post(GOOD);
     expect(res.status).toBe(200);
@@ -46,19 +50,36 @@ describe("POST /api/invoices", () => {
     expect(paypal.sendInvoice).toHaveBeenCalledWith("INV2-1");
   });
 
-  it("doesn't send again when a retry finds the invoice already sent", async () => {
-    paypal.createDraftInvoice.mockResolvedValue({ id: "INV2-1", status: "SENT" });
+  it("doesn't send again when a retry's replayed create says DRAFT but PayPal says it's sent", async () => {
+    paypal.createDraftInvoice.mockResolvedValue({ id: "INV2-1", status: "DRAFT" }); // replay of the first try
     const res = await post(GOOD);
     expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ id: "INV2-1", number: "0042", payerLink: "https://pay/1" });
     expect(paypal.sendInvoice).not.toHaveBeenCalled();
   });
 
-  it("looks the status up when the draft comes back without one", async () => {
+  it("treats a send that fails because it already went out as success", async () => {
     paypal.createDraftInvoice.mockResolvedValue({ id: "INV2-1" });
     paypal.getInvoice.mockResolvedValueOnce({ id: "INV2-1", status: "DRAFT" });
-    paypal.sendInvoice.mockResolvedValue(undefined);
-    await post(GOOD);
-    expect(paypal.sendInvoice).toHaveBeenCalledTimes(1);
+    paypal.sendInvoice.mockRejectedValue(new PayPalError("already sent", { status: 422 }));
+    const res = await post(GOOD);
+    expect(res.status).toBe(200);
+  });
+
+  it("fails a send that PayPal rejects while the invoice is still a draft", async () => {
+    paypal.createDraftInvoice.mockResolvedValue({ id: "INV2-1" });
+    paypal.getInvoice.mockResolvedValue({ id: "INV2-1", status: "DRAFT" });
+    paypal.sendInvoice.mockRejectedValue(new PayPalError("bad", { status: 422 }));
+    const res = await post(GOOD);
+    expect(res.status).toBe(422);
+  });
+
+  it("refuses to report a cancelled invoice as sent", async () => {
+    paypal.createDraftInvoice.mockResolvedValue({ id: "INV2-1" });
+    paypal.getInvoice.mockResolvedValue({ id: "INV2-1", status: "CANCELLED" });
+    const res = await post(GOOD);
+    expect(res.status).toBe(409);
+    expect(paypal.sendInvoice).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -83,6 +104,7 @@ describe("POST /api/invoices", () => {
 
   it("turns a PayPal rejection into a message without PayPal's details", async () => {
     paypal.createDraftInvoice.mockResolvedValue({ id: "INV2-1", status: "DRAFT" });
+    paypal.getInvoice.mockResolvedValue({ id: "INV2-1", status: "DRAFT" });
     paypal.sendInvoice.mockRejectedValue(new PayPalError("PayPal sendInvoice failed (HTTP 422, UNPROCESSABLE_ENTITY) debug abc", { status: 422 }));
     const res = await post(GOOD);
     expect(res.status).toBe(422);

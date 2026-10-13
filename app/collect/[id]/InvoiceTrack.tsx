@@ -24,10 +24,11 @@ export default function InvoiceTrack({ id }: { id: string }) {
   const [live, setLive] = useState<Live>({ state: "loading" });
   const [copied, setCopied] = useState<"idle" | "done" | "failed">("idle");
 
+  const recordId = record?.id;
   useEffect(() => {
-    if (!record) return;
+    if (!recordId) return;
     let cancelled = false;
-    fetch(`/api/invoices/${encodeURIComponent(record.id)}`)
+    fetch(`/api/invoices/${encodeURIComponent(recordId)}`)
       .then(async (res) => {
         const data = (await res.json().catch(() => ({}))) as { status?: string; payerLink?: string; error?: string };
         if (cancelled) return;
@@ -40,7 +41,7 @@ export default function InvoiceTrack({ id }: { id: string }) {
     return () => {
       cancelled = true;
     };
-  }, [record]);
+  }, [recordId]);
 
   if (!ready) {
     return (

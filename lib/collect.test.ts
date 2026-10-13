@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Debt } from "./debts";
-import { collectGroups, invoiceLines, invoiceRequestId, isInvoiceable, isValidEmail, withDomain } from "./collect";
+import { collectGroups, invoiceLines, invoiceRequestId, isInvoiceable, isValidEmail, sendRequest, withDomain, type PendingSend } from "./collect";
 
 function debt(id: string, customerName: string, amountSen: number, status: Debt["status"], date = "2026-10-01", item = "Milo"): Debt {
   return { id, customerName, item, amountSen, date, status, source: "manual", createdAt: `${date}T00:00:00.000Z` };
@@ -62,14 +62,57 @@ describe("emails", () => {
 });
 
 describe("invoiceRequestId", () => {
-  it("is the same for the same tabs in any order", () => {
-    expect(invoiceRequestId(["b", "a"])).toBe(invoiceRequestId(["a", "b"]));
+  const base = { debtIds: ["a", "b"], email: "siti@gmail.com", lines: [{ name: "Beras", amountSen: 4850 }] };
+  it("is the same for the same invoice, whatever the tab order or email case", () => {
+    expect(invoiceRequestId({ ...base, debtIds: ["b", "a"], email: "Siti@Gmail.com " })).toBe(invoiceRequestId(base));
   });
-  it("differs for different tabs", () => {
-    expect(invoiceRequestId(["a"])).not.toBe(invoiceRequestId(["a", "b"]));
+  it("changes when the tabs, email or an amount change", () => {
+    const id = invoiceRequestId(base);
+    expect(invoiceRequestId({ ...base, debtIds: ["a"] })).not.toBe(id);
+    expect(invoiceRequestId({ ...base, email: "siti2@gmail.com" })).not.toBe(id);
+    expect(invoiceRequestId({ ...base, lines: [{ name: "Beras", amountSen: 4800 }] })).not.toBe(id);
   });
   it("fits PayPal's request id format", () => {
-    expect(invoiceRequestId(["D-1", "D-2"])).toMatch(/^buku-[0-9a-f]{16}$/);
+    expect(invoiceRequestId(base)).toMatch(/^buku-[0-9a-f]{16}$/);
+  });
+});
+
+describe("pending sends", () => {
+  const debts = [debt("1", "Uncle Tan", 1780, "unpaid", "2026-10-05"), debt("2", "Uncle Tan", 500, "unpaid", "2026-10-12")];
+  const pending: PendingSend = {
+    slug: "uncle-tan",
+    customerName: "Uncle Tan",
+    email: "old@gmail.com",
+    debtIds: ["1"],
+    lines: [{ name: "Milo (2026-10-05)", amountSen: 1780 }],
+    amountSen: 1780,
+    requestId: "buku-0123456789abcdef",
+    startedAt: "2026-10-13T10:00:00.000Z",
+  };
+
+  it("limits the customer to the unfinished send's tabs, email and amount", () => {
+    const [g] = collectGroups(debts, { "uncle-tan": "new@gmail.com" }, { "uncle-tan": pending });
+    expect(g.debts.map((d) => d.id)).toEqual(["1"]);
+    expect(g).toMatchObject({ email: "old@gmail.com", totalSen: 1780, pending });
+  });
+
+  it("resends exactly the saved request for a pending group", () => {
+    const [g] = collectGroups(debts, {}, { "uncle-tan": pending });
+    expect(sendRequest(g, new Date())).toBe(pending);
+  });
+
+  it("ignores a pending send whose tabs are no longer waiting for an invoice", () => {
+    const [g] = collectGroups(debts, { "uncle-tan": "new@gmail.com" }, { "uncle-tan": { ...pending, debtIds: ["gone"] } });
+    expect(g.pending).toBeUndefined();
+    expect(g.totalSen).toBe(2280);
+  });
+
+  it("builds a fresh request with a stable id otherwise", () => {
+    const [g] = collectGroups(debts, { "uncle-tan": "new@gmail.com" });
+    const a = sendRequest(g, new Date("2026-10-13T10:00:00Z"));
+    const b = sendRequest(g, new Date("2026-10-13T11:00:00Z"));
+    expect(a.requestId).toBe(b.requestId);
+    expect(a).toMatchObject({ email: "new@gmail.com", amountSen: 2280, debtIds: ["1", "2"] });
   });
 });
 

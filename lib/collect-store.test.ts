@@ -61,6 +61,15 @@ describe("createCollectStore", () => {
     expect(storage.data.get("buku.invoices.v1")).toBe("{bad");
   });
 
+  it("keeps an unfinished send until it's cleared", () => {
+    const storage = new FakeStorage();
+    const send = { slug: "a", customerName: "A", email: "a@b.co", debtIds: ["D-1"], lines: [{ name: "x", amountSen: 100 }], amountSen: 100, requestId: "buku-0123456789abcdef", startedAt: "2026-10-13T10:00:00Z" };
+    createCollectStore(storage).setPending(send);
+    expect(createCollectStore(storage).pending()).toEqual({ a: send });
+    createCollectStore(storage).clearPending("a");
+    expect(createCollectStore(storage).pending()).toEqual({});
+  });
+
   it("works in memory without storage", () => {
     const store = createCollectStore(null);
     store.setEmail("a", "a@b.co");

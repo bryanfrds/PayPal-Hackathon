@@ -8,11 +8,11 @@ import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import {
   collectGroups,
   EMAIL_DOMAINS,
-  invoiceLines,
-  invoiceRequestId,
   isValidEmail,
+  sendRequest,
   withDomain,
   type CollectGroup,
+  type PendingSend,
 } from "@/lib/collect";
 import { CollectStoreError } from "@/lib/collect-store";
 import { customerSlug, formatDay, tabPath } from "@/lib/customer-tab";
@@ -34,7 +34,7 @@ const rm = (sen: number) => `RM ${formatSen(sen)}`;
 
 export default function CollectFlow() {
   const { debts, ready } = useDebts();
-  const { emails, invoices } = useCollect();
+  const { emails, invoices, pending } = useCollect();
   const [phase, setPhase] = useState<Phase>("list");
   const [tab, setTab] = useState<Tab>("toSend");
   // Customers switched off; everyone with an email is on by default.
@@ -43,7 +43,7 @@ export default function CollectFlow() {
   // Frozen when sending starts, so the list doesn't shift as debts are marked sent.
   const [batch, setBatch] = useState<CollectGroup[]>([]);
 
-  const groups = collectGroups(debts, emails);
+  const groups = collectGroups(debts, emails, pending);
   const chosen = groups.filter((g) => g.email && !off.has(g.slug));
 
   if (phase === "review") {
@@ -257,7 +257,7 @@ function TabButton({ id, tab, onTab, label, count }: { id: Tab; tab: Tab; onTab:
       role="tab"
       id={`collect-tab-${id}`}
       aria-selected={selected}
-      aria-controls={`collect-panel-${id}`}
+      aria-controls={selected ? `collect-panel-${id}` : undefined}
       tabIndex={selected ? 0 : -1}
       onClick={() => onTab(id)}
       onKeyDown={(e: KeyboardEvent<HTMLButtonElement>) => {
@@ -294,7 +294,9 @@ function CustomerCard({
       <span className="tab-who">
         <span className="tab-name">{group.customerName}</span>
         <StatusBadge status={group.status} />
-        {missing ? (
+        {group.pending ? (
+          <span className="collect-pending">Last send didn&apos;t finish · {group.email}</span>
+        ) : missing ? (
           <button type="button" className="collect-add-email" onClick={onAddEmail}>
             <PlusIcon />
             Add email
@@ -325,12 +327,26 @@ function EmailSheet({ group, onClose, onSaved }: { group: CollectGroup; onClose:
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const opener = useRef<Element | null>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     opener.current = document.activeElement;
     inputRef.current?.focus();
     const onKey = (e: globalThis.KeyboardEvent) => {
       if (e.key === "Escape") onClose();
+      if (e.key !== "Tab") return;
+      // Keep Tab inside the sheet while it's open.
+      const items = sheetRef.current?.querySelectorAll<HTMLElement>("button, input");
+      if (!items || items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => {
@@ -357,7 +373,7 @@ function EmailSheet({ group, onClose, onSaved }: { group: CollectGroup; onClose:
   return (
     <div className="sheet-layer">
       <div className="sheet-dim" onClick={onClose} aria-hidden="true" />
-      <div className="sheet" role="dialog" aria-modal="true" aria-labelledby="email-sheet-title">
+      <div className="sheet" role="dialog" aria-modal="true" aria-labelledby="email-sheet-title" ref={sheetRef}>
         <button type="button" className="sheet-close" aria-label="Close" onClick={onClose}>
           <CloseIcon />
         </button>
@@ -532,7 +548,12 @@ function Review({ groups, onBack, onSend }: { groups: CollectGroup[]; onBack: ()
 
 /* Send: one request per customer, each with its own result and Retry */
 
-type Result = { state: "waiting" | "sending" } | { state: "sent"; id: string; number?: string; warning?: string } | { state: "failed"; message: string };
+type Saved = { id: string; number?: string; payerLink?: string };
+type Result =
+  | { state: "waiting" | "sending" }
+  | { state: "sent"; id: string; number?: string }
+  | { state: "saveFailed"; saved: Saved; request: PendingSend }
+  | { state: "failed"; message: string };
 
 function resultText(r: Result): string {
   switch (r.state) {
@@ -543,32 +564,73 @@ function resultText(r: Result): string {
     case "failed":
       return r.message;
     case "sent":
-      return r.warning ?? `Sent${r.number ? ` · Invoice ${r.number}` : ""}`;
+      return `Sent${r.number ? ` · Invoice ${r.number}` : ""}`;
+    case "saveFailed":
+      return "Sent on PayPal, but this device couldn't save it.";
   }
 }
 
 function Send({ groups, onDone }: { groups: CollectGroup[]; onDone: () => void }) {
   const { updateMany } = useDebts();
-  const { addInvoice } = useCollect();
+  const { addInvoice, setPending, clearPending } = useCollect();
+  // Customers with a request in flight, so a double-tap on Retry can't send twice at once.
+  const inFlight = useRef<Set<string>>(new Set());
   const [results, setResults] = useState<Record<string, Result>>(() =>
     Object.fromEntries(groups.map((g) => [g.slug, { state: "waiting" } as Result])),
   );
   const titleRef = useRef<HTMLHeadingElement>(null);
   const started = useRef(false);
 
+  /** Saves a sent invoice on this device: the record, the debts marked sent, the pending send cleared. */
+  function saveSent(g: CollectGroup, saved: Saved, request: PendingSend) {
+    try {
+      addInvoice({
+        id: saved.id,
+        number: saved.number,
+        customerName: request.customerName,
+        slug: request.slug,
+        email: request.email,
+        debtIds: request.debtIds,
+        amountSen: request.amountSen,
+        sentAt: new Date().toISOString(),
+        payerLink: saved.payerLink,
+      });
+      updateMany(request.debtIds, { status: "sent" });
+      clearPending(request.slug);
+    } catch (e) {
+      if (!(e instanceof CollectStoreError || e instanceof DebtStoreError)) throw e;
+      setResults((prev) => ({ ...prev, [g.slug]: { state: "saveFailed", saved, request } }));
+      return;
+    }
+    setResults((prev) => ({ ...prev, [g.slug]: { state: "sent", id: saved.id, number: saved.number } }));
+  }
+
   async function sendOne(g: CollectGroup) {
+    if (inFlight.current.has(g.slug)) return;
+    inFlight.current.add(g.slug);
+    try {
+      await attempt(g);
+    } finally {
+      inFlight.current.delete(g.slug);
+    }
+  }
+
+  async function attempt(g: CollectGroup) {
     setResults((prev) => ({ ...prev, [g.slug]: { state: "sending" } }));
+    const request = sendRequest(g, new Date());
+    try {
+      // Saved first, so if the answer is lost the retry sends exactly this again.
+      setPending(request);
+    } catch {
+      setResults((prev) => ({ ...prev, [g.slug]: { state: "failed", message: "This device couldn't save. Try again." } }));
+      return;
+    }
     let response: Response;
     try {
       response = await fetch("/api/invoices", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          customerName: g.customerName,
-          email: g.email,
-          lines: invoiceLines(g.debts),
-          requestId: invoiceRequestId(g.debts.map((d) => d.id)),
-        }),
+        body: JSON.stringify({ customerName: request.customerName, email: request.email, lines: request.lines, requestId: request.requestId }),
       });
     } catch {
       setResults((prev) => ({ ...prev, [g.slug]: { state: "failed", message: "No internet connection. Try again." } }));
@@ -576,32 +638,19 @@ function Send({ groups, onDone }: { groups: CollectGroup[]; onDone: () => void }
     }
     const data = (await response.json().catch(() => ({}))) as { id?: string; number?: string; payerLink?: string; error?: string };
     if (!response.ok || !data.id) {
+      // PayPal said no for sure (bad email, cancelled…): nothing went out, so a corrected
+      // invoice may use a new request. Otherwise the outcome is unknown: keep the pending send.
+      if (response.status >= 400 && response.status < 500) {
+        try {
+          clearPending(request.slug);
+        } catch {
+          // Harmless: the retry would resend the same request.
+        }
+      }
       setResults((prev) => ({ ...prev, [g.slug]: { state: "failed", message: data.error ?? "PayPal didn't answer. Try again." } }));
       return;
     }
-    let warning: string | undefined;
-    try {
-      addInvoice({
-        id: data.id,
-        number: data.number,
-        customerName: g.customerName,
-        slug: g.slug,
-        email: g.email ?? "",
-        debtIds: g.debts.map((d) => d.id),
-        amountSen: g.totalSen,
-        sentAt: new Date().toISOString(),
-        payerLink: data.payerLink,
-      });
-      updateMany(
-        g.debts.map((d) => d.id),
-        { status: "sent" },
-      );
-    } catch (e) {
-      // PayPal sent it; only this device's copy failed. Retrying is safe (same invoice).
-      if (!(e instanceof CollectStoreError || e instanceof DebtStoreError)) throw e;
-      warning = "Sent on PayPal, but this device couldn't save it. Retry to save it.";
-    }
-    setResults((prev) => ({ ...prev, [g.slug]: { state: "sent", id: data.id as string, number: data.number, warning } }));
+    saveSent(g, { id: data.id, number: data.number, payerLink: data.payerLink }, request);
   }
 
   async function sendAll(list: CollectGroup[]) {
@@ -609,6 +658,8 @@ function Send({ groups, onDone }: { groups: CollectGroup[]; onDone: () => void }
     titleRef.current?.focus();
   }
 
+  // If the owner leaves mid-send, the loop finishes in the background and still saves each
+  // result, so nothing is lost; it just isn't shown.
   useEffect(() => {
     if (started.current) return;
     started.current = true;
@@ -619,10 +670,14 @@ function Send({ groups, onDone }: { groups: CollectGroup[]; onDone: () => void }
 
   const list = groups.map((g) => ({ g, r: results[g.slug] }));
   const sent = list.filter((x) => x.r.state === "sent");
-  const failed = list.filter((x) => x.r.state === "failed");
+  const failed = list.filter((x) => x.r.state === "failed" || x.r.state === "saveFailed");
   const busy = list.some((x) => x.r.state === "sending" || x.r.state === "waiting");
   const pct = groups.length === 0 ? 0 : sent.length / groups.length;
-  const sentTotal = sent.reduce((sum, x) => sum + x.g.totalSen, 0);
+  // Gone out on PayPal, whether or not this device managed to save it.
+  const out = list.filter((x) => x.r.state === "sent" || x.r.state === "saveFailed");
+  const unsaved = list.filter((x) => x.r.state === "saveFailed").length;
+  const notSent = list.filter((x) => x.r.state === "failed").length;
+  const outTotal = out.reduce((sum, x) => sum + x.g.totalSen, 0);
   const R = 64;
   const C = 2 * Math.PI * R;
 
@@ -643,30 +698,38 @@ function Send({ groups, onDone }: { groups: CollectGroup[]; onDone: () => void }
 
       <div className="send-head" aria-live="polite">
         <h1 ref={titleRef} tabIndex={-1}>
-          {busy ? "Sending invoices…" : sent.length > 0 ? `${rm(sentTotal)} on its way` : "Nothing was sent"}
+          {busy ? "Sending invoices…" : out.length > 0 ? `${rm(outTotal)} on its way` : "Nothing was sent"}
         </h1>
         <p>
           {busy
             ? "PayPal is emailing each customer."
-            : failed.length > 0
-              ? `${failed.length === 1 ? "1 invoice" : `${failed.length} invoices`} couldn't be sent. Retry is safe: it never sends twice.`
-              : `PayPal has emailed ${sent.length === 1 ? "1 customer" : `${sent.length} customers`}.`}
+            : [
+                notSent > 0 && `${notSent === 1 ? "1 invoice" : `${notSent} invoices`} couldn't be sent. Retry is safe: it never sends twice.`,
+                unsaved > 0 && `${unsaved === 1 ? "1 invoice was" : `${unsaved} invoices were`} sent but not saved on this device. Tap Save.`,
+                notSent === 0 && unsaved === 0 && `PayPal has emailed ${sent.length === 1 ? "1 customer" : `${sent.length} customers`}.`,
+              ]
+                .filter(Boolean)
+                .join(" ")}
         </p>
       </div>
 
       <ul className="collect-list">
         {list.map(({ g, r }) => (
-          <li key={g.slug} className={`card send-row${r.state === "failed" ? " send-row-failed" : ""}`}>
-            <span className={`send-dot send-dot-${r.state}`} aria-hidden="true">
-              {r.state === "sent" ? <CheckIcon /> : r.state === "failed" ? <CloseIcon /> : null}
+          <li key={g.slug} className={`card send-row${r.state === "failed" || r.state === "saveFailed" ? " send-row-failed" : ""}`}>
+            <span className={`send-dot send-dot-${r.state === "saveFailed" ? "failed" : r.state}`} aria-hidden="true">
+              {r.state === "sent" ? <CheckIcon /> : r.state === "failed" || r.state === "saveFailed" ? <CloseIcon /> : null}
             </span>
             <span className="tab-who">
               <span className="tab-name">{g.customerName}</span>
-              <span className={`tab-item${r.state === "failed" ? " send-error" : ""}`}>
+              <span className={`tab-item${r.state === "failed" || r.state === "saveFailed" ? " send-error" : ""}`}>
                 {resultText(r)}
               </span>
             </span>
-            {r.state === "failed" ? (
+            {r.state === "saveFailed" ? (
+              <button type="button" className="send-retry" onClick={() => saveSent(g, r.saved, r.request)}>
+                Save
+              </button>
+            ) : r.state === "failed" ? (
               <button type="button" className="send-retry" onClick={() => void sendOne(g)}>
                 Retry
               </button>
@@ -686,7 +749,14 @@ function Send({ groups, onDone }: { groups: CollectGroup[]; onDone: () => void }
             </b>
           </p>
           {failed.length > 0 && (
-            <button type="button" className="collect-bar-ghost" onClick={() => void sendAll(failed.map((x) => x.g))}>
+            <button
+              type="button"
+              className="collect-bar-ghost"
+              onClick={() => {
+                for (const x of failed) if (x.r.state === "saveFailed") saveSent(x.g, x.r.saved, x.r.request);
+                void sendAll(failed.filter((x) => x.r.state === "failed").map((x) => x.g));
+              }}
+            >
               Retry {failed.length}
             </button>
           )}

@@ -9,6 +9,9 @@ import { MAX_AMOUNT_SEN, MAX_NAME_LENGTH } from "@/lib/debts";
 import { createDraftInvoice, getInvoice, getPayerLink, PayPalError, sendInvoice } from "@/lib/paypal";
 import { paypalFailure } from "./errors";
 
+/** Statuses that mean the invoice has gone out to the customer. */
+const OUT = new Set(["SENT", "UNPAID", "PARTIALLY_PAID", "PAYMENT_PENDING", "PAID", "MARKED_AS_PAID"]);
+
 type Body = {
   customerName: string;
   email: string;
@@ -51,20 +54,33 @@ export async function POST(request: Request) {
       items: body.lines.map((l) => ({ name: l.name, amount: l.amountSen / 100 })),
       requestId: body.requestId,
     });
-    // A retry returns the invoice from the first try; only send it if it's still a draft.
-    const current = draft.status ? draft : await getInvoice(draft.id);
-    let payerLink: string | undefined;
-    if (current.status === undefined || current.status === "DRAFT") payerLink = await sendInvoice(draft.id);
-    let number = current.detail?.invoice_number;
-    try {
-      const sent = await getInvoice(draft.id);
-      number = sent.detail?.invoice_number ?? number;
-      payerLink ??= getPayerLink(sent);
-    } catch {
-      // The invoice is sent; the number and link are nice-to-haves.
+    // A retry gets back the create response from the first try, which can still say DRAFT
+    // after that try sent it. So always ask PayPal where the invoice stands now.
+    let current = await getInvoice(draft.id);
+    if (current.status === "DRAFT") {
+      try {
+        await sendInvoice(draft.id);
+      } catch (error) {
+        // Sent by a request that's still finishing? Check again before calling it a failure.
+        const again = await getInvoice(draft.id);
+        if (!OUT.has(again.status ?? "")) throw error;
+      }
+      current = await getInvoice(draft.id);
     }
-    return NextResponse.json({ id: draft.id, number, payerLink });
+    if (!OUT.has(current.status ?? "")) {
+      return NextResponse.json(
+        { error: "This invoice was cancelled on PayPal. Check it there before sending again." },
+        { status: 409 },
+      );
+    }
+    return NextResponse.json({
+      id: draft.id,
+      number: current.detail?.invoice_number,
+      payerLink: getPayerLink(current),
+    });
   } catch (error) {
+    // Messages from lib/paypal.ts are already redacted; this keeps PayPal's debug id for us.
+    console.error("POST /api/invoices failed:", error instanceof Error ? error.message : error);
     const failure = paypalFailure(error instanceof PayPalError ? error : null);
     return NextResponse.json({ error: failure.message }, { status: failure.status });
   }

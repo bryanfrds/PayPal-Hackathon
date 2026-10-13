@@ -1,10 +1,13 @@
 // Customer emails and sent-invoice records, kept on the shop owner's device next to the
 // debts (see debt-store.ts). A server store can replace this behind the same shape.
 
+import type { PendingSend } from "./collect";
+
 type StorageLike = Pick<Storage, "getItem" | "setItem">;
 
 export const EMAILS_KEY = "buku.emails.v1";
 export const INVOICES_KEY = "buku.invoices.v1";
+export const PENDING_KEY = "buku.pending.v1";
 
 /** A PayPal invoice the shop sent from the Collect screen. */
 export type InvoiceRecord = {
@@ -88,6 +91,22 @@ function isRecord(v: unknown): v is InvoiceRecord {
   );
 }
 
+function isPendingMap(v: unknown): v is Record<string, PendingSend> {
+  if (typeof v !== "object" || v === null || Array.isArray(v)) return false;
+  return Object.values(v).every((p) => {
+    const r = p as Record<string, unknown>;
+    return (
+      typeof r?.slug === "string" &&
+      typeof r.customerName === "string" &&
+      typeof r.email === "string" &&
+      typeof r.requestId === "string" &&
+      typeof r.amountSen === "number" &&
+      Array.isArray(r.debtIds) &&
+      Array.isArray(r.lines)
+    );
+  });
+}
+
 function isRecordList(v: unknown): v is InvoiceRecord[] {
   return Array.isArray(v) && v.every(isRecord);
 }
@@ -100,12 +119,22 @@ export type CollectStore = {
   invoices(): InvoiceRecord[];
   /** Adds a record, or replaces the one with the same PayPal id (a retry that already went through). */
   addInvoice(record: InvoiceRecord): void;
+  /** Unfinished sends by customer slug. */
+  pending(): Record<string, PendingSend>;
+  setPending(send: PendingSend): void;
+  clearPending(slug: string): void;
 };
 
 /** Every call reads what's saved now, so two tabs don't overwrite each other's changes. */
 export function createCollectStore(storage: StorageLike | null): CollectStore {
   let memEmails: Record<string, string> = {};
   let memInvoices: InvoiceRecord[] = [];
+  let memPending: Record<string, PendingSend> = {};
+  function savePending(change: (current: Record<string, PendingSend>) => Record<string, PendingSend>) {
+    const next = change(storage ? readForWrite(storage, PENDING_KEY, isPendingMap, {}) : memPending);
+    write(storage, PENDING_KEY, next);
+    memPending = next;
+  }
   return {
     emails: () => (storage ? read(storage, EMAILS_KEY, isEmailMap, {}) : { ...memEmails }),
     setEmail(slug, email) {
@@ -120,6 +149,17 @@ export function createCollectStore(storage: StorageLike | null): CollectStore {
       const next = [...current.filter((r) => r.id !== record.id), record];
       write(storage, INVOICES_KEY, next);
       memInvoices = next;
+    },
+    pending: () => (storage ? read(storage, PENDING_KEY, isPendingMap, {}) : { ...memPending }),
+    setPending(send) {
+      savePending((current) => ({ ...current, [send.slug]: send }));
+    },
+    clearPending(slug) {
+      savePending((current) => {
+        const next = { ...current };
+        delete next[slug];
+        return next;
+      });
     },
   };
 }

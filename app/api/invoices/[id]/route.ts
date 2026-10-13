@@ -16,6 +16,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       payerLink: getPayerLink(invoice),
     });
   } catch (error) {
+    console.error("GET /api/invoices/[id] failed:", error instanceof Error ? error.message : error);
     const failure = paypalFailure(error instanceof PayPalError ? error : null);
     return NextResponse.json({ error: failure.message }, { status: failure.status });
   }
