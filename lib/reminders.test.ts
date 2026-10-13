@@ -131,6 +131,36 @@ describe("buildSchedule", () => {
     expect(items.find((i) => i.id === id)).toMatchObject({ day: "2026-10-19", moved: true });
   });
 
+  it("ignores a move that's now before the reminder ahead of it, so no two nudges in a day", () => {
+    // 2nd moved to the 20th, then the 1st only went out late on the 25th.
+    const first = "mak-cik-siti:reminder:2026-08:1";
+    const second = "mak-cik-siti:reminder:2026-08:2";
+    const items = buildSchedule([debt({})], [], DEFAULT_RULES, { [second]: "2026-10-20" }, "2026-10-25", { [first]: "2026-10-25" });
+    expect(reminders(items).map((r) => [r.day, r.dueNow, r.moved])).toEqual([
+      ["2026-10-25", false, false],
+      ["2026-10-29", false, false],
+      ["2026-11-02", false, false],
+    ]);
+  });
+
+  it("ignores a move into the past", () => {
+    const second = "mak-cik-siti:reminder:2026-08:2";
+    const items = buildSchedule([debt({})], [], DEFAULT_RULES, { [second]: "2026-10-11" }, TODAY);
+    // The 1st is due today; the 2nd stays after it rather than jumping ahead.
+    expect(reminders(items).map((r) => [r.n, r.day, r.dueNow])).toEqual([
+      [1, "2026-10-13", true],
+      [2, "2026-10-17", false],
+      [3, "2026-10-21", false],
+    ]);
+  });
+
+  it("keeps the spacing when an older bill was paid after a reminder went out", () => {
+    // August's reminders went out on the 13th and 17th; August is now paid, September is left.
+    const sent = { "mak-cik-siti:reminder:2026-08:1": "2026-10-13", "mak-cik-siti:reminder:2026-08:2": "2026-10-17" };
+    const items = buildSchedule([debt({ date: "2026-09-05" })], [], DEFAULT_RULES, {}, "2026-10-18", sent);
+    expect(reminders(items)[0]).toMatchObject({ day: "2026-10-21", dueNow: false });
+  });
+
   it("plans nothing when reminders are off, but still shows the due date", () => {
     const items = buildSchedule([debt({})], [], { ...DEFAULT_RULES, on: false }, {}, TODAY);
     expect(items.map((i) => i.kind)).toEqual(["due"]);

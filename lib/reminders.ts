@@ -7,7 +7,7 @@
 
 import type { InvoiceRecord } from "./collect-store";
 import { customerSlug, dueDateFor } from "./customer-tab";
-import type { Debt } from "./debts";
+import { todayLocal, type Debt } from "./debts";
 
 export type ReminderRules = {
   /** Off: no reminders are planned at all. */
@@ -166,7 +166,8 @@ export function buildSchedule(
     const latest = invoices
       .filter((inv) => inv.slug === slug)
       .sort((a, b) => b.sentAt.localeCompare(a.sentAt))[0];
-    const invoiceDay = latest?.sentAt.slice(0, 10);
+    // The shop's own day the invoice went out (sentAt is UTC; before 8am in Malaysia is still the same day there).
+    const invoiceDay = latest ? todayLocal(new Date(latest.sentAt)) : undefined;
     if (latest && invoiceDay) {
       items.push({
         id: `${slug}:invoice:${latest.id}`,
@@ -187,14 +188,30 @@ export function buildSchedule(
     if (!rules.on) continue;
     // Never remind before the bill is due, nor before the invoice reached them.
     const anchor = invoiceDay && invoiceDay > dueDay ? invoiceDay : dueDay;
+    // A reminder sent for an older bill that's since been paid still counts: the next bill's
+    // first reminder keeps the spacing instead of landing the day after.
+    const thisBill = `${slug}:reminder:${oldestMonth}:`;
+    const lastEarlier = Object.entries(sent)
+      .filter(([id]) => id.startsWith(`${slug}:reminder:`) && !id.startsWith(thisBill))
+      .map(([, day]) => day)
+      .sort()
+      .at(-1);
     let previous: string | null = null;
     for (let n = 1; n <= rules.maxCount; n += 1) {
       const id = `${slug}:reminder:${oldestMonth}:${n}`;
       const wasSent = sent[id] !== undefined;
-      const byRules: string = previous === null ? addDays(anchor, rules.firstAfterDays) : addDays(previous, rules.everyDays);
+      let byRules: string = previous === null ? addDays(anchor, rules.firstAfterDays) : addDays(previous, rules.everyDays);
+      if (previous === null && lastEarlier) {
+        const spaced = addDays(lastEarlier, rules.everyDays);
+        if (spaced > byRules) byRules = spaced;
+      }
       // Nothing goes out by itself, so one that's overdue and unsent is due today, not in the past.
       const planned: string = byRules < today ? today : byRules;
-      const day: string = wasSent ? sent[id] : (moves[id] ?? planned);
+      // A move only counts if it's still ahead: not in the past and after the reminder before it,
+      // so one customer never gets two nudges on a day or the 2nd before the 1st.
+      const move = moves[id];
+      const moveOk = move !== undefined && move >= today && (previous === null || move > previous);
+      const day: string = wasSent ? sent[id] : moveOk ? move : planned;
       previous = day;
       items.push({
         id,
@@ -206,7 +223,7 @@ export function buildSchedule(
         amountSen,
         n,
         dueNow: !wasSent && day <= today,
-        moved: !wasSent && moves[id] !== undefined && moves[id] !== planned,
+        moved: !wasSent && moveOk && move !== planned,
         sent: wasSent,
         label: wasSent ? `${ordinal(n)} reminder sent` : `${ordinal(n)} reminder`,
       });
