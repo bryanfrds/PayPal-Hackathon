@@ -124,3 +124,15 @@ describe("invoiceLines", () => {
     ]);
   });
 });
+
+describe("sample emails", async () => {
+  const { SAMPLE_DEBTS, SAMPLE_EMAILS } = await import("../app/ledger/sample-data");
+  const { customerSlug } = await import("./customer-tab");
+  it("are keyed by the slugs of real sample customers, and valid", () => {
+    const slugs = new Set(SAMPLE_DEBTS.map((d) => customerSlug(d.customerName)));
+    for (const [slug, email] of Object.entries(SAMPLE_EMAILS)) {
+      expect(slugs.has(slug)).toBe(true);
+      expect(isValidEmail(email)).toBe(true);
+    }
+  });
+});

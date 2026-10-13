@@ -5,6 +5,7 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 import { browserStorage } from "@/lib/debt-store";
+import { SAMPLE_EMAILS } from "./ledger/sample-data";
 import type { PendingSend } from "@/lib/collect";
 import { createCollectStore, EMAILS_KEY, INVOICES_KEY, PENDING_KEY, type CollectStore, type InvoiceRecord } from "@/lib/collect-store";
 
@@ -17,7 +18,7 @@ const listeners = new Set<() => void>();
 
 function getStore(): CollectStore {
   if (!store) {
-    store = createCollectStore(browserStorage());
+    store = createCollectStore(browserStorage(), SAMPLE_EMAILS);
     snapshot = { emails: store.emails(), invoices: store.invoices(), pending: store.pending() };
   }
   return store;

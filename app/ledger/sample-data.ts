@@ -31,3 +31,25 @@ export const SAMPLE_DEBTS: Debt[] = [
   sample("T-1013", "Kak Lina", "Beras 5kg", 1160, "2026-08-01", "paid"),
   sample("T-1014", "Kak Lina", "Sardin x3, bawang 1kg", 1350, "2026-07-14", "paid"),
 ];
+
+// Demo customers' emails, so the Collect screen opens ready to send. They all reach
+// Bryan's inbox through Gmail "+" addresses (bryanljy07+siti@gmail.com lands in
+// bryanljy07@gmail.com); change DEMO_INBOX to use your own. Mr. Raj is left without one
+// to show the "Add email" step. Keyed by customer slug (lib/customer-tab.ts).
+const DEMO_INBOX = { user: "bryanljy07", domain: "gmail.com" };
+
+function demoEmail(tag: string): string {
+  return `${DEMO_INBOX.user}+${tag}@${DEMO_INBOX.domain}`;
+}
+
+export const SAMPLE_EMAILS: Record<string, string> = {
+  "mak-cik-siti": demoEmail("siti"),
+  "pak-ali-bengkel": demoEmail("ali"),
+  "ah-seng": demoEmail("ahseng"),
+  "kak-lina": demoEmail("lina"),
+  "encik-hafiz": demoEmail("hafiz"),
+  "uncle-tan": demoEmail("tan"),
+  "puan-rosnah": demoEmail("rosnah"),
+  "ah-hock": demoEmail("ahhock"),
+  nurul: demoEmail("nurul"),
+};

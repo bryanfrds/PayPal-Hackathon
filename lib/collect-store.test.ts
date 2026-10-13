@@ -70,6 +70,18 @@ describe("createCollectStore", () => {
     expect(createCollectStore(storage).pending()).toEqual({});
   });
 
+  it("fills in demo emails for customers the owner hasn't set, and the owner's win", () => {
+    const storage = new FakeStorage();
+    const seed = { "mak-cik-siti": "demo+siti@gmail.com", "ah-seng": "demo+ahseng@gmail.com" };
+    expect(createCollectStore(storage, seed).emails()).toEqual(seed);
+    expect(storage.data.has("buku.emails.v1")).toBe(false);
+    const store = createCollectStore(storage, seed);
+    store.setEmail("mr-raj", "raj@gmail.com");
+    store.setEmail("ah-seng", "real@gmail.com");
+    expect(store.emails()).toEqual({ "mak-cik-siti": "demo+siti@gmail.com", "ah-seng": "real@gmail.com", "mr-raj": "raj@gmail.com" });
+    expect(JSON.parse(storage.data.get("buku.emails.v1") ?? "{}")).toEqual({ "mr-raj": "raj@gmail.com", "ah-seng": "real@gmail.com" });
+  });
+
   it("works in memory without storage", () => {
     const store = createCollectStore(null);
     store.setEmail("a", "a@b.co");
