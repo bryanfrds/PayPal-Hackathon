@@ -60,6 +60,8 @@ export type ScheduleItem = {
   dueNow: boolean;
   /** Reminders only: the owner dragged it to another day. */
   moved: boolean;
+  /** Reminders only: the owner sent it (tapped WhatsApp) on `day`. */
+  sent: boolean;
   label: string;
 };
 
@@ -120,7 +122,9 @@ function monthName(month: string): string {
 /**
  * Everything on the schedule: each chased customer's bill due date, their latest invoice,
  * and the reminders the rules plan after that. `moves` maps a reminder id to the day the
- * owner dragged it to. Sorted by day, then hour, then name.
+ * owner dragged it to; `sent` maps it to the day they sent it. A reminder that should have gone
+ * out but hasn't is due today, and the ones after it count from there. Sorted by day, then
+ * hour, then name.
  */
 export function buildSchedule(
   debts: Debt[],
@@ -128,6 +132,7 @@ export function buildSchedule(
   rules: ReminderRules,
   moves: Record<string, string>,
   today: string,
+  sent: Record<string, string> = {},
 ): ScheduleItem[] {
   const items: ScheduleItem[] = [];
   const bySlug = new Map<string, Debt[]>();
@@ -154,6 +159,7 @@ export function buildSchedule(
       n: 0,
       dueNow: false,
       moved: false,
+      sent: false,
       label: `${monthName(oldestMonth)} bill due`,
     });
 
@@ -173,6 +179,7 @@ export function buildSchedule(
         n: 0,
         dueNow: false,
         moved: false,
+        sent: false,
         label: latest.number ? `Invoice ${latest.number}` : "Invoice sent",
       });
     }
@@ -180,10 +187,15 @@ export function buildSchedule(
     if (!rules.on) continue;
     // Never remind before the bill is due, nor before the invoice reached them.
     const anchor = invoiceDay && invoiceDay > dueDay ? invoiceDay : dueDay;
+    let previous: string | null = null;
     for (let n = 1; n <= rules.maxCount; n += 1) {
       const id = `${slug}:reminder:${oldestMonth}:${n}`;
-      const planned = addDays(anchor, rules.firstAfterDays + (n - 1) * rules.everyDays);
-      const day = moves[id] ?? planned;
+      const wasSent = sent[id] !== undefined;
+      const byRules: string = previous === null ? addDays(anchor, rules.firstAfterDays) : addDays(previous, rules.everyDays);
+      // Nothing goes out by itself, so one that's overdue and unsent is due today, not in the past.
+      const planned: string = byRules < today ? today : byRules;
+      const day: string = wasSent ? sent[id] : (moves[id] ?? planned);
+      previous = day;
       items.push({
         id,
         kind: "reminder",
@@ -193,9 +205,10 @@ export function buildSchedule(
         hour: sendHourOn(day, rules),
         amountSen,
         n,
-        dueNow: day <= today,
-        moved: moves[id] !== undefined && moves[id] !== planned,
-        label: `${ordinal(n)} reminder`,
+        dueNow: !wasSent && day <= today,
+        moved: !wasSent && moves[id] !== undefined && moves[id] !== planned,
+        sent: wasSent,
+        label: wasSent ? `${ordinal(n)} reminder sent` : `${ordinal(n)} reminder`,
       });
     }
   }

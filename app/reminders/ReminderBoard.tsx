@@ -36,21 +36,32 @@ function toEvents(items: ScheduleItem[]) {
   return items.map((item) => ({
     id: item.id,
     resourceId: item.slug,
-    name: item.kind === "reminder" ? `${item.label} · ${item.customer}` : `${item.label} · ${item.customer}`,
+    name: `${item.label} · ${item.customer}`,
     // Each item fills its day, so the bars line up with the day columns.
     startDate: at(item.day),
     endDate: at(addDays(item.day, 1)),
     allDay: true,
-    eventColor: COLOURS[item.kind],
+    eventColor: item.sent ? "#8a8579" : COLOURS[item.kind],
     // Only reminders move; due dates and invoices are facts.
-    draggable: item.kind === "reminder",
+    draggable: item.kind === "reminder" && !item.sent,
     resizable: false,
     cls: `rb-${item.kind}${item.moved ? " rb-moved" : ""}`,
     kind: item.kind,
-    short: item.kind === "reminder" ? item.label.replace(" reminder", "") : item.label,
+    // Short words fit a day cell; the full label is in the tooltip.
+    short: item.kind === "reminder" ? (item.sent ? `${item.n} ✓` : `${item.n}`) : item.kind === "due" ? "Due" : "Invoice",
     amount: `RM ${formatSen(item.amountSen)}`,
   }));
 }
+
+// Two weeks, one column per day: week on top, "Tue 13" underneath.
+const DAYS_PRESET = {
+  base: "dayAndWeek",
+  tickWidth: 46,
+  headers: [
+    { unit: "week", dateFormat: "D MMM" },
+    { unit: "day", dateFormat: "ddd D" },
+  ],
+};
 
 type Props = {
   items: ScheduleItem[];
@@ -73,12 +84,13 @@ export default function ReminderBoard({ items, today, wide, onMove }: Props) {
         <BryntumScheduler
           resources={resources}
           events={events}
-          startDate={at(addDays(today, -7))}
-          endDate={at(addDays(today, 21))}
-          viewPreset="weekAndDay"
+          startDate={at(addDays(today, -3))}
+          endDate={at(addDays(today, 11))}
+          forceFit
+          viewPreset={DAYS_PRESET}
           rowHeight={56}
           barMargin={10}
-          eventStyle="rounded"
+          eventStyle="filled"
           columns={[{ text: "Customer", field: "name", width: 170 }]}
           // Text only: names come from the owner's notebook, so they're encoded, never HTML.
           eventRenderer={({ eventRecord }) => StringHelper.encodeHtml(String((eventRecord as EventModel & { short?: string }).short ?? eventRecord.name))}

@@ -44,7 +44,7 @@ function formatDay(day: string, today: string): string {
 export default function RemindersScreen() {
   const { debts, ready } = useDebts();
   const { invoices } = useCollect();
-  const { rules, moves, move } = useReminders();
+  const { rules, moves, sent, move, markSent } = useReminders();
   const [error, setError] = useState<string | null>(null);
   const boxRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState<number | null>(null);
@@ -60,7 +60,7 @@ export default function RemindersScreen() {
   }, []);
 
   const today = todayLocal();
-  const items = useMemo(() => buildSchedule(debts, invoices, rules, moves, today), [debts, invoices, rules, moves, today]);
+  const items = useMemo(() => buildSchedule(debts, invoices, rules, moves, today, sent), [debts, invoices, rules, moves, today, sent]);
   const reminders = items.filter((i) => i.kind === "reminder");
   // One row per customer: their earliest reminder that should already have gone out.
   const sendNow = useMemo(() => {
@@ -73,7 +73,7 @@ export default function RemindersScreen() {
     }
     return out;
   }, [reminders]);
-  const upcoming = reminders.filter((i) => !i.dueNow).slice(0, 6);
+  const upcoming = reminders.filter((i) => !i.dueNow && !i.sent).slice(0, 6);
   const payLinks = useMemo(() => {
     const links = new Map<string, string>();
     for (const inv of invoices) if (inv.payerLink && isPayPalUrl(inv.payerLink) && !links.has(inv.slug)) links.set(inv.slug, inv.payerLink);
@@ -86,6 +86,14 @@ export default function RemindersScreen() {
       setError(null);
     } catch (e) {
       setError(e instanceof ReminderStoreError ? e.message : "Couldn't move that reminder. Try again.");
+    }
+  }
+
+  function onSent(id: string) {
+    try {
+      markSent(id, today);
+    } catch (e) {
+      setError(e instanceof ReminderStoreError ? e.message : "Couldn't mark it sent. Try again.");
     }
   }
 
@@ -153,7 +161,7 @@ export default function RemindersScreen() {
                       {item.day < today ? ` · since ${formatDay(item.day, today)}` : ""}
                     </span>
                   </span>
-                  <a className="button button-primary reminder-send" href={whatsAppLink(text)} target="_blank" rel="noopener noreferrer">
+                  <a className="button button-primary reminder-send" href={whatsAppLink(text)} target="_blank" rel="noopener noreferrer" onClick={() => onSent(item.id)}>
                     <ChatIcon />
                     WhatsApp
                   </a>
@@ -161,7 +169,7 @@ export default function RemindersScreen() {
               );
             })}
           </ul>
-          <p className="reminder-foot">Opens WhatsApp with a friendly note and their PayPal pay link. Pick the customer there and send.</p>
+          <p className="reminder-foot">Opens WhatsApp with a friendly note and their PayPal pay link. Pick the customer there and send; it's marked sent here and the next one is planned from today.</p>
         </section>
       )}
 

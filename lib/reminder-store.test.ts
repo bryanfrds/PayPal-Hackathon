@@ -38,6 +38,13 @@ describe("createReminderStore", () => {
     expect(store.moves()).toEqual({});
   });
 
+  it("remembers which reminders were sent and when", () => {
+    const store = createReminderStore(memory());
+    store.markSent("a:reminder:2026-08:1", "2026-10-13");
+    expect(store.sent()).toEqual({ "a:reminder:2026-08:1": "2026-10-13" });
+    expect(() => store.markSent("x", "today")).toThrow(ReminderStoreError);
+  });
+
   it("refuses a day that isn't YYYY-MM-DD", () => {
     expect(() => createReminderStore(memory()).move("x", "19 Oct")).toThrow(ReminderStoreError);
   });

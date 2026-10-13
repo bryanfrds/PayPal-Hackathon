@@ -7,6 +7,7 @@ type StorageLike = Pick<Storage, "getItem" | "setItem">;
 
 export const RULES_KEY = "buku.reminderRules.v1";
 export const MOVES_KEY = "buku.reminderMoves.v1";
+export const SENT_KEY = "buku.reminderSent.v1";
 
 export class ReminderStoreError extends Error {
   constructor(message = "Couldn't save on this device. Try again.") {
@@ -27,6 +28,7 @@ function readJson(storage: StorageLike | null, key: string): unknown {
   }
 }
 
+/** Reminder id → YYYY-MM-DD, for both moved and sent reminders. */
 function isMoves(v: unknown): v is Record<string, string> {
   return typeof v === "object" && v !== null && !Array.isArray(v) && Object.values(v).every((d) => typeof d === "string" && DAY.test(d));
 }
@@ -50,6 +52,10 @@ export type ReminderStore = {
   move(id: string, day: string): void;
   /** Puts every moved reminder back where the rules plan it. */
   clearMoves(): void;
+  /** Reminder id → the day the owner sent it. */
+  sent(): Record<string, string>;
+  /** Records that one reminder went out on `day` (YYYY-MM-DD). */
+  markSent(id: string, day: string): void;
 };
 
 export function createReminderStore(storage: StorageLike | null): ReminderStore {
@@ -73,6 +79,14 @@ export function createReminderStore(storage: StorageLike | null): ReminderStore 
     },
     clearMoves() {
       write(storage, MOVES_KEY, {});
+    },
+    sent() {
+      const saved = readJson(storage, SENT_KEY);
+      return isMoves(saved) ? saved : {};
+    },
+    markSent(id, day) {
+      if (!DAY.test(day)) throw new ReminderStoreError("That isn't a day.");
+      write(storage, SENT_KEY, { ...this.sent(), [id]: day });
     },
   };
 }

@@ -6,11 +6,11 @@
 import { useCallback, useSyncExternalStore } from "react";
 import { browserStorage } from "@/lib/debt-store";
 import { DEFAULT_RULES, type ReminderRules } from "@/lib/reminders";
-import { MOVES_KEY, RULES_KEY, createReminderStore, type ReminderStore } from "@/lib/reminder-store";
+import { MOVES_KEY, RULES_KEY, SENT_KEY, createReminderStore, type ReminderStore } from "@/lib/reminder-store";
 
-type Snapshot = { rules: ReminderRules; moves: Record<string, string> };
+type Snapshot = { rules: ReminderRules; moves: Record<string, string>; sent: Record<string, string> };
 
-const EMPTY: Snapshot = { rules: DEFAULT_RULES, moves: {} };
+const EMPTY: Snapshot = { rules: DEFAULT_RULES, moves: {}, sent: {} };
 let store: ReminderStore | null = null;
 let snapshot: Snapshot = EMPTY;
 const listeners = new Set<() => void>();
@@ -18,19 +18,19 @@ const listeners = new Set<() => void>();
 function getStore(): ReminderStore {
   if (!store) {
     store = createReminderStore(browserStorage());
-    snapshot = { rules: store.rules(), moves: store.moves() };
+    snapshot = { rules: store.rules(), moves: store.moves(), sent: store.sent() };
   }
   return store;
 }
 
 function changed() {
   const s = getStore();
-  snapshot = { rules: s.rules(), moves: s.moves() };
+  snapshot = { rules: s.rules(), moves: s.moves(), sent: s.sent() };
   for (const listener of listeners) listener();
 }
 
 function onStorage(event: StorageEvent) {
-  if (event.key === null || event.key === RULES_KEY || event.key === MOVES_KEY) changed();
+  if (event.key === null || event.key === RULES_KEY || event.key === MOVES_KEY || event.key === SENT_KEY) changed();
 }
 
 function subscribe(listener: () => void) {
@@ -67,5 +67,10 @@ export function useReminders() {
     getStore().clearMoves();
     changed();
   }, []);
-  return { ...data, setRules, move, clearMoves };
+  /** Throws ReminderStoreError if it can't be saved. */
+  const markSent = useCallback((id: string, day: string) => {
+    getStore().markSent(id, day);
+    changed();
+  }, []);
+  return { ...data, setRules, move, clearMoves, markSent };
 }
