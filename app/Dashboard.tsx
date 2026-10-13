@@ -91,7 +91,7 @@ export default function Dashboard() {
           <PlusIcon />
           Add debt
         </Link>
-        <Link href="/collect" className="quick">
+        <Link href="/reminders" className="quick">
           <BellIcon />
           Remind
         </Link>
