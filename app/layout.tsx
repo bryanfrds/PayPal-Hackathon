@@ -24,6 +24,7 @@ const NAV_LINKS: NavLink[] = [
   { href: "/", label: "Home", icon: "home" },
   { href: "/scan", label: "Scan", icon: "scan" },
   { href: "/ledger", label: "Ledger", icon: "ledger" },
+  { href: "/insights", label: "Insights", icon: "insights" },
   { href: "/collect", label: "Collect", icon: "collect" },
 ];
 
