@@ -134,9 +134,14 @@ export default function RemindersScreen() {
               : "Reminders are off. Turn them on in Rules."}
           </p>
         </div>
-        <Link href="/reminders/rules" className="button">
-          Rules
-        </Link>
+        <div className="page-actions">
+          <Link href="/reminders/rules" className="button">
+            Rules
+          </Link>
+          <Link href="/nudge" className="button button-primary">
+            Ask Nudge
+          </Link>
+        </div>
       </div>
 
       {error && (

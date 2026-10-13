@@ -3206,3 +3206,173 @@ a.button.tab-pay {
   outline: 2px solid var(--ink);
   outline-offset: 1px;
 }
+
+.page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* Nudge: chat with the reminder assistant. */
+.nudge {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.nudge-new {
+  min-width: 4.5rem;
+  font-size: 0.85rem;
+  text-align: right;
+}
+
+.nudge-log {
+  display: grid;
+  gap: 0.6rem;
+  align-content: start;
+}
+
+.nudge-hello,
+.nudge-bot {
+  justify-self: start;
+  max-width: 92%;
+  padding: 0.7rem 0.9rem;
+  background: var(--card);
+  border-radius: 18px 18px 18px 6px;
+  box-shadow: 0 1px 0 var(--line);
+  line-height: 1.45;
+}
+
+.nudge-me {
+  justify-self: end;
+  max-width: 85%;
+  padding: 0.6rem 0.9rem;
+  color: #ffffff;
+  background: var(--ink);
+  border-radius: 18px 18px 6px 18px;
+  line-height: 1.45;
+}
+
+.nudge-hello p,
+.nudge-bot p,
+.nudge-me p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.nudge-bot p + p {
+  margin-top: 0.5rem;
+}
+
+.nudge-working {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.nudge-draft {
+  margin-top: 0.6rem;
+  padding: 0.75rem;
+  background: var(--paper);
+  border-radius: 14px;
+}
+
+.nudge-bot .nudge-draft p {
+  margin: 0;
+}
+
+.nudge-draft-to {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--muted);
+}
+
+.nudge-bot .nudge-draft .nudge-draft-text {
+  margin: 0.3rem 0;
+}
+
+.nudge-draft-link {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.nudge-draft-send {
+  gap: 0.4rem;
+  margin-top: 0.6rem;
+  min-height: 2.4rem;
+  font-size: 0.85rem;
+}
+
+.nudge-draft-send .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.nudge-suggest {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.chip {
+  padding: 0.5rem 0.8rem;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--card);
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.chip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Sits above the floating menu. */
+.nudge-ask {
+  position: sticky;
+  bottom: calc(max(1rem, env(safe-area-inset-bottom)) + 4.5rem);
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.4rem;
+  background: var(--card);
+  border: 1.5px solid var(--field-line);
+  border-radius: 18px;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.08);
+}
+
+.nudge-ask input {
+  flex: 1;
+  min-width: 0;
+  padding: 0 0.6rem;
+  font: inherit;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  outline: 0;
+}
+
+.nudge-ask:focus-within {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+
+.nudge-ask button {
+  display: grid;
+  place-items: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  color: #ffffff;
+  background: var(--ink);
+  border: 0;
+  border-radius: 14px;
+  cursor: pointer;
+}
+
+.nudge-ask button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
