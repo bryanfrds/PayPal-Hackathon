@@ -123,6 +123,9 @@ export const themeFor = (fontFamily: string) =>
     fontFamily,
     // Titles, charts and grids read this one, not fontFamily.
     studioCanvasFontFamily: fontFamily,
+    // Studio defaults to at least 600px wide, wider than a phone: the page then zooms out sideways.
+    studioMinWidth: 0,
+    studioMinHeight: 0,
     // No frame or inner scroll: the dashboard sits straight on the page.
     studioWrapperBorder: false,
     studioWrapperSpacing: 0,
