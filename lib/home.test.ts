@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Debt } from "./debts";
-import { colourIndex, greeting, initials, summariseHome } from "./home";
+import { colourIndex, customerSummaries, greeting, initials, summariseHome } from "./home";
 
 function debt(amountSen: number, status: Debt["status"]): Debt {
   return {
@@ -70,5 +70,39 @@ describe("colourIndex", () => {
     expect(i).toBeGreaterThanOrEqual(0);
     expect(i).toBeLessThan(6);
     expect(colourIndex("", 6)).toBe(0);
+  });
+});
+
+describe("customerSummaries", () => {
+  function d(customerName: string, amountSen: number, date: string, status: Debt["status"]): Debt {
+    return { id: `${customerName}-${date}-${amountSen}`, customerName, item: "", amountSen, date, status, source: "manual", createdAt: `${date}T00:00:00.000Z` };
+  }
+
+  it("groups a customer's unpaid debts into one row and skips paid ones", () => {
+    const rows = customerSummaries([
+      d("Kak Lina", 2240, "2026-09-28", "sent"),
+      d("kak  lina", 480, "2026-10-06", "unpaid"),
+      d("Kak Lina", 1990, "2026-08-03", "paid"),
+    ]);
+    expect(rows).toEqual([{ customerName: "Kak Lina", owedSen: 2720, count: 2, since: "2026-09-28", status: "sent" }]);
+  });
+
+  it("takes the most urgent status and puts overdue customers first, oldest first", () => {
+    const rows = customerSummaries([
+      d("Uncle Tan", 1780, "2026-10-05", "unpaid"),
+      d("Ah Seng", 3990, "2026-09-04", "overdue"),
+      d("Mak Cik Siti", 4850, "2026-08-02", "overdue"),
+      d("Uncle Tan", 500, "2026-10-01", "overdue"),
+    ]);
+    expect(rows.map((r) => [r.customerName, r.status])).toEqual([
+      ["Mak Cik Siti", "overdue"],
+      ["Ah Seng", "overdue"],
+      ["Uncle Tan", "overdue"],
+    ]);
+    expect(rows[2]).toMatchObject({ owedSen: 2280, count: 2, since: "2026-10-01" });
+  });
+
+  it("is empty when everything is paid", () => {
+    expect(customerSummaries([d("A", 100, "2026-10-01", "paid")])).toEqual([]);
   });
 });
