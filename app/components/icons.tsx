@@ -152,3 +152,9 @@ export const ChatIcon = (p: IconProps) => (
     <path d="M4 19.5 5.3 15A7.5 7.5 0 1 1 9 18.6z" />
   </Svg>
 );
+
+export const ChartIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
+  </Svg>
+);

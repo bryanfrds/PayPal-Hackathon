@@ -2894,3 +2894,88 @@ a.button.tab-pay {
   background: #f7f5f1;
   border-radius: 16px;
 }
+
+/* Insights: the AG Studio dashboard. Wider than the phone column on a laptop. */
+.site-main:has(.insights) {
+  max-width: 1180px;
+}
+
+.insights-studio {
+  margin: 0 -0.5rem;
+  min-height: 12rem;
+}
+
+.scoreboard {
+  list-style: none;
+  margin: 0;
+  padding: 0.25rem 0.5rem;
+  display: grid;
+  gap: 0.6rem;
+  font-family: var(--font-manrope), system-ui, sans-serif;
+  color: var(--ink);
+}
+
+.score-row {
+  display: grid;
+  grid-template-columns: 1.2rem 2.1rem 1fr auto;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.score-rank {
+  font-weight: 800;
+  font-size: 0.8rem;
+  color: #a29d93;
+  text-align: center;
+}
+
+.score-avatar {
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.score-main {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.score-name {
+  font-weight: 700;
+  font-size: 0.875rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.score-track {
+  display: block;
+  height: 7px;
+  border-radius: 4px;
+  background: #efece6;
+  overflow: hidden;
+}
+
+.score-track span {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+}
+
+.score-amount {
+  font-weight: 800;
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.score-more {
+  font-size: 0.78rem;
+  color: var(--muted);
+  padding-left: 1.8rem;
+}

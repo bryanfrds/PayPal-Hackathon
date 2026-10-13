@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookIcon, HomeIcon, ScanIcon, SendIcon } from "./components/icons";
+import { BookIcon, ChartIcon, HomeIcon, ScanIcon, SendIcon } from "./components/icons";
 
-const ICONS = { home: HomeIcon, scan: ScanIcon, ledger: BookIcon, collect: SendIcon };
+const ICONS = { home: HomeIcon, scan: ScanIcon, ledger: BookIcon, insights: ChartIcon, collect: SendIcon };
 
 export type NavLink = { href: string; label: string; icon: keyof typeof ICONS };
 
