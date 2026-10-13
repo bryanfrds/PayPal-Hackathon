@@ -103,9 +103,14 @@ export default function InsightsScreen() {
             Who owes you and how fast people pay, from your ledger.
           </p>
         </div>
-        <Link href="/reminders" className="button">
-          Reminders
-        </Link>
+        <div className="page-actions">
+          <Link href="/reminders" className="button">
+            Reminders
+          </Link>
+          <Link href="/nudge" className="button button-primary">
+            Ask Nudge
+          </Link>
+        </div>
       </div>
       <div
         className="insights-studio"
