@@ -4,8 +4,7 @@
 // flat row with the numbers already split into "still owed" and "collected".
 
 import { dueDateFor, daysBetween } from "./customer-tab";
-import type { Debt, DebtStatus } from "./debts";
-import { STATUS_LABEL } from "@/app/components/StatusBadge";
+import { STATUS_LABEL, type Debt, type DebtStatus } from "./debts";
 
 export type LateBucket =
   "Not due yet" | "1–30 days late" | "31+ days late" | "Paid";
@@ -25,7 +24,7 @@ export type InsightRow = {
   /** Days past the bill's due date (the 10th of the next month); 0 when not due or paid. */
   daysLate: number;
   lateBucket: LateBucket;
-  /** 1 when overdue, so a sum counts overdue tabs. */
+  /** 1 when unpaid past the due date (or marked overdue), so a sum counts late tabs. */
   overdue: number;
 };
 
@@ -52,7 +51,9 @@ export function monthLabel(monthKey: string): string {
 
 export function lateBucket(status: DebtStatus, daysLate: number): LateBucket {
   if (status === "paid") return "Paid";
-  if (daysLate <= 0) return "Not due yet";
+  // Marked overdue by hand before the due date still counts as late, like the customer page.
+  if (daysLate <= 0)
+    return status === "overdue" ? "1–30 days late" : "Not due yet";
   if (daysLate <= 30) return "1–30 days late";
   return "31+ days late";
 }
@@ -76,7 +77,8 @@ export function toInsightRows(debts: Debt[], today: string): InsightRow[] {
       collected: paid ? amount : 0,
       daysLate,
       lateBucket: lateBucket(debt.status, daysLate),
-      overdue: debt.status === "overdue" ? 1 : 0,
+      // Past the due date or marked overdue: the same rule as the customer page (customer-tab.ts).
+      overdue: !paid && (daysLate > 0 || debt.status === "overdue") ? 1 : 0,
     };
   });
 }

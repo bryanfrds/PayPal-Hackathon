@@ -9,6 +9,14 @@
 export type DebtStatus = "overdue" | "sent" | "unpaid" | "paid";
 export type DebtSource = "manual" | "scan";
 
+/** What each status reads as on screen. "unpaid" means no invoice has gone out yet. */
+export const STATUS_LABEL: Record<DebtStatus, string> = {
+  overdue: "Overdue",
+  sent: "Invoice sent",
+  unpaid: "Not sent",
+  paid: "Paid",
+};
+
 export type Debt = {
   id: string;
   customerName: string;

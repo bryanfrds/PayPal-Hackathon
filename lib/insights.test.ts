@@ -47,6 +47,19 @@ describe("toInsightRows", () => {
     });
   });
 
+  it("counts an invoiced tab past its due date as overdue", () => {
+    // Sent on 28 Sep, due 10 Oct: three days late on the 13th, even though no one marked it overdue.
+    const [row] = toInsightRows(
+      [debt({ date: "2026-09-28", status: "sent" })],
+      "2026-10-13",
+    );
+    expect(row).toMatchObject({
+      daysLate: 3,
+      lateBucket: "1–30 days late",
+      overdue: 1,
+    });
+  });
+
   it("moves a paid debt to collected", () => {
     const [row] = toInsightRows([debt({ status: "paid" })], "2026-10-13");
     expect(row).toMatchObject({
@@ -79,6 +92,10 @@ describe("monthLabel", () => {
 });
 
 describe("lateBucket", () => {
+  it("counts a tab marked overdue as late even before the due date", () => {
+    expect(lateBucket("overdue", 0)).toBe("1–30 days late");
+  });
+
   it("puts exactly 30 days in the first bucket", () => {
     expect(lateBucket("overdue", 30)).toBe("1–30 days late");
     expect(lateBucket("overdue", 31)).toBe("31+ days late");
