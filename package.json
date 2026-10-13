@@ -13,11 +13,12 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "paypal:test-invoice": "tsx --conditions=react-server scripts/test-invoice.ts"
+    "paypal:test-invoice": "tsx --conditions=react-server scripts/test-invoice.ts",
+    "predev": "node scripts/copy-bryntum.mjs",
+    "prebuild": "node scripts/copy-bryntum.mjs"
   },
   "dependencies": {
     "@bryntum/calendar": "npm:@bryntum/calendar-trial@^7.3.7",
-    "@bryntum/calendar-react": "^7.3.7",
     "ag-grid-community": "~36.2.0",
     "ag-grid-react": "~36.2.0",
     "ag-studio": "^3.0.0",

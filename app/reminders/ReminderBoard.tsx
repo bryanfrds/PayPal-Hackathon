@@ -2,17 +2,51 @@
 
 // The Bryntum views of the reminder schedule: a Scheduler (one row per customer, drag a
 // reminder to move it) on wide screens, and a Calendar (month with the day's list, or a
-// list) on phones. Loaded only in the browser; see RemindersScreen.
+// list) on phones.
+//
+// Bryntum is loaded as a static file from /vendor/bryntum (copied there by
+// scripts/copy-bryntum.mjs), not bundled: its 5 MB module makes the production build run out
+// of memory. Only types are imported from the package.
 
-import "@bryntum/calendar/calendar.css";
-import "@bryntum/calendar/svalbard-light.css";
-import "@bryntum/calendar/fontawesome/css/fontawesome.css";
-import "@bryntum/calendar/fontawesome/css/solid.css";
-import { useMemo } from "react";
-import { StringHelper, type EventModel } from "@bryntum/calendar";
-import { BryntumCalendar, BryntumScheduler } from "@bryntum/calendar-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { Calendar, Scheduler } from "@bryntum/calendar";
 import { formatSen } from "@/lib/debts";
 import { addDays, type ScheduleItem } from "@/lib/reminders";
+
+type BryntumCalendarModule = typeof import("@bryntum/calendar");
+
+const BASE = "/vendor/bryntum";
+const STYLES = ["calendar.css", "svalbard-light.css", "fontawesome/css/fontawesome.css", "fontawesome/css/solid.css"];
+
+let loading: Promise<BryntumCalendarModule> | null = null;
+
+/** Adds Bryntum's stylesheets and script once, and resolves with its classes. */
+function loadBryntum(): Promise<BryntumCalendarModule> {
+  if (loading) return loading;
+  loading = new Promise<BryntumCalendarModule>((resolve, reject) => {
+    for (const href of STYLES) {
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = `${BASE}/${href}`;
+      document.head.appendChild(link);
+    }
+    const script = document.createElement("script");
+    script.src = `${BASE}/calendar.umd.js`;
+    script.async = true;
+    script.onload = () => {
+      const lib = (window as unknown as { bryntum?: { calendar?: BryntumCalendarModule } }).bryntum?.calendar;
+      if (lib) resolve(lib);
+      else reject(new Error("Bryntum didn't load"));
+    };
+    script.onerror = () => reject(new Error("Bryntum didn't load"));
+    document.head.appendChild(script);
+  }).catch((error) => {
+    // Let the next visit try again.
+    loading = null;
+    throw error;
+  });
+  return loading;
+}
 
 const COLOURS: Record<ScheduleItem["kind"], string> = {
   due: "#c23b22",
@@ -20,10 +54,10 @@ const COLOURS: Record<ScheduleItem["kind"], string> = {
   reminder: "#141414",
 };
 
-/** Local midnight (or `hour`) on a YYYY-MM-DD day. */
-function at(day: string, hour = 0): Date {
+/** Local midnight on a YYYY-MM-DD day. */
+function at(day: string): Date {
   const [y, m, d] = day.split("-").map(Number);
-  return new Date(y, m - 1, d, hour);
+  return new Date(y, m - 1, d);
 }
 
 /** The local YYYY-MM-DD of a date. */
@@ -36,21 +70,25 @@ function toEvents(items: ScheduleItem[]) {
   return items.map((item) => ({
     id: item.id,
     resourceId: item.slug,
-    name: `${item.label} · ${item.customer}`,
+    name: `${item.label} · ${item.customer} · RM ${formatSen(item.amountSen)}`,
     // Each item fills its day, so the bars line up with the day columns.
     startDate: at(item.day),
     endDate: at(addDays(item.day, 1)),
     allDay: true,
     eventColor: item.sent ? "#8a8579" : COLOURS[item.kind],
-    // Only reminders move; due dates and invoices are facts.
+    // Only reminders still to go out can move; due dates, invoices and sent ones are facts.
     draggable: item.kind === "reminder" && !item.sent,
     resizable: false,
-    cls: `rb-${item.kind}${item.moved ? " rb-moved" : ""}`,
-    kind: item.kind,
-    // Short words fit a day cell; the full label is in the tooltip.
+    cls: item.moved ? "rb-moved" : "",
+    // Short words fit a day cell; the full name is in the tooltip.
     short: item.kind === "reminder" ? (item.sent ? `${item.n} ✓` : `${item.n}`) : item.kind === "due" ? "Due" : "Invoice",
-    amount: `RM ${formatSen(item.amountSen)}`,
   }));
+}
+
+function toResources(items: ScheduleItem[]) {
+  const seen = new Map<string, string>();
+  for (const item of items) if (!seen.has(item.slug)) seen.set(item.slug, item.customer);
+  return [...seen].map(([id, name]) => ({ id, name }));
 }
 
 // Two weeks, one column per day: week on top, "Tue 13" underneath.
@@ -71,56 +109,97 @@ type Props = {
 };
 
 export default function ReminderBoard({ items, today, wide, onMove }: Props) {
+  const hostRef = useRef<HTMLDivElement>(null);
+  const viewRef = useRef<Scheduler | Calendar | null>(null);
+  const onMoveRef = useRef(onMove);
+  const [failed, setFailed] = useState(false);
   const events = useMemo(() => toEvents(items), [items]);
-  const resources = useMemo(() => {
-    const seen = new Map<string, string>();
-    for (const item of items) if (!seen.has(item.slug)) seen.set(item.slug, item.customer);
-    return [...seen].map(([id, name]) => ({ id, name }));
-  }, [items]);
+  const resources = useMemo(() => toResources(items), [items]);
+  // The view is built once per layout and day; data changes go into its stores below.
+  const latest = useRef({ events, resources });
 
-  if (wide) {
+  useEffect(() => {
+    onMoveRef.current = onMove;
+    latest.current = { events, resources };
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+    loadBryntum()
+      .then((lib) => {
+        const host = hostRef.current;
+        if (cancelled || !host) return;
+        const { events: ev, resources: res } = latest.current;
+        viewRef.current = wide
+          ? new lib.Scheduler({
+              appendTo: host,
+              resources: res,
+              events: ev,
+              startDate: at(addDays(today, -3)),
+              endDate: at(addDays(today, 11)),
+              forceFit: true,
+              viewPreset: DAYS_PRESET,
+              rowHeight: 56,
+              barMargin: 10,
+              eventStyle: "filled",
+              columns: [{ text: "Customer", field: "name", width: 170 }],
+              // Text only: names come from the owner's notebook, so they're encoded, never HTML.
+              eventRenderer: ({ eventRecord }) =>
+                lib.StringHelper.encodeHtml(String((eventRecord as unknown as { short?: string }).short ?? eventRecord.name)),
+              features: {
+                eventDrag: {
+                  constrainDragToResource: true,
+                  // A reminder can't be moved into the past.
+                  validatorFn: ({ startDate }: { startDate: Date }) => dayOf(startDate) >= today,
+                },
+                eventResize: false,
+                eventEdit: false,
+                eventDragCreate: false,
+                eventMenu: false,
+                scheduleMenu: false,
+                cellEdit: false,
+              },
+              listeners: {
+                eventDrop: ({ eventRecords }) => {
+                  const moved = eventRecords[0];
+                  if (moved?.startDate) onMoveRef.current(String(moved.id), dayOf(new Date(moved.startDate)));
+                },
+              },
+            })
+          : new lib.Calendar({
+              appendTo: host,
+              events: ev,
+              date: at(today),
+              mode: "monthagenda",
+              modes: { day: null, week: null, year: null, month: null, monthagenda: { title: "Month" }, agenda: { title: "List" } },
+              sidebar: false,
+              readOnly: true,
+            });
+      })
+      .catch(() => {
+        if (!cancelled) setFailed(true);
+      });
+    return () => {
+      cancelled = true;
+      viewRef.current?.destroy();
+      viewRef.current = null;
+    };
+  }, [wide, today]);
+
+  // New schedule (moved, sent, rules changed): swap the data in place.
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    view.eventStore.data = events;
+    if ("resourceStore" in view && view.resourceStore) view.resourceStore.data = resources;
+  }, [events, resources]);
+
+  if (failed) {
     return (
-      <div className="reminder-board reminder-board-wide">
-        <BryntumScheduler
-          resources={resources}
-          events={events}
-          startDate={at(addDays(today, -3))}
-          endDate={at(addDays(today, 11))}
-          forceFit
-          viewPreset={DAYS_PRESET}
-          rowHeight={56}
-          barMargin={10}
-          eventStyle="filled"
-          columns={[{ text: "Customer", field: "name", width: 170 }]}
-          // Text only: names come from the owner's notebook, so they're encoded, never HTML.
-          eventRenderer={({ eventRecord }) => StringHelper.encodeHtml(String((eventRecord as EventModel & { short?: string }).short ?? eventRecord.name))}
-          eventDragFeature={{ constrainDragToResource: true }}
-          eventResizeFeature={false}
-          eventEditFeature={false}
-          eventDragCreateFeature={false}
-          eventMenuFeature={false}
-          scheduleMenuFeature={false}
-          cellEditFeature={false}
-          timeRangesFeature={{ showCurrentTimeLine: true }}
-          onEventDrop={({ eventRecords }) => {
-            const moved = eventRecords[0];
-            if (moved?.startDate) onMove(String(moved.id), dayOf(moved.startDate as Date));
-          }}
-        />
-      </div>
+      <p className="notice notice-error" role="alert">
+        The calendar couldn&apos;t load. Check your connection and refresh.
+      </p>
     );
   }
-
-  return (
-    <div className="reminder-board reminder-board-phone">
-      <BryntumCalendar
-        events={events}
-        date={at(today)}
-        mode="monthagenda"
-        modes={{ day: null, week: null, year: null, month: null, monthagenda: { title: "Month" }, agenda: { title: "List" } }}
-        sidebar={false}
-        readOnly
-      />
-    </div>
-  );
+  return <div ref={hostRef} className={`reminder-board ${wide ? "reminder-board-wide" : "reminder-board-phone"}`} />;
 }
