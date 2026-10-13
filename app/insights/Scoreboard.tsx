@@ -4,11 +4,13 @@ import { useEffect, useState } from "react";
 import type { AgWidgetFieldReference, AgWidgetParams } from "ag-studio";
 import { formatSen } from "@/lib/debts";
 import { colourIndex, initials } from "@/lib/home";
-import { rankOwed, type ScoreRow } from "@/lib/insights";
+import type { ScoreRow } from "@/lib/insights";
+import { fetchScoreRows } from "./scoreboard-data";
 
 // "Who owes you" as a friendly scoreboard, not a collections report: a custom AG Studio widget.
 // It asks Studio's data engine for the owed total per customer, so page filters and
-// cross-filters from the other widgets apply to it too.
+// cross-filters from the other widgets apply to it too. Studio re-renders the widget with a
+// new props object whenever filters or data change, so the fetch runs again on each one.
 
 export type ScoreboardMapping = {
   customer: AgWidgetFieldReference[];
@@ -33,7 +35,8 @@ const AVATAR_COLOURS = [
 
 const SHOWN = 5;
 
-export default function Scoreboard({ widgetApi, dataMapping }: Props) {
+export default function Scoreboard(props: Props) {
+  const { widgetApi, dataMapping } = props;
   const [rows, setRows] = useState<ScoreRow[]>([]);
   const customerField = dataMapping.customer?.[0];
   const owedField = dataMapping.owed?.[0];
@@ -43,28 +46,22 @@ export default function Scoreboard({ widgetApi, dataMapping }: Props) {
       widgetApi.setDisplayState("incompleteDataMapping");
       return;
     }
-    let live = true;
+    // A newer refresh aborts this one, so a slow answer can't overwrite a fresh one.
+    const controller = new AbortController();
     widgetApi.setDisplayState("loading");
-    widgetApi
-      .getData({ fields: [customerField, owedField] })
-      .then((response) => {
-        if (!live) return;
-        const ranked = rankOwed(
-          response.results.rows.map((row) => ({
-            customer: String(row[customerField.key] ?? ""),
-            owed: Number(row[owedField.key] ?? 0),
-          })),
-        );
+    fetchScoreRows(widgetApi, customerField, owedField, controller.signal)
+      .then((ranked) => {
+        if (controller.signal.aborted) return;
         setRows(ranked);
         widgetApi.setDisplayState(ranked.length === 0 ? "noData" : "displayed");
       })
       .catch(() => {
-        if (live) widgetApi.setDisplayState("noData");
+        if (!controller.signal.aborted) widgetApi.setDisplayState("noData");
       });
-    return () => {
-      live = false;
-    };
-  }, [widgetApi, customerField, owedField]);
+    return () => controller.abort();
+    // `props` changes on every Studio refresh (filters, cross-filters, data); our own
+    // setRows re-render keeps the same object, so this doesn't loop.
+  }, [props, widgetApi, customerField, owedField]);
 
   const top = rows[0]?.owed ?? 0;
   const shown = rows.slice(0, SHOWN);
