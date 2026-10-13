@@ -18,6 +18,7 @@ import {
   type ScanLine,
   type ScanMode,
 } from "@/lib/scan";
+import { BackIcon, BoltIcon, CheckIcon, CloseIcon, ImageIcon, NoteIcon, ReceiptIcon } from "../components/icons";
 import { useDebts } from "../useDebts";
 
 type Phase = "camera" | "reading" | "check";
@@ -185,7 +186,7 @@ function Camera({
 
       <div className="scan-camtop">
         <Link href="/" className="scan-round" aria-label="Close scanner">
-          ✕
+          <CloseIcon />
         </Link>
         <h1 ref={titleRef} tabIndex={-1}>
           Scan
@@ -198,7 +199,7 @@ function Camera({
             aria-label={torch.on ? "Turn flash off" : "Turn flash on"}
             onClick={toggleTorch}
           >
-            ⚡
+            <BoltIcon />
           </button>
         ) : (
           <span className="scan-round scan-round-empty" aria-hidden="true" />
@@ -242,15 +243,19 @@ function Camera({
       <div className="scan-camfoot">
         <div className="scan-mode" role="group" aria-label="What are you scanning?">
           <button type="button" aria-pressed={mode === "notebook"} onClick={() => onMode("notebook")}>
-            📒 Notebook
+            <NoteIcon />
+            Notebook
           </button>
           <button type="button" aria-pressed={mode === "receipt"} onClick={() => onMode("receipt")}>
-            🧾 Receipt
+            <ReceiptIcon />
+            Receipt
           </button>
         </div>
         <div className="scan-controls">
           <button type="button" className="scan-gallery" onClick={() => galleryRef.current?.click()}>
-            <span aria-hidden="true">🖼</span>
+            <span aria-hidden="true">
+              <ImageIcon />
+            </span>
             Gallery
           </button>
           {state === "live" && videoReady ? (
@@ -305,7 +310,7 @@ function Reading({ mode, photo, onDone }: { mode: ScanMode; photo: string | null
         <ul className="scan-steps">
           {steps.map((label, i) => (
             <li key={label} className={i < step ? "done" : i === step ? "now" : "later"}>
-              <span aria-hidden="true">{i < step ? "✓" : i === step ? "⋯" : ""}</span>
+              <span aria-hidden="true">{i < step ? <CheckIcon /> : i === step ? "⋯" : ""}</span>
               {label}
             </li>
           ))}
@@ -390,7 +395,7 @@ function Check({ mode, photo, onRetake }: { mode: ScanMode; photo: string | null
     <div className="tab-page">
       <div className="tab-top">
         <button type="button" className="tab-back" aria-label="Back to camera" onClick={onRetake}>
-          ←
+          <BackIcon />
         </button>
         <h1 ref={titleRef} tabIndex={-1}>
           {mode === "notebook" ? "Check the page" : "Check the receipt"}
