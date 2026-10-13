@@ -712,12 +712,6 @@ a {
   padding-bottom: 9rem;
 }
 
-.tab-shop {
-  display: flex;
-  align-items: center;
-  gap: 0.7rem;
-}
-
 .tab-empty-title {
   margin: 0 0 0.4rem;
   font-size: 1.3rem;

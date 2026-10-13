@@ -63,17 +63,30 @@ export function AppIconArt({ size, rounded, inset = 0 }: { size: number; rounded
   );
 }
 
+/** First bytes of a real font file: TrueType (0x00010000 or "true") or OpenType ("OTTO"). */
+function looksLikeFont(data: ArrayBuffer): boolean {
+  if (data.byteLength < 4) return false;
+  const sig = new DataView(data).getUint32(0);
+  return sig === 0x00010000 || sig === 0x4f54544f || sig === 0x74727565;
+}
+
 /**
- * Manrope ExtraBold for the icon's "555", fetched when the icon is built. If the fetch
- * fails, the icon falls back to the default font rather than failing the build.
+ * Manrope ExtraBold for the icon's "555", fetched when the icon is built. Any failure
+ * (no network, an error page, a slow server) falls back to the default font rather than
+ * failing the build.
  */
 export async function iconFonts(): Promise<{ name: string; data: ArrayBuffer; weight: 800; style: "normal" }[]> {
   try {
-    const css = await (await fetch("https://fonts.googleapis.com/css2?family=Manrope:wght@800&text=555")).text();
-    const url = css.match(/src: url\((.+?)\) format\('(?:opentype|truetype)'\)/)?.[1];
+    const cssRes = await fetch("https://fonts.googleapis.com/css2?family=Manrope:wght@800&text=555", {
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!cssRes.ok) return [];
+    const url = (await cssRes.text()).match(/src: url\((.+?)\) format\('(?:opentype|truetype)'\)/)?.[1];
     if (!url) return [];
-    const data = await (await fetch(url)).arrayBuffer();
-    return [{ name: "Manrope", data, weight: 800, style: "normal" }];
+    const fontRes = await fetch(url, { signal: AbortSignal.timeout(5000) });
+    if (!fontRes.ok) return [];
+    const data = await fontRes.arrayBuffer();
+    return looksLikeFont(data) ? [{ name: "Manrope", data, weight: 800, style: "normal" }] : [];
   } catch {
     return [];
   }

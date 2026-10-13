@@ -1,5 +1,6 @@
 // Numbers and labels for the home dashboard. Pure functions so they can be tested in Node.
 
+import { customerSlug } from "./customer-tab";
 import { outstanding, type Debt } from "./debts";
 
 export type HomeSummary = {
@@ -71,13 +72,14 @@ const URGENCY: Record<Exclude<Debt["status"], "paid">, number> = { overdue: 0, s
 
 /**
  * One row per customer who still owes something, most urgent first (overdue, then
- * invoice sent, then not sent), then oldest first. Names match ignoring case and spacing.
+ * invoice sent, then not sent), then oldest first. Names are grouped the same way as the
+ * customer's own page (customerSlug), so "Kak Lina" and "kak lina." are one row.
  */
 export function customerSummaries(debts: Debt[]): CustomerSummary[] {
   const byName = new Map<string, CustomerSummary>();
   for (const debt of debts) {
     if (debt.status === "paid") continue;
-    const key = debt.customerName.trim().replace(/\s+/g, " ").toLowerCase();
+    const key = customerSlug(debt.customerName);
     const row = byName.get(key);
     if (!row) {
       byName.set(key, { customerName: debt.customerName, owedSen: debt.amountSen, count: 1, since: debt.date, status: debt.status });

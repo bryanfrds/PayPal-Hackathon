@@ -102,6 +102,14 @@ describe("customerSummaries", () => {
     expect(rows[2]).toMatchObject({ owedSen: 2280, count: 2, since: "2026-10-01" });
   });
 
+  it("groups spellings the customer page treats as one (punctuation, accents)", () => {
+    const rows = customerSummaries([d("Kak Lina", 2240, "2026-09-28", "sent"), d("Kak Lina.", 480, "2026-10-06", "unpaid"), d("Zoë", 100, "2026-10-01", "unpaid"), d("zoe", 200, "2026-10-02", "unpaid")]);
+    expect(rows.map((r) => [r.customerName, r.owedSen])).toEqual([
+      ["Kak Lina", 2720],
+      ["Zoë", 300],
+    ]);
+  });
+
   it("is empty when everything is paid", () => {
     expect(customerSummaries([d("A", 100, "2026-10-01", "paid")])).toEqual([]);
   });

@@ -10,7 +10,7 @@ import {
   type GridApi,
   type ModelUpdatedEvent,
 } from "ag-grid-community";
-import { formatSen, outstanding, sortDebts, type Debt, type DebtStatus } from "@/lib/debts";
+import { formatSen, outstanding, sortDebts, STATUS_ORDER, type Debt, type DebtStatus } from "@/lib/debts";
 import StatusBadge, { STATUS_LABEL } from "../components/StatusBadge";
 import { CloseIcon } from "../components/icons";
 
@@ -100,6 +100,9 @@ function buildColumnDefs(mode: LayoutMode): ColDef<LedgerRow>[] {
       cellRenderer: StatusCell,
       // Search and filter by the words on the badge ("Invoice sent"), not the stored value ("sent").
       getQuickFilterText: (p) => (p.value ? STATUS_LABEL[p.value as DebtStatus] : ""),
+      filterValueGetter: (p) => (p.data?.status ? STATUS_LABEL[p.data.status] : ""),
+      // Header sort goes by urgency (overdue → invoice sent → not sent → paid), not A–Z.
+      comparator: (a, b) => (a ? STATUS_ORDER[a as DebtStatus] : 9) - (b ? STATUS_ORDER[b as DebtStatus] : 9),
       valueFormatter: (p) => (p.value ? STATUS_LABEL[p.value as DebtStatus] : ""),
     },
     {
