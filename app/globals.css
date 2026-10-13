@@ -2901,8 +2901,10 @@ a.button.tab-pay {
 }
 
 .insights-studio {
-  margin: 0 -0.5rem;
   min-height: 12rem;
+  /* Nothing inside may push the page wider than the screen. */
+  max-width: 100%;
+  overflow-x: clip;
 }
 
 .scoreboard {
