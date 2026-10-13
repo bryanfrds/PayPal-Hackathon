@@ -44,7 +44,8 @@ function formatDay(day: string, today: string): string {
 export default function RemindersScreen() {
   const { debts, ready } = useDebts();
   const { invoices } = useCollect();
-  const { rules, moves, sent, move, markSent } = useReminders();
+  const { rules, moves, sent, move, markSent, unmarkSent } = useReminders();
+  const [justSent, setJustSent] = useState<ScheduleItem | null>(null);
   const [error, setError] = useState<string | null>(null);
   const boxRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState<number | null>(null);
@@ -61,7 +62,7 @@ export default function RemindersScreen() {
 
   const today = todayLocal();
   const items = useMemo(() => buildSchedule(debts, invoices, rules, moves, today, sent), [debts, invoices, rules, moves, today, sent]);
-  const reminders = items.filter((i) => i.kind === "reminder");
+  const reminders = useMemo(() => items.filter((i) => i.kind === "reminder"), [items]);
   // One row per customer: their earliest reminder that should already have gone out.
   const sendNow = useMemo(() => {
     const seen = new Set<string>();
@@ -89,9 +90,10 @@ export default function RemindersScreen() {
     }
   }
 
-  function onSent(id: string) {
+  function onSent(item: ScheduleItem) {
     try {
-      markSent(id, today);
+      markSent(item.id, today);
+      setJustSent(item);
     } catch (e) {
       setError(e instanceof ReminderStoreError ? e.message : "Couldn't mark it sent. Try again.");
     }
@@ -121,6 +123,26 @@ export default function RemindersScreen() {
         </p>
       )}
 
+      {justSent && (
+        <p className="notice notice-success" role="status">
+          Marked {justSent.customer}'s {justSent.label} as sent. The next one is planned from today.{" "}
+          <button
+            type="button"
+            className="link-button"
+            onClick={() => {
+              try {
+                unmarkSent(justSent.id);
+                setJustSent(null);
+              } catch (e) {
+                setError(e instanceof ReminderStoreError ? e.message : "Couldn't undo. Try again.");
+              }
+            }}
+          >
+            Undo
+          </button>
+        </p>
+      )}
+
       <div ref={boxRef} className="reminder-box">
         {!ready || width === null ? (
           <p className="card loading" aria-busy="true">
@@ -137,7 +159,7 @@ export default function RemindersScreen() {
         ) : (
           <>
             <ReminderBoard items={items} today={today} wide={wide} onMove={onMove} />
-            {wide && <p className="reminder-hint">Drag a black reminder to another day to move it.</p>}
+            {wide && <p className="reminder-hint">Drag a black reminder to another day to move it, or pick a new day under Coming up.</p>}
           </>
         )}
       </div>
@@ -161,7 +183,8 @@ export default function RemindersScreen() {
                       {item.day < today ? ` · since ${formatDay(item.day, today)}` : ""}
                     </span>
                   </span>
-                  <a className="button button-primary reminder-send" href={whatsAppLink(text)} target="_blank" rel="noopener noreferrer" onClick={() => onSent(item.id)}>
+                  <a className="button button-primary reminder-send" href={whatsAppLink(text)} target="_blank" rel="noopener noreferrer" onClick={() => onSent(item)}
+                    aria-label={`WhatsApp ${item.customer}`}>
                     <ChatIcon />
                     WhatsApp
                   </a>
@@ -190,6 +213,17 @@ export default function RemindersScreen() {
                     {item.moved ? " · moved" : ""}
                   </span>
                 </span>
+                {/* Same as dragging on the Scheduler, for keyboards, screen readers and phones. */}
+                <input
+                  type="date"
+                  className="reminder-date"
+                  min={today}
+                  value={item.day}
+                  aria-label={`Move ${item.customer}'s ${item.label}`}
+                  onChange={(event) => {
+                    if (event.target.value) onMove(item.id, event.target.value);
+                  }}
+                />
               </li>
             ))}
           </ul>

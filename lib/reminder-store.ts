@@ -34,7 +34,8 @@ function isMoves(v: unknown): v is Record<string, string> {
 }
 
 function write(storage: StorageLike | null, key: string, value: unknown) {
-  if (!storage) return;
+  // Private mode or blocked storage: say so, rather than look saved and lose it.
+  if (!storage) throw new ReminderStoreError("This browser isn't saving data (private mode or storage blocked), so this wasn't kept.");
   try {
     storage.setItem(key, JSON.stringify(value));
   } catch {
@@ -56,6 +57,8 @@ export type ReminderStore = {
   sent(): Record<string, string>;
   /** Records that one reminder went out on `day` (YYYY-MM-DD). */
   markSent(id: string, day: string): void;
+  /** Takes back a "sent" mark, e.g. when the owner cancelled in WhatsApp. */
+  unmarkSent(id: string): void;
 };
 
 export function createReminderStore(storage: StorageLike | null): ReminderStore {
@@ -87,6 +90,11 @@ export function createReminderStore(storage: StorageLike | null): ReminderStore 
     markSent(id, day) {
       if (!DAY.test(day)) throw new ReminderStoreError("That isn't a day.");
       write(storage, SENT_KEY, { ...this.sent(), [id]: day });
+    },
+    unmarkSent(id) {
+      const rest = { ...this.sent() };
+      delete rest[id];
+      write(storage, SENT_KEY, rest);
     },
   };
 }

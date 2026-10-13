@@ -72,5 +72,10 @@ export function useReminders() {
     getStore().markSent(id, day);
     changed();
   }, []);
-  return { ...data, setRules, move, clearMoves, markSent };
+  /** Throws ReminderStoreError if it can't be saved. */
+  const unmarkSent = useCallback((id: string) => {
+    getStore().unmarkSent(id);
+    changed();
+  }, []);
+  return { ...data, setRules, move, clearMoves, markSent, unmarkSent };
 }

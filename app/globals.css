@@ -3188,3 +3188,21 @@ a.button.tab-pay {
   text-transform: uppercase;
   color: var(--muted);
 }
+
+.reminder-date {
+  flex: none;
+  width: 8.5rem;
+  min-height: 2.4rem;
+  padding: 0 0.5rem;
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--ink);
+  background: var(--card);
+  border: 1.5px solid var(--field-line);
+  border-radius: 10px;
+}
+
+.reminder-date:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}

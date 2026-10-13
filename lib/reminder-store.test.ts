@@ -53,11 +53,19 @@ describe("createReminderStore", () => {
     expect(createReminderStore(memory({ [MOVES_KEY]: JSON.stringify({ x: "soon" }) })).moves()).toEqual({});
   });
 
-  it("works without storage (private mode) and keeps defaults", () => {
+  it("without storage (private mode) reads the defaults and refuses to pretend it saved", () => {
     const store = createReminderStore(null);
-    store.move("x", "2026-10-19");
     expect(store.rules()).toEqual(DEFAULT_RULES);
     expect(store.moves()).toEqual({});
+    expect(() => store.move("x", "2026-10-19")).toThrow(ReminderStoreError);
+  });
+
+  it("can take back a sent mark", () => {
+    const store = createReminderStore(memory());
+    store.markSent("a", "2026-10-13");
+    store.markSent("b", "2026-10-13");
+    store.unmarkSent("a");
+    expect(store.sent()).toEqual({ b: "2026-10-13" });
   });
 
   it("says so when saving fails", () => {
