@@ -56,6 +56,8 @@ export type DebtsApi = {
   add(debt: Debt): void;
   /** All or none. */
   addMany(debts: Debt[]): void;
+  /** One write; returns how many debts were found. */
+  updateMany(ids: string[], patch: Partial<Omit<Debt, "id">>): number;
   remove(id: string): Debt | undefined;
   reset(): void;
   clear(): void;
@@ -84,6 +86,11 @@ export function useDebts(): DebtsApi {
     getStore().addMany(list);
     changed();
   }, []);
+  const updateMany = useCallback((ids: string[], patch: Partial<Omit<Debt, "id">>) => {
+    const found = getStore().updateMany(ids, patch);
+    changed();
+    return found;
+  }, []);
   const remove = useCallback((id: string) => {
     const removed = getStore().remove(id);
     changed();
@@ -105,6 +112,7 @@ export function useDebts(): DebtsApi {
     unreadable: ready ? getStore().unreadable : false,
     add,
     addMany,
+    updateMany,
     remove,
     reset,
     clear,

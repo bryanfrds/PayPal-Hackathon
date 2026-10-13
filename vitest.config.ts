@@ -4,6 +4,8 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   resolve: {
     alias: {
+      // Same "@/..." paths as tsconfig, so route handlers can be tested as written.
+      "@": fileURLToPath(new URL("./", import.meta.url)),
       // server-only throws outside a React Server Component. Tests run lib/paypal.ts
       // directly, so point the import at the package's no-op entry.
       "server-only": fileURLToPath(new URL("./node_modules/server-only/empty.js", import.meta.url)),

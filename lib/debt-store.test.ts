@@ -83,6 +83,13 @@ describe("createDebtStore", () => {
     expect(store.list().map((d) => d.id)).toEqual(["S1", "S2"]);
   });
 
+  it("updates several debts in one save", () => {
+    const storage = new FakeStorage();
+    const store = createDebtStore(storage, [debt("A"), debt("B"), debt("C")]);
+    expect(store.updateMany(["A", "C", "missing"], { status: "sent" })).toBe(2);
+    expect(createDebtStore(storage, []).list().map((d) => d.status)).toEqual(["sent", "unpaid", "sent"]);
+  });
+
   it("updates only the named debt", () => {
     const store = createDebtStore(new FakeStorage(), SEED);
     expect(store.update("S1", { status: "sent" })?.status).toBe("sent");

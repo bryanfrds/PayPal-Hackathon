@@ -132,3 +132,23 @@ export const SearchIcon = (p: IconProps) => (
     <path d="m20 20-4.5-4.5" />
   </Svg>
 );
+
+export const MailIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="3.5" y="5.5" width="17" height="13" rx="2" />
+    <path d="m4 7 8 6 8-6" />
+  </Svg>
+);
+
+export const LinkIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1" />
+    <path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" />
+  </Svg>
+);
+
+export const ChatIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M4 19.5 5.3 15A7.5 7.5 0 1 1 9 18.6z" />
+  </Svg>
+);

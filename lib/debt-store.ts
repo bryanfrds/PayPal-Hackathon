@@ -13,6 +13,8 @@ export interface DebtStore {
   addMany(debts: Debt[]): void;
   /** Changes some fields of a debt. Returns the updated debt, or undefined if there's none with that id. */
   update(id: string, patch: Partial<Omit<Debt, "id">>): Debt | undefined;
+  /** Applies the same change to several debts in one write. Returns how many were found. */
+  updateMany(ids: string[], patch: Partial<Omit<Debt, "id">>): number;
   /** Removes a debt and returns it (so it can be restored), or undefined if there's none with that id. */
   remove(id: string): Debt | undefined;
   /** Puts the sample debts back, for demos. Also the way out of unreadable saved data. */
@@ -143,6 +145,18 @@ export function createDebtStore(storage: StorageLike | null, seed: Debt[]): Debt
         }),
       );
       return updated;
+    },
+    updateMany(ids, patch) {
+      const wanted = new Set(ids);
+      let found = 0;
+      change((current) =>
+        current.map((d) => {
+          if (!wanted.has(d.id)) return d;
+          found += 1;
+          return { ...d, ...patch, id: d.id };
+        }),
+      );
+      return found;
     },
     remove(id) {
       let removed: Debt | undefined;
