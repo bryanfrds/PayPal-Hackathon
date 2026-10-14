@@ -7,6 +7,7 @@ import { useCallback, useSyncExternalStore } from "react";
 import { browserStorage } from "@/lib/debt-store";
 import { SAMPLE_EMAILS } from "./ledger/sample-data";
 import type { PendingSend } from "@/lib/collect";
+import type { InvoiceStanding } from "@/lib/payments";
 import { createCollectStore, EMAILS_KEY, INVOICES_KEY, PENDING_KEY, type CollectStore, type InvoiceRecord } from "@/lib/collect-store";
 
 type Snapshot = { emails: Record<string, string>; invoices: InvoiceRecord[]; pending: Record<string, PendingSend> };
@@ -69,6 +70,11 @@ export function useCollect() {
     changed();
   }, []);
   /** Throws CollectStoreError if it can't be saved. */
+  const setStandings = useCallback((standings: Record<string, InvoiceStanding>) => {
+    getStore().setStandings(standings);
+    changed();
+  }, []);
+  /** Throws CollectStoreError if it can't be saved. */
   const setPending = useCallback((send: PendingSend) => {
     getStore().setPending(send);
     changed();
@@ -78,5 +84,5 @@ export function useCollect() {
     getStore().clearPending(slug);
     changed();
   }, []);
-  return { ...data, ready, setEmail, addInvoice, setPending, clearPending };
+  return { ...data, ready, setEmail, addInvoice, setStandings, setPending, clearPending };
 }

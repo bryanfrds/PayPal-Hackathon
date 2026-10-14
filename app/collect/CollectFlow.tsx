@@ -659,7 +659,17 @@ function resultText(r: Result): string {
 
 function Send({ groups, onDone }: { groups: CollectGroup[]; onDone: () => void }) {
   const { updateMany } = useDebts();
-  const { addInvoice, setPending, clearPending } = useCollect();
+  const { invoices, addInvoice, setPending, clearPending } = useCollect();
+  // Invoices already sent for each customer's tabs, fixed when the batch starts. A retry
+  // then rebuilds exactly the same request id, even if another tab saved an invoice since.
+  const [previous] = useState<Record<string, string[]>>(() =>
+    Object.fromEntries(
+      groups.map((g) => {
+        const ids = new Set(g.debts.map((d) => d.id));
+        return [g.slug, invoices.filter((r) => r.debtIds.some((id) => ids.has(id))).map((r) => r.id)];
+      }),
+    ),
+  );
   // Customers with a request in flight, so a double-tap on Retry can't send twice at once.
   const inFlight = useRef<Set<string>>(new Set());
   const [results, setResults] = useState<Record<string, Result>>(() =>
@@ -704,7 +714,7 @@ function Send({ groups, onDone }: { groups: CollectGroup[]; onDone: () => void }
 
   async function attempt(g: CollectGroup) {
     setResults((prev) => ({ ...prev, [g.slug]: { state: "sending" } }));
-    const request = sendRequest(g, new Date());
+    const request = sendRequest(g, new Date(), previous[g.slug]);
     try {
       // Saved first, so if the answer is lost the retry sends exactly this again.
       setPending(request);

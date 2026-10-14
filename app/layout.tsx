@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Manrope } from "next/font/google";
 import type { ReactNode } from "react";
 import type { NavLink } from "./NavLinks";
+import PaymentSync from "./PaymentSync";
 import SiteHeader from "./SiteHeader";
 import "./globals.css";
 
@@ -35,6 +36,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body>
         <SiteHeader links={NAV_LINKS} />
         <main className="site-main">{children}</main>
+        <PaymentSync />
       </body>
     </html>
   );
