@@ -25,9 +25,9 @@ import StatusBadge from "../components/StatusBadge";
 import { BackIcon, CheckIcon, ChevronIcon, CloseIcon, MailIcon, PlusIcon, SendIcon } from "../components/icons";
 import { useCollect } from "../useCollect";
 import { useIsWide } from "../useIsWide";
+import { useShop } from "../useShop";
 import { useDebts } from "../useDebts";
 
-const SHOP_NAME = "Kedai Ah Seng";
 
 type Phase = "list" | "review" | "send";
 type Tab = "toSend" | "sent" | "paid";
@@ -521,11 +521,12 @@ function EmailSheet({ group, onClose, onSaved }: { group: CollectGroup; onClose:
 
 /** One invoice, drawn like the paper the customer gets. Used by Review (phone) and the side pane (laptop). */
 function Paper({ group: g, label }: { group: CollectGroup; label: string }) {
+  const { name: shopName } = useShop();
   return (
     <article className="paper" aria-label={label}>
       <div className="paper-head">
         <p className="paper-from">
-          {SHOP_NAME}
+          {shopName}
           <small>Invoice via PayPal</small>
         </p>
         <span className="paper-tag">INVOICE</span>

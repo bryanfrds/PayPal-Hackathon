@@ -6,17 +6,19 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { formatDay, tabPath } from "@/lib/customer-tab";
 import { formatSen, todayLocal } from "@/lib/debts";
-import { greeting, homeOverview, monthTotals, owedBoard, type BoardRow } from "@/lib/home";
+import { greeting, homeOverview, initials, monthTotals, owedBoard, type BoardRow } from "@/lib/home";
 import { buildSchedule } from "@/lib/reminders";
+import AccountSheet from "./components/AccountSheet";
 import Avatar from "./components/Avatar";
 import { BellIcon, ChartIcon, CheckIcon, ChevronIcon, PlusIcon, ReceiptIcon, ScanIcon, SendIcon, SparkIcon } from "./components/icons";
 import { useCollect } from "./useCollect";
 import { useDebts } from "./useDebts";
 import { useIsWide } from "./useIsWide";
 import { useReminders } from "./useReminders";
+import { useShop } from "./useShop";
 
 // Loaded only on wide screens, so phones don't download AG Grid or AG Studio for Home.
 const HomeBoardGrid = dynamic(() => import("./home/HomeBoardGrid"), {
@@ -68,6 +70,8 @@ export default function Dashboard() {
   const { invoices } = useCollect();
   const { rules, moves, sent } = useReminders();
   const wide = useIsWide();
+  const { name: shopName } = useShop();
+  const [accountOpen, setAccountOpen] = useState(false);
   const today = todayLocal();
 
   const schedule = useMemo(() => buildSchedule(debts, invoices, rules, moves, today, sent), [debts, invoices, rules, moves, today, sent]);
@@ -82,7 +86,7 @@ export default function Dashboard() {
       <div className="home-head">
         <div>
           <p className="dash-hello">{ready ? greeting(new Date().getHours()) : " "}</p>
-          <h1 className="dash-shop">Kedai Ah Seng</h1>
+          <h1 className="dash-shop">{shopName}</h1>
         </div>
         <div className="home-head-actions">
           <Link href="/scan" className="button home-wide-only">
@@ -97,9 +101,14 @@ export default function Dashboard() {
             <PlusIcon />
             Add debt
           </Link>
-          <span className="avatar avatar-me home-phone-only" aria-hidden="true">
-            AS
-          </span>
+          <button
+            type="button"
+            className="avatar avatar-me home-phone-only home-acct"
+            aria-label={`Account: ${shopName}`}
+            onClick={() => setAccountOpen(true)}
+          >
+            {initials(shopName)}
+          </button>
         </div>
       </div>
 
@@ -330,6 +339,7 @@ export default function Dashboard() {
       </div>
 
       <p className="powered">Invoices and payments by PayPal</p>
+      {accountOpen && <AccountSheet onClose={() => setAccountOpen(false)} />}
     </div>
   );
 }
