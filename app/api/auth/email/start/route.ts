@@ -33,10 +33,10 @@ export async function POST(req: NextRequest) {
 
   const allowed = isAllowedOwner(email);
   // Judges' demo login and owners' private codes (set in the environment) aren't emailed.
-  const demo = allowed ? fixedCode(email) : null;
+  const fixed = allowed ? fixedCode(email) : null;
   // Not an owner: a code that's never sent and never shown, so it can't be used.
-  const code = demo ?? newCode();
-  if (allowed && !demo) {
+  const code = fixed ?? newCode();
+  if (allowed && !fixed) {
     try {
       await sendSignInCode(email, code);
     } catch (e) {

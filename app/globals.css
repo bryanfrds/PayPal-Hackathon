@@ -4917,6 +4917,12 @@ a.button.tab-pay {
   box-shadow: 0 1px 0 var(--line);
 }
 
+/* An owner's 12-character code: two rows of six, a little smaller. */
+.si-code-boxes.long span {
+  height: 46px;
+  font-size: 1.25rem;
+}
+
 .si-code:focus-within .si-code-boxes span.on {
   outline: 2px solid var(--ink);
 }

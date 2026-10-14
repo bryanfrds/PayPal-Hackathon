@@ -26,6 +26,8 @@ export const CODE_SECONDS = 10 * 60;
 /** Wrong codes allowed on one pending cookie before the owner has to ask for a new one. */
 export const MAX_CODE_TRIES = 5;
 export const CODE_LENGTH = 6;
+/** Owners' fixed codes (OWNER_CODES) are longer, since they never change. See fixedCode. */
+export const OWNER_CODE_LENGTH = 12;
 /** No 0/O, 1/I/L: easy to read out of an email and type on a phone. */
 export const CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
 
@@ -178,7 +180,7 @@ export async function checkCode(pendingToken: string | undefined, code: string, 
   const typed = tidyCode(code);
   const expected = fromBase64Url(pending.codeHash);
   const actual = fromBase64Url(await hashCode(pending.email, typed, secret));
-  if (typed.length === CODE_LENGTH && expected && actual && sameBytes(expected, actual)) return { ok: true, email: pending.email };
+  if ((typed.length === CODE_LENGTH || typed.length === OWNER_CODE_LENGTH) && expected && actual && sameBytes(expected, actual)) return { ok: true, email: pending.email };
   const next: Pending = { ...pending, tries: pending.tries + 1 };
   return { ok: false, reason: next.tries >= MAX_CODE_TRIES ? "tooManyTries" : "wrong", pending: await sign(next, "pending", secret) };
 }
@@ -217,22 +219,27 @@ export function safeNext(value: string | null | undefined): string {
 /**
  * A fixed code for an email, from the environment, used instead of emailing one: the judges'
  * demo login (DEMO_EMAIL + DEMO_CODE) and owners' private codes (OWNER_CODES, as
- * "email:CODE,email:CODE"). Codes are 6 letters or digits. Null if the email has none.
+ * "email:CODE,email:CODE"). Null if the email has none or isn't an allowed owner.
+ *
+ * An owner's code never changes, and the try count lives in a cookie the browser can replay,
+ * so only the per-IP throttle slows guessing. Owner codes are therefore 12 characters; the
+ * demo code stays 6 because it's switched off after judging.
  */
 export function fixedCode(email: string, env: Record<string, string | undefined> = process.env): string | null {
-  const ok = (code: string | undefined) => {
+  if (!isAllowedOwner(email, env)) return null;
+  const ok = (code: string | undefined, length: number) => {
     const c = code?.trim().toUpperCase();
-    return c && /^[A-Z0-9]{6}$/.test(c) ? c : null;
+    return c && c.length === length && /^[A-Z0-9]+$/.test(c) ? c : null;
   };
   const target = email.trim().toLowerCase();
   for (const pair of (env.OWNER_CODES ?? "").split(",")) {
     const at = pair.lastIndexOf(":");
     if (at <= 0) continue;
     if (pair.slice(0, at).trim().toLowerCase() === target) {
-      const code = ok(pair.slice(at + 1));
+      const code = ok(pair.slice(at + 1), OWNER_CODE_LENGTH);
       if (code) return code;
     }
   }
-  if (env.DEMO_EMAIL?.trim().toLowerCase() === target) return ok(env.DEMO_CODE);
+  if (env.DEMO_EMAIL?.trim().toLowerCase() === target) return ok(env.DEMO_CODE, CODE_LENGTH);
   return null;
 }

@@ -180,20 +180,38 @@ describe("safeNext", () => {
 });
 
 describe("fixedCode", () => {
-  const env = { OWNER_CODES: "Owner@Shop.com:abc234, partner@shop.com : ZZ99AA, broken@shop.com:12", DEMO_EMAIL: "demo@shop.com", DEMO_CODE: "PAYPAL" };
+  const env = {
+    NODE_ENV: "production",
+    OWNER_EMAILS: "owner@shop.com,partner@shop.com,short@shop.com,broken@shop.com",
+    OWNER_CODES:
+      "Owner@Shop.com:abc234def567, partner@shop.com : ZZ99AAKK22MM, short@shop.com:ABC234, broken@shop.com:12, notlisted@shop.com:QQQQQQQQQQQQ",
+    DEMO_EMAIL: "demo@shop.com",
+    DEMO_CODE: "PAYPAL",
+  };
 
-  it("finds an owner's private code, ignoring case and spaces", () => {
-    expect(fixedCode("owner@shop.com", env)).toBe("ABC234");
-    expect(fixedCode("partner@shop.com", env)).toBe("ZZ99AA");
+  it("finds an owner's private 12-character code, ignoring case and spaces", () => {
+    expect(fixedCode("owner@shop.com", env)).toBe("ABC234DEF567");
+    expect(fixedCode("partner@shop.com", env)).toBe("ZZ99AAKK22MM");
   });
 
-  it("finds the demo code", () => {
+  it("finds the 6-character demo code", () => {
     expect(fixedCode("demo@shop.com", env)).toBe("PAYPAL");
   });
 
-  it("is null for anyone else, or a malformed code", () => {
-    expect(fixedCode("stranger@shop.com", env)).toBeNull();
+  it("refuses an owner code shorter than 12 characters, or malformed", () => {
+    expect(fixedCode("short@shop.com", env)).toBeNull();
     expect(fixedCode("broken@shop.com", env)).toBeNull();
-    expect(fixedCode("owner@shop.com", {})).toBeNull();
+  });
+
+  it("is null for anyone not on the owner list, even with a code set", () => {
+    expect(fixedCode("notlisted@shop.com", env)).toBeNull();
+    expect(fixedCode("stranger@shop.com", env)).toBeNull();
+    expect(fixedCode("owner@shop.com", { NODE_ENV: "production" })).toBeNull();
+  });
+
+  it("signs in with a 12-character owner code", async () => {
+    const pending = await makePending("owner@shop.com", "ABC234DEF567", SECRET, NOW);
+    expect(await checkCode(pending, "abc234-def567", SECRET, NOW)).toEqual({ ok: true, email: "owner@shop.com" });
+    expect(await checkCode(pending, "ABC234", SECRET, NOW)).toMatchObject({ ok: false, reason: "wrong" });
   });
 });
