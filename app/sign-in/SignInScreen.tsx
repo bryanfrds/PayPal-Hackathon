@@ -1,12 +1,12 @@
 "use client";
 
-// Sign-in for the shop owner: "Log in with PayPal", or an emailed 6-digit code. After the
+// Sign-in for the shop owner: "Log in with PayPal", or an emailed 6-character code. After the
 // first sign-in on a device, one screen to name the shop. Customers never see this: their tab
 // links stay open. Mock: "555 Buku - Sign-in Mock.html".
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { safeNext } from "@/lib/auth";
+import { CODE_LENGTH, safeNext, tidyCode } from "@/lib/auth";
 import { initials } from "@/lib/home";
 import { BackIcon, BellIcon, CheckIcon, MailIcon, ScanIcon, SendIcon } from "../components/icons";
 import { DEFAULT_SHOP_NAME, MAX_SHOP_NAME, SHOP_TYPES, useShop, type ShopType } from "../useShop";
@@ -20,6 +20,7 @@ const ERRORS: Record<string, string> = {
   "paypal-email": "PayPal didn't share an email for this account. Use your email instead.",
   paypal: "PayPal login didn't work just now. Try again, or use your email.",
   setup: "Sign-in isn't set up on this server yet.",
+  "not-owner": "That PayPal account isn't set up as this shop's owner. Use the owner's email instead.",
 };
 
 const DOMAINS = ["gmail.com", "yahoo.com", "hotmail.com"];
@@ -162,9 +163,9 @@ export default function SignInScreen() {
   }
 
   function onCode(value: string) {
-    const digits = value.replace(/\D/g, "").slice(0, 6);
-    setCode(digits);
-    if (digits.length === 6 && !busy) void verify(digits);
+    const typed = tidyCode(value).replace(/[^A-Z0-9]/g, "").slice(0, CODE_LENGTH);
+    setCode(typed);
+    if (typed.length === CODE_LENGTH && !busy) void verify(typed);
   }
 
   const atDomain = email.includes("@") ? email.split("@")[1] : null;
@@ -204,7 +205,7 @@ export default function SignInScreen() {
               Sign in to your shop
             </h2>
             {error && (
-              <p className="si-error" role="alert">
+              <p className="si-error" role="alert" id="si-err">
                 {error}
               </p>
             )}
@@ -237,7 +238,7 @@ export default function SignInScreen() {
           <h1 ref={titleRef} tabIndex={-1}>
             What&apos;s your email?
           </h1>
-          <p className="si-sub">We&apos;ll send a 6-digit code. No password to remember.</p>
+          <p className="si-sub">We&apos;ll send a 6-character code. No password to remember.</p>
           <label className="si-field">
             <span>Email</span>
             <span className="si-field-row">
@@ -250,6 +251,8 @@ export default function SignInScreen() {
                 autoCapitalize="none"
                 spellCheck={false}
                 required
+                aria-invalid={error ? true : undefined}
+                aria-describedby={error ? "si-err" : undefined}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
@@ -266,7 +269,7 @@ export default function SignInScreen() {
             </div>
           )}
           {error && (
-            <p className="si-error" role="alert">
+            <p className="si-error" role="alert" id="si-err">
               {error}
             </p>
           )}
@@ -282,7 +285,7 @@ export default function SignInScreen() {
           className="si-form"
           onSubmit={(e) => {
             e.preventDefault();
-            if (code.length === 6) void verify(code);
+            if (code.length === CODE_LENGTH) void verify(code);
           }}
         >
           <button type="button" className="si-back" aria-label="Back" onClick={() => setStep("email")}>
@@ -296,20 +299,23 @@ export default function SignInScreen() {
           </p>
           {/* One real input under six drawn boxes, so the phone can fill the code from the email. */}
           <label className="si-code">
-            <span className="visually-hidden">6-digit code</span>
+            <span className="visually-hidden">6-character code</span>
             <input
               ref={codeRef}
-              inputMode="numeric"
               autoComplete="one-time-code"
-              pattern="[0-9]*"
-              maxLength={6}
+              autoCapitalize="characters"
+              autoCorrect="off"
+              spellCheck={false}
+              maxLength={CODE_LENGTH + 2}
+              aria-invalid={error ? true : undefined}
+              aria-describedby={error ? "si-err" : undefined}
               value={code}
               onChange={(e) => onCode(e.target.value)}
               // Read-only (not disabled) while checking, so it keeps focus for the next try.
               readOnly={busy}
             />
             <span className="si-code-boxes" aria-hidden="true">
-              {Array.from({ length: 6 }, (_, i) => (
+              {Array.from({ length: CODE_LENGTH }, (_, i) => (
                 <span key={i} className={i === code.length && !busy ? "on" : undefined}>
                   {code[i] ?? ""}
                 </span>
@@ -317,7 +323,7 @@ export default function SignInScreen() {
             </span>
           </label>
           {error && (
-            <p className="si-error" role="alert">
+            <p className="si-error" role="alert" id="si-err">
               {error}
             </p>
           )}
@@ -332,7 +338,7 @@ export default function SignInScreen() {
             )}
           </p>
           <div className="si-grow" />
-          <button type="submit" className="si-btn" disabled={busy || code.length !== 6}>
+          <button type="submit" className="si-btn" disabled={busy || code.length !== CODE_LENGTH}>
             {busy ? "Checking…" : "Sign in"}
           </button>
         </form>
@@ -383,7 +389,7 @@ export default function SignInScreen() {
             ))}
           </fieldset>
           {error && (
-            <p className="si-error" role="alert">
+            <p className="si-error" role="alert" id="si-err">
               {error}
             </p>
           )}

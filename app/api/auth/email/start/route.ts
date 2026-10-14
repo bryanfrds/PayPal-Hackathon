@@ -1,23 +1,28 @@
-// Step 1 of email sign-in: send a 6-digit code and remember (in a signed cookie) which email
-// it's for. The code itself is never stored, only a keyed hash of it.
+// Step 1 of email sign-in: send a code and remember (in a signed cookie) which email it's for.
+// The code itself is never stored, only a keyed hash of it.
+//
+// Emails not on the owner list get exactly the same answer, but no email is sent and no code
+// can ever match, so nobody can find out which emails are allowed.
 
-import { NextResponse } from "next/server";
-import { CODE_SECONDS, PENDING_COOKIE, makePending, newCode, normaliseEmail } from "@/lib/auth";
+import { NextResponse, type NextRequest } from "next/server";
+import { CODE_SECONDS, PENDING_COOKIE, isAllowedOwner, makePending, newCode, normaliseEmail } from "@/lib/auth";
 import { authSecret, cookieOptions } from "@/lib/auth-server";
 import { SignInEmailError, sendSignInCode } from "@/lib/sign-in-email";
+import { clientIp, createThrottle } from "@/lib/throttle";
 
-/** One code per email every 30 seconds, per server instance (a light brake, not a guarantee). */
-const RESEND_AFTER_MS = 30_000;
-const lastSent = new Map<string, number>();
+const RESEND_AFTER_SECONDS = 30;
+/** One code per email every 30 seconds, and 5 requests per IP per 10 minutes (per instance). */
+const perEmail = createThrottle(1, RESEND_AFTER_SECONDS * 1000);
+const perIp = createThrottle(5, 10 * 60 * 1000);
 
 /** Judges and demos: a fixed email and code from the environment, no email sent. Off unless both are set. */
-function demoLogin(email: string): string | null {
+function demoCode(email: string): string | null {
   const demoEmail = process.env.DEMO_EMAIL?.trim().toLowerCase();
-  const demoCode = process.env.DEMO_CODE?.trim();
-  return demoEmail && demoCode && /^\d{6}$/.test(demoCode) && email === demoEmail ? demoCode : null;
+  const code = process.env.DEMO_CODE?.trim().toUpperCase();
+  return demoEmail && code && /^[A-Z0-9]{6}$/.test(code) && email === demoEmail ? code : null;
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   let secret: string;
   try {
     secret = authSecret();
@@ -28,16 +33,16 @@ export async function POST(req: Request) {
   const email = normaliseEmail(body?.email);
   if (!email) return NextResponse.json({ error: "That doesn't look like an email address." }, { status: 400 });
 
-  const now = Date.now();
-  const last = lastSent.get(email);
-  if (last && now - last < RESEND_AFTER_MS) {
-    const wait = Math.ceil((RESEND_AFTER_MS - (now - last)) / 1000);
-    return NextResponse.json({ error: `Wait ${wait} seconds before asking for another code.`, retryAfter: wait }, { status: 429 });
-  }
+  const ipWait = perIp.hit(clientIp(req));
+  const emailWait = ipWait ? 0 : perEmail.hit(email);
+  const wait = ipWait || emailWait;
+  if (wait) return NextResponse.json({ error: `Wait ${wait} seconds before asking for another code.`, retryAfter: wait }, { status: 429 });
 
-  const demo = demoLogin(email);
+  const allowed = isAllowedOwner(email);
+  const demo = allowed ? demoCode(email) : null;
+  // Not an owner: a code that's never sent and never shown, so it can't be used.
   const code = demo ?? newCode();
-  if (!demo) {
+  if (allowed && !demo) {
     try {
       await sendSignInCode(email, code);
     } catch (e) {
@@ -45,9 +50,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: message }, { status: 502 });
     }
   }
-  lastSent.set(email, now);
 
-  const res = NextResponse.json({ ok: true, email, resendAfter: RESEND_AFTER_MS / 1000 });
-  res.cookies.set(PENDING_COOKIE, await makePending(email, code, secret, now), cookieOptions(CODE_SECONDS));
+  const res = NextResponse.json({ ok: true, email, resendAfter: RESEND_AFTER_SECONDS });
+  res.cookies.set(PENDING_COOKIE, await makePending(email, code, secret), cookieOptions(CODE_SECONDS));
   return res;
 }

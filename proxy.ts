@@ -6,7 +6,7 @@
 // status (the customer's pay page polls it), and static files.
 
 import { NextResponse, type NextRequest } from "next/server";
-import { SESSION_COOKIE, readSession } from "@/lib/auth";
+import { SESSION_COOKIE, isAllowedOwner, readSession } from "@/lib/auth";
 
 function isPublic(req: NextRequest): boolean {
   const { pathname } = req.nextUrl;
@@ -24,7 +24,7 @@ export async function proxy(req: NextRequest) {
 
   const secret = process.env.AUTH_SECRET?.trim() ?? "";
   const session = secret.length >= 32 ? await readSession(req.cookies.get(SESSION_COOKIE)?.value, secret) : null;
-  if (session) return NextResponse.next();
+  if (session && isAllowedOwner(session.email)) return NextResponse.next();
 
   if (req.nextUrl.pathname.startsWith("/api/")) {
     return NextResponse.json({ error: "Sign in to do that." }, { status: 401 });
@@ -38,6 +38,6 @@ export async function proxy(req: NextRequest) {
 }
 
 export const config = {
-  // Skip Next's own files, icons, the manifest and anything with a file extension.
-  matcher: ["/((?!_next/|favicon\\.ico|icon|apple-icon|pwa-icon/|manifest\\.webmanifest|vendor/|.*\\.[a-zA-Z0-9]+$).*)"],
+  // Skip only Next's own files and our known static files (exact paths, so "/collect/x.png" is still checked).
+  matcher: ["/((?!_next/|favicon\\.ico$|icon$|apple-icon$|pwa-icon/|manifest\\.webmanifest$|vendor/).*)"],
 };

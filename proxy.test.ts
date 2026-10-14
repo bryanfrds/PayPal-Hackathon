@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
-import { SESSION_COOKIE, makeSession } from "@/lib/auth";
+import { SESSION_COOKIE, makePending, makeSession } from "@/lib/auth";
 import { proxy } from "./proxy";
 
 const SECRET = "test-secret-that-is-long-enough-for-hmac-signing";
@@ -46,6 +46,20 @@ describe("proxy", () => {
     const cookie = `${SESSION_COOKIE}=${await makeSession("owner@example.com", "email", SECRET)}`;
     expect((await proxy(req("/collect", { cookie }))).headers.get("x-middleware-next")).toBe("1");
     expect((await proxy(req("/api/invoices", { method: "POST", cookie }))).headers.get("x-middleware-next")).toBe("1");
+  });
+
+  it("refuses a valid session for an email that isn't on the owner list", async () => {
+    vi.stubEnv("OWNER_EMAILS", "owner@example.com");
+    const stranger = `${SESSION_COOKIE}=${await makeSession("stranger@example.com", "email", SECRET)}`;
+    expect((await proxy(req("/collect", { cookie: stranger }))).status).toBe(307);
+    expect((await proxy(req("/api/invoices", { method: "POST", cookie: stranger }))).status).toBe(401);
+    const owner = `${SESSION_COOKIE}=${await makeSession("owner@example.com", "email", SECRET)}`;
+    expect((await proxy(req("/collect", { cookie: owner }))).headers.get("x-middleware-next")).toBe("1");
+  });
+
+  it("refuses a pending-code cookie passed off as a session", async () => {
+    const pending = await makePending("owner@example.com", "ABC234", SECRET);
+    expect((await proxy(req("/api/invoices", { method: "POST", cookie: `${SESSION_COOKIE}=${pending}` }))).status).toBe(401);
   });
 
   it("refuses a forged session", async () => {

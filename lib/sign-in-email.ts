@@ -1,4 +1,4 @@
-// Sends the 6-digit sign-in code by email through Resend (added from the Vercel Marketplace,
+// Sends the 6-character sign-in code by email through Resend (added from the Vercel Marketplace,
 // which sets RESEND_API_KEY). Server-only.
 //
 // Without a key: in local development the code is printed in the terminal so sign-in still
@@ -22,7 +22,7 @@ export function emailIsSetUp(): boolean {
 
 function body(code: string): { text: string; html: string } {
   const text = `Your 555 Buku sign-in code is ${code}. It works for 10 minutes. If you didn't ask for it, you can ignore this email.`;
-  // The code is six digits from our own generator, never user input, so it's safe in HTML.
+  // The code is six letters and digits from our own generator, never user input, so it's safe in HTML.
   const html = `<div style="font-family:system-ui,sans-serif;max-width:420px;margin:0 auto;padding:24px;color:#141414">
   <p style="font-weight:800;font-size:18px;margin:0 0 16px">555 Buku</p>
   <p style="margin:0 0 8px">Your sign-in code:</p>

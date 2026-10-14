@@ -5,7 +5,7 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { readSession, SESSION_COOKIE, SESSION_SECONDS, type Session } from "./auth";
+import { isAllowedOwner, readSession, SESSION_COOKIE, SESSION_SECONDS, type Session } from "./auth";
 
 /** AUTH_SECRET signs every cookie. Missing means sign-in can't work, so say so plainly. */
 export function authSecret(): string {
@@ -28,10 +28,11 @@ export function cookieOptions(maxAgeSeconds: number) {
 
 export const SESSION_COOKIE_OPTIONS = cookieOptions(SESSION_SECONDS);
 
-/** The signed-in owner, or null. */
+/** The signed-in owner, or null. A session for an email no longer on the owner list doesn't count. */
 export async function currentOwner(): Promise<Session | null> {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
-  return readSession(token, authSecret());
+  const session = await readSession(token, authSecret());
+  return session && isAllowedOwner(session.email) ? session : null;
 }
 
 /** For owner API routes: the session, or a 401 response to return as-is. */
@@ -45,9 +46,16 @@ export async function requireOwner(): Promise<Session | NextResponse> {
   return NextResponse.json({ error: "Sign in to do that." }, { status: 401 });
 }
 
-/** The site's own origin for links PayPal and emails send people back to. */
+/**
+ * The site's own origin for links PayPal sends people back to. Never taken from the request's
+ * Host header on Vercel: SITE_URL, else Vercel's own production or deployment address.
+ */
 export function siteOrigin(req: Request): string {
   const configured = process.env.SITE_URL?.trim();
   if (configured) return configured.replace(/\/+$/, "");
+  const prod = process.env.VERCEL_ENV === "production" ? process.env.VERCEL_PROJECT_PRODUCTION_URL : undefined;
+  const host = prod || process.env.VERCEL_URL;
+  if (host) return `https://${host}`;
+  // Local development only.
   return new URL(req.url).origin;
 }
