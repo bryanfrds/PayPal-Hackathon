@@ -6,7 +6,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { CODE_LENGTH, safeNext, tidyCode } from "@/lib/auth";
+import { CODE_LENGTH, OWNER_CODE_LENGTH, safeNext, tidyCode } from "@/lib/auth";
 import { initials } from "@/lib/home";
 import { BackIcon, BellIcon, CheckIcon, MailIcon, ScanIcon, SendIcon } from "../components/icons";
 import { DEFAULT_SHOP_NAME, MAX_SHOP_NAME, SHOP_TYPES, useShop, type ShopType } from "../useShop";
@@ -162,11 +162,19 @@ export default function SignInScreen() {
     }
   }
 
+  // Emailed codes are 6 characters; an owner's private code is 12. A 6-character code that
+  // arrives in one go (pasted or filled from the email) signs in straight away; typed by hand,
+  // the owner taps Sign in, so typing a 12-character code doesn't stop halfway.
   function onCode(value: string) {
-    const typed = tidyCode(value).replace(/[^A-Z0-9]/g, "").slice(0, CODE_LENGTH);
+    const typed = tidyCode(value).replace(/[^A-Z0-9]/g, "").slice(0, OWNER_CODE_LENGTH);
+    const filled = typed.length - code.length > 1;
     setCode(typed);
-    if (typed.length === CODE_LENGTH && !busy) void verify(typed);
+    if (busy) return;
+    if (typed.length === OWNER_CODE_LENGTH || (typed.length === CODE_LENGTH && filled)) void verify(typed);
   }
+
+  const codeReady = code.length === CODE_LENGTH || code.length === OWNER_CODE_LENGTH;
+  const boxes = code.length > CODE_LENGTH ? OWNER_CODE_LENGTH : CODE_LENGTH;
 
   const atDomain = email.includes("@") ? email.split("@")[1] : null;
 
@@ -285,7 +293,7 @@ export default function SignInScreen() {
           className="si-form"
           onSubmit={(e) => {
             e.preventDefault();
-            if (code.length === CODE_LENGTH) void verify(code);
+            if (codeReady) void verify(code);
           }}
         >
           <button type="button" className="si-back" aria-label="Back" onClick={() => setStep("email")}>
@@ -297,16 +305,16 @@ export default function SignInScreen() {
           <p className="si-sub">
             We sent a code to <b>{email}</b>. It works for 10 minutes.
           </p>
-          {/* One real input under six drawn boxes, so the phone can fill the code from the email. */}
+          {/* One real input under the drawn boxes (6, or 12 for an owner code), so the phone can fill the code from the email. */}
           <label className="si-code">
-            <span className="visually-hidden">6-character code</span>
+            <span className="visually-hidden">Sign-in code</span>
             <input
               ref={codeRef}
               autoComplete="one-time-code"
               autoCapitalize="characters"
               autoCorrect="off"
               spellCheck={false}
-              maxLength={CODE_LENGTH + 2}
+              maxLength={OWNER_CODE_LENGTH + 4}
               aria-invalid={error ? true : undefined}
               aria-describedby={error ? "si-err" : undefined}
               value={code}
@@ -314,8 +322,8 @@ export default function SignInScreen() {
               // Read-only (not disabled) while checking, so it keeps focus for the next try.
               readOnly={busy}
             />
-            <span className="si-code-boxes" aria-hidden="true">
-              {Array.from({ length: CODE_LENGTH }, (_, i) => (
+            <span className={boxes > CODE_LENGTH ? "si-code-boxes long" : "si-code-boxes"} aria-hidden="true">
+              {Array.from({ length: boxes }, (_, i) => (
                 <span key={i} className={i === code.length && !busy ? "on" : undefined}>
                   {code[i] ?? ""}
                 </span>
@@ -338,7 +346,7 @@ export default function SignInScreen() {
             )}
           </p>
           <div className="si-grow" />
-          <button type="submit" className="si-btn" disabled={busy || code.length !== CODE_LENGTH}>
+          <button type="submit" className="si-btn" disabled={busy || !codeReady}>
             {busy ? "Checking…" : "Sign in"}
           </button>
         </form>
