@@ -4,13 +4,18 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { DebtStoreError } from "@/lib/debt-store";
-import { formatSen, type Debt } from "@/lib/debts";
+import { formatSen, STATUS_LABEL, type Debt, type DebtStatus } from "@/lib/debts";
+import StatusBadge from "../components/StatusBadge";
+import { SendIcon } from "../components/icons";
 import { useDebts } from "../useDebts";
 import LedgerGrid from "./LedgerGrid";
 
 type Notice =
   | { kind: "deleted"; debt: Debt }
   | { kind: "error"; message: string };
+
+type Filter = "all" | DebtStatus;
+const FILTERS: Filter[] = ["all", "overdue", "sent", "unpaid", "paid"];
 
 function describe(debt: Debt) {
   return `${debt.customerName} · RM ${formatSen(debt.amountSen)}`;
@@ -26,6 +31,16 @@ export default function LedgerScreen() {
   const scannedParam = searchParams.get("scanned") ?? "";
   const scanned = /^[1-9]\d{0,3}$/.test(scannedParam) ? Number(scannedParam) : 0;
   const [notice, setNotice] = useState<Notice | null>(null);
+  // Laptop: filter chips by status. The phone keeps the search box only.
+  const [filter, setFilter] = useState<Filter>("all");
+  const counts = { all: debts.length, overdue: 0, sent: 0, unpaid: 0, paid: 0 } as Record<Filter, number>;
+  const totals = { overdue: 0, sent: 0, unpaid: 0, paid: 0 } as Record<DebtStatus, number>;
+  for (const d of debts) {
+    counts[d.status] += 1;
+    totals[d.status] += d.amountSen;
+  }
+  const shown = filter === "all" ? debts : debts.filter((d) => d.status === filter);
+  const owedSen = totals.overdue + totals.sent + totals.unpaid;
 
   function clearAdded() {
     router.replace("/ledger", { scroll: false });
@@ -58,7 +73,7 @@ export default function LedgerScreen() {
   }
 
   return (
-    <>
+    <div className="ledger-page">
       <div className="page-head">
         <div>
           <h1 className="page-title">Ledger</h1>
@@ -141,8 +156,37 @@ export default function LedgerScreen() {
           </div>
         </div>
       ) : (
-        <LedgerGrid rows={debts} onDelete={onDelete} />
+        <>
+          <div className="ledger-chips ledger-wide-only" role="group" aria-label="Show tabs by status">
+            {FILTERS.map((f) => (
+              <button key={f} type="button" aria-pressed={filter === f} onClick={() => setFilter(f)}>
+                {f === "all" ? "All" : STATUS_LABEL[f]} <b>{counts[f]}</b>
+              </button>
+            ))}
+          </div>
+          <div className="ledger-cols">
+            <LedgerGrid rows={shown} onDelete={onDelete} />
+            <aside className="card ledger-summary ledger-wide-only" aria-label="Totals by status">
+              <p className="ledger-summary-k">Still owed</p>
+              <p className="ledger-summary-v">RM {formatSen(owedSen)}</p>
+              <ul>
+                {(["overdue", "sent", "unpaid", "paid"] as DebtStatus[]).map((st) => (
+                  <li key={st}>
+                    <StatusBadge status={st} />
+                    <b>RM {formatSen(totals[st])}</b>
+                  </li>
+                ))}
+              </ul>
+              {counts.unpaid > 0 && (
+                <Link href="/collect" className="button ledger-summary-go">
+                  <SendIcon />
+                  Invoice the {counts.unpaid} not sent
+                </Link>
+              )}
+            </aside>
+          </div>
+        </>
       )}
-    </>
+    </div>
   );
 }
