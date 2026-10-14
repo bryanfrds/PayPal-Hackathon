@@ -118,7 +118,7 @@ export const widgets = createWidgets<BukuRegistry>({
 
 // Soft Premium: warm paper canvas, white rounded tiles, ink accents (see globals.css).
 // Takes the font family next/font gave Manrope, since Studio can't read our CSS variable.
-export const themeFor = (fontFamily: string) =>
+export const themeFor = (fontFamily: string, canvas = "#f3f1ec") =>
   studioTheme.withParams({
     fontFamily,
     // Titles, charts and grids read this one, not fontFamily.
@@ -129,7 +129,7 @@ export const themeFor = (fontFamily: string) =>
     // No frame or inner scroll: the dashboard sits straight on the page.
     studioWrapperBorder: false,
     studioWrapperSpacing: 0,
-    studioWrapperBackgroundColor: "#f3f1ec",
+    studioWrapperBackgroundColor: canvas,
     studioCanvasShadow: "none",
     studioWidgetBorder: false,
     studioWidgetTitleFontSize: 13,
@@ -138,7 +138,7 @@ export const themeFor = (fontFamily: string) =>
     accentColor: "#141414",
     backgroundColor: "#ffffff",
     borderColor: "#ebe7df",
-    studioCanvasBackgroundColor: "#f3f1ec",
+    studioCanvasBackgroundColor: canvas,
     studioWidgetBackgroundColor: "#ffffff",
     studioWidgetBorderRadius: 20,
     studioWidgetTitleFontWeight: 800,
@@ -235,6 +235,25 @@ export function initialStateFor(kind: LayoutKind): AgReportState<BukuRegistry> {
           rowHeight: ROW_HEIGHT,
           pagePadding: PAGE_PADDING,
         },
+      },
+    ],
+  } as unknown as AgReportState<BukuRegistry>;
+}
+
+/** Rows of 16px in Home's single-chart tile. */
+export const HOME_CHART_ROWS = 13;
+
+/** Home's chart tile: just the owed-vs-collected chart from Insights, filling the tile. */
+export function homeChartState(): AgReportState<BukuRegistry> {
+  // Cast: see initialStateFor.
+  return {
+    selectedPageId: "home",
+    pages: [
+      {
+        id: "home",
+        widgets: { trend: { ...WIDGETS.trend, format: { ...WIDGETS.trend.format, title: { enabled: false } } } },
+        widgetLayout: { trend: { xTrack: 0, yTrack: 0, xSpan: COLUMNS, ySpan: HOME_CHART_ROWS } },
+        layout: { columns: COLUMNS, minWidth: 200, rowHeight: ROW_HEIGHT, pagePadding: 0 },
       },
     ],
   } as unknown as AgReportState<BukuRegistry>;
