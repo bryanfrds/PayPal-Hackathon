@@ -4197,3 +4197,204 @@ a.button.tab-pay {
     bottom: 1.5rem;
   }
 }
+
+/* Collect on a laptop: the list on the left, the invoice preview and Send pinned on the right. */
+.collect-cols,
+.collect-left {
+  display: contents;
+}
+
+.collect-preview-btn {
+  flex: none;
+  padding: 0.4rem 0.7rem;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--ink);
+  cursor: pointer;
+  background: var(--paper);
+  border: 0;
+  border-radius: 10px;
+}
+
+.collect-preview-btn[aria-pressed="true"] {
+  color: #ffffff;
+  background: var(--ink);
+}
+
+.collect-card-previewing {
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+}
+
+@media (min-width: 1024px) {
+  .site-main:has(.collect-wide) {
+    max-width: 1180px;
+  }
+
+  .collect-wide .collect-cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 380px;
+    gap: 1.25rem;
+    align-items: start;
+  }
+
+  .collect-wide .collect-left {
+    display: block;
+  }
+
+  .collect-pane {
+    position: sticky;
+    top: 1.25rem;
+    display: grid;
+    gap: 0.9rem;
+  }
+
+  .collect-pane .paper {
+    width: auto;
+    margin: 0;
+  }
+
+  .collect-sendbox {
+    display: grid;
+    gap: 0.7rem;
+    padding: 1rem 1.1rem;
+  }
+
+  .collect-sendbox p {
+    margin: 0;
+  }
+
+  .collect-sendbox-total {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .collect-sendbox-total b {
+    font-size: 1.4rem;
+    letter-spacing: -0.02em;
+  }
+
+  .collect-sendbox-total span,
+  .collect-sendbox-note {
+    font-size: 0.78rem;
+    color: var(--muted);
+  }
+
+  .collect-sendbox-go {
+    gap: 0.5rem;
+    width: 100%;
+  }
+
+  .collect-sendbox-go .icon {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+/* Ledger on a laptop: full-width grid with every column, status chips and a totals panel. */
+.ledger-wide-only {
+  display: none;
+}
+
+.ledger-cols {
+  display: block;
+}
+
+@media (min-width: 1024px) {
+  .site-main:has(.ledger-page) {
+    max-width: 1180px;
+  }
+
+  .ledger-page .ledger-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .ledger-chips button {
+    padding: 0.45rem 0.8rem;
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--ink);
+    cursor: pointer;
+    background: var(--card);
+    border: 1.5px solid var(--line);
+    border-radius: 999px;
+  }
+
+  .ledger-chips button b {
+    margin-left: 0.2rem;
+    color: var(--muted);
+  }
+
+  .ledger-chips button[aria-pressed="true"] {
+    color: #ffffff;
+    background: var(--ink);
+    border-color: var(--ink);
+  }
+
+  .ledger-chips button[aria-pressed="true"] b {
+    color: #c9c5bd;
+  }
+
+  .ledger-cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 260px;
+    gap: 1rem;
+    align-items: start;
+  }
+
+  .ledger-page .ledger-summary {
+    position: sticky;
+    top: 1.25rem;
+    display: grid;
+    gap: 0.6rem;
+    padding: 1rem;
+  }
+
+  .ledger-summary p {
+    margin: 0;
+  }
+
+  .ledger-summary-k {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--muted);
+  }
+
+  .ledger-summary-v {
+    font-size: 1.6rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+  }
+
+  .ledger-summary ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .ledger-summary li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.55rem 0;
+    font-size: 0.85rem;
+    border-top: 1px solid var(--line);
+  }
+
+  .ledger-summary-go {
+    gap: 0.45rem;
+    font-size: 0.85rem;
+  }
+
+  .ledger-summary-go .icon {
+    width: 17px;
+    height: 17px;
+  }
+}
