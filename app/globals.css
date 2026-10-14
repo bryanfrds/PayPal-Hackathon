@@ -4174,3 +4174,26 @@ a.button.tab-pay {
   width: 20px;
   height: 20px;
 }
+
+/* The grid's "Next step" header: read by screen readers, not shown. */
+.hg-hidden-header .ag-header-cell-text {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (min-width: 1024px) {
+  /* Floating bars sit over the content column, not the whole window, and there's no
+     bottom menu to clear. */
+  .collect-bar {
+    left: calc(50% + 110px);
+    bottom: 1.5rem;
+  }
+
+  .nudge-ask {
+    bottom: 1.5rem;
+  }
+}

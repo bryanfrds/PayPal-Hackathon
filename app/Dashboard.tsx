@@ -145,30 +145,30 @@ export default function Dashboard() {
         <div className="home-stats">
           <div className="home-stat">
             <p className="home-stat-k">Collected</p>
-            <p className="home-stat-v">RM {ready ? formatSen(o.paidSen) : "—"}</p>
+            <p className="home-stat-v">{ready ? `RM ${formatSen(o.paidSen)}` : "—"}</p>
             <p className="home-stat-d home-good">
-              {o.paidTabs.count} {o.paidTabs.count === 1 ? "tab" : "tabs"} paid
+              {ready ? `${o.paidTabs.count} ${o.paidTabs.count === 1 ? "tab" : "tabs"} paid` : " "}
             </p>
           </div>
           <div className="home-stat">
             <p className="home-stat-k">Overdue</p>
             <p className="home-stat-v">
-              {o.overdueTabs} {o.overdueTabs === 1 ? "tab" : "tabs"}
+              {ready ? `${o.overdueTabs} ${o.overdueTabs === 1 ? "tab" : "tabs"}` : "—"}
             </p>
             <p className="home-stat-d home-late">
-              RM {formatSen(o.overdueSen)}
-              <span className="home-wide-only">{o.oldestDaysLate > 0 ? ` · oldest ${o.oldestDaysLate} days` : ""}</span>
+              {ready ? `RM ${formatSen(o.overdueSen)}` : " "}
+              <span className="home-wide-only">{ready && o.oldestDaysLate > 0 ? ` · oldest ${o.oldestDaysLate} days` : ""}</span>
             </p>
           </div>
           <div className="home-stat home-phone-only">
             <p className="home-stat-k">Customers</p>
-            <p className="home-stat-v">{o.customersOwing}</p>
+            <p className="home-stat-v">{ready ? o.customersOwing : "—"}</p>
             <p className="home-stat-d">owe you now</p>
           </div>
           <div className="home-stat home-wide-only">
             <p className="home-stat-k">Reminders today</p>
-            <p className="home-stat-v">{o.remindNow.length}</p>
-            <p className="home-stat-d">{o.nextReminder ? `next: ${formatDay(o.nextReminder).replace(/ \d{4}$/, "")}` : "none planned"}</p>
+            <p className="home-stat-v">{ready ? o.remindNow.length : "—"}</p>
+            <p className="home-stat-d">{!ready ? " " : o.nextReminder ? `next: ${formatDay(o.nextReminder).replace(/ \d{4}$/, "")}` : "none planned"}</p>
           </div>
         </div>
       </div>
