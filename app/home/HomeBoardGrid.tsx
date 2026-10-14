@@ -61,10 +61,10 @@ function StatusCell({ data }: CustomCellRendererProps<Row>) {
   return <span className={`badge badge-${data.status}`}>{STATUS_TEXT[data.status]}</span>;
 }
 
-/** The next step for this customer: remind if invoiced, invoice if not. */
+/** The next step for this customer: invoice first if nothing's been sent, then remind once late. */
 function ActionCell({ data }: CustomCellRendererProps<Row>) {
   if (!data || isTotal(data)) return null;
-  if (data.status === "unpaid") {
+  if (!data.invoiced) {
     return (
       <Link href="/collect" className="hg-act" aria-label={`Send ${data.customerName} a PayPal invoice`}>
         Invoice
@@ -106,7 +106,8 @@ const COLUMNS: ColDef<Row>[] = [
     comparator: (a, b) => (a ? STATUS_ORDER[a as BoardRow["status"]] : 9) - (b ? STATUS_ORDER[b as BoardRow["status"]] : 9),
   },
   { headerName: "Days late", field: "daysLate", flex: 0.6, minWidth: 96, headerTooltip: "Days past the bill's due date", type: "rightAligned" },
-  { headerName: "", colId: "next", width: 116, minWidth: 116, maxWidth: 116, sortable: false, cellRenderer: ActionCell },
+  // Named for screen readers; the label is hidden on screen.
+  { headerName: "Next step", headerClass: "hg-hidden-header", colId: "next", width: 116, minWidth: 116, maxWidth: 116, sortable: false, cellRenderer: ActionCell },
 ];
 
 export default function HomeBoardGrid({ rows }: { rows: BoardRow[] }) {

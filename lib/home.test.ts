@@ -130,6 +130,11 @@ describe("Home redesign figures", () => {
     ...over,
   });
 
+  it("owedBoard calls a never-invoiced tab past its due date overdue, but not invoiced", () => {
+    const [row] = owedBoard([d({ customerName: "Uncle Tan", amountSen: 1780, date: "2026-08-05", status: "unpaid" })], TODAY);
+    expect(row).toMatchObject({ status: "overdue", invoiced: false, daysLate: 33 });
+  });
+
   it("owedBoard puts the biggest balance first, with days late and bar lengths", () => {
     const rows = owedBoard(
       [d({}), d({ customerName: "Kak Lina", amountSen: 2240, date: "2026-09-28", status: "sent" }), d({ customerName: "Uncle Tan", amountSen: 1780, date: "2026-10-05", status: "unpaid" })],

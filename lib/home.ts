@@ -104,6 +104,8 @@ export type BoardRow = {
   owedSen: number;
   /** Most urgent: past the due date counts as overdue, like the customer's own page. */
   status: Exclude<Debt["status"], "paid">;
+  /** At least one of their tabs has a PayPal invoice, so a reminder makes sense (otherwise: invoice first). */
+  invoiced: boolean;
   /** Days the oldest unpaid bill is past its due date (the 10th of the next month); 0 if not yet. */
   daysLate: number;
   /** Owed as a share of the biggest balance, 0–100, for the bars. */
@@ -114,8 +116,11 @@ export type BoardRow = {
 export function owedBoard(debts: Debt[], today: string): BoardRow[] {
   const rows = customerSummaries(debts).map((row) => {
     const daysLate = Math.max(0, daysBetween(dueDateFor(row.since.slice(0, 7)), today));
-    const status: BoardRow["status"] = row.status === "sent" && daysLate > 0 ? "overdue" : row.status;
-    return { customerName: row.customerName, slug: customerSlug(row.customerName), owedSen: row.owedSen, status, daysLate, sharePct: 0 };
+    // Same rule as homeOverview, Insights and the customer page: past due counts as overdue,
+    // whether or not an invoice went out.
+    const status: BoardRow["status"] = daysLate > 0 || row.status === "overdue" ? "overdue" : row.status;
+    const invoiced = row.status !== "unpaid";
+    return { customerName: row.customerName, slug: customerSlug(row.customerName), owedSen: row.owedSen, status, invoiced, daysLate, sharePct: 0 };
   });
   rows.sort((a, b) => b.owedSen - a.owedSen || b.daysLate - a.daysLate || a.customerName.localeCompare(b.customerName));
   const top = rows[0]?.owedSen ?? 0;
