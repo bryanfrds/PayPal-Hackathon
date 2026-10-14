@@ -75,6 +75,13 @@ describe("invoiceRequestId", () => {
   it("fits PayPal's request id format", () => {
     expect(invoiceRequestId(base)).toMatch(/^buku-[0-9a-f]{16}$/);
   });
+  it("gives a new id when the same tabs are billed again after an earlier invoice", () => {
+    const id = invoiceRequestId(base);
+    expect(invoiceRequestId({ ...base, previousInvoiceIds: [] })).toBe(id);
+    const again = invoiceRequestId({ ...base, previousInvoiceIds: ["INV2-B", "INV2-A"] });
+    expect(again).not.toBe(id);
+    expect(invoiceRequestId({ ...base, previousInvoiceIds: ["INV2-A", "INV2-B"] })).toBe(again);
+  });
 });
 
 describe("pending sends", () => {

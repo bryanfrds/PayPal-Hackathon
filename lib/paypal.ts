@@ -57,10 +57,21 @@ export type PayPalInvoiceDetail = {
   };
 };
 
+export type PayPalMoney = {
+  currency_code?: string;
+  /** Major units as a string, e.g. "12.50". */
+  value?: string;
+};
+
 export type PayPalInvoice = {
   id: string;
   status?: string;
   detail?: PayPalInvoiceDetail;
+  /** The invoice total. */
+  amount?: PayPalMoney;
+  /** What the payer still owes. */
+  due_amount?: PayPalMoney;
+  payments?: { paid_amount?: PayPalMoney };
   links?: PayPalLink[];
 };
 
@@ -118,8 +129,13 @@ export function readPayPalConfigFromEnv(env: Record<string, string | undefined> 
     apiBase: (env.PAYPAL_API_BASE?.trim() || DEFAULT_PAYPAL_API_BASE).replace(/\/+$/, ""),
     clientId,
     clientSecret,
-    currency: env.PAYPAL_CURRENCY?.trim().toUpperCase() || DEFAULT_PAYPAL_CURRENCY,
+    currency: shopCurrency(env),
   };
+}
+
+/** The currency invoices are billed in. Needs no keys, so it never throws. */
+export function shopCurrency(env: Record<string, string | undefined> = process.env): string {
+  return env.PAYPAL_CURRENCY?.trim().toUpperCase() || DEFAULT_PAYPAL_CURRENCY;
 }
 
 /** Replaces every secret-bearing string in a message with [redacted]. */
