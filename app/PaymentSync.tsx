@@ -28,7 +28,9 @@ export default function PaymentSync() {
   // from storage, so an invoice another tab just sent is counted even before this tab hears.
   useEffect(() => {
     if (!ready) return;
-    const { toPaid, toUnpaid, toSent } = reconcileDebts(debts, createCollectStore(browserStorage()).invoices());
+    // With storage blocked, the app's own in-memory records are the only copy.
+    const storage = browserStorage();
+    const { toPaid, toUnpaid, toSent } = reconcileDebts(debts, storage ? createCollectStore(storage).invoices() : invoices);
     try {
       if (toPaid.length > 0) updateMany(toPaid, { status: "paid" });
       if (toUnpaid.length > 0) updateMany(toUnpaid, { status: "unpaid" });
@@ -48,6 +50,9 @@ export default function PaymentSync() {
     const batch = invoicesToCheck(latest.current, BATCH, new Date(), triedAt.current);
     if (batch.length === 0) return;
     busy.current = true;
+    // AbortSignal.timeout isn't in older iPhone Safari, so time out by hand.
+    const abort = new AbortController();
+    const timer = window.setTimeout(() => abort.abort(), TIMEOUT_MS);
     try {
       const now = new Date().toISOString();
       for (const r of batch) triedAt.current[r.id] = now;
@@ -55,7 +60,7 @@ export default function PaymentSync() {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ ids: batch.map((r) => r.id) }),
-        signal: AbortSignal.timeout(TIMEOUT_MS),
+        signal: abort.signal,
       });
       if (!res.ok) return;
       const { currency, results } = (await res.json()) as { currency: string; results: Record<string, StatusResult> };
@@ -70,6 +75,7 @@ export default function PaymentSync() {
     } catch {
       // Offline or storage full: try again on the next tick.
     } finally {
+      window.clearTimeout(timer);
       busy.current = false;
     }
   }, [setStandings]);
