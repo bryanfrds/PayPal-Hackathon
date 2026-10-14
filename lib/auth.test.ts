@@ -5,6 +5,7 @@ import {
   MAX_CODE_TRIES,
   SESSION_SECONDS,
   checkCode,
+  fixedCode,
   isAllowedOwner,
   makePayPalState,
   makePending,
@@ -175,5 +176,24 @@ describe("safeNext", () => {
     }
     expect(safeNext("/sign-in")).toBe("/");
     expect(safeNext("/api/invoices")).toBe("/");
+  });
+});
+
+describe("fixedCode", () => {
+  const env = { OWNER_CODES: "Owner@Shop.com:abc234, partner@shop.com : ZZ99AA, broken@shop.com:12", DEMO_EMAIL: "demo@shop.com", DEMO_CODE: "PAYPAL" };
+
+  it("finds an owner's private code, ignoring case and spaces", () => {
+    expect(fixedCode("owner@shop.com", env)).toBe("ABC234");
+    expect(fixedCode("partner@shop.com", env)).toBe("ZZ99AA");
+  });
+
+  it("finds the demo code", () => {
+    expect(fixedCode("demo@shop.com", env)).toBe("PAYPAL");
+  });
+
+  it("is null for anyone else, or a malformed code", () => {
+    expect(fixedCode("stranger@shop.com", env)).toBeNull();
+    expect(fixedCode("broken@shop.com", env)).toBeNull();
+    expect(fixedCode("owner@shop.com", {})).toBeNull();
   });
 });

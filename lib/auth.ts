@@ -213,3 +213,26 @@ export function safeNext(value: string | null | undefined): string {
   if (path.startsWith("//") || path.startsWith("/sign-in") || path.startsWith("/api/")) return "/";
   return path;
 }
+
+/**
+ * A fixed code for an email, from the environment, used instead of emailing one: the judges'
+ * demo login (DEMO_EMAIL + DEMO_CODE) and owners' private codes (OWNER_CODES, as
+ * "email:CODE,email:CODE"). Codes are 6 letters or digits. Null if the email has none.
+ */
+export function fixedCode(email: string, env: Record<string, string | undefined> = process.env): string | null {
+  const ok = (code: string | undefined) => {
+    const c = code?.trim().toUpperCase();
+    return c && /^[A-Z0-9]{6}$/.test(c) ? c : null;
+  };
+  const target = email.trim().toLowerCase();
+  for (const pair of (env.OWNER_CODES ?? "").split(",")) {
+    const at = pair.lastIndexOf(":");
+    if (at <= 0) continue;
+    if (pair.slice(0, at).trim().toLowerCase() === target) {
+      const code = ok(pair.slice(at + 1));
+      if (code) return code;
+    }
+  }
+  if (env.DEMO_EMAIL?.trim().toLowerCase() === target) return ok(env.DEMO_CODE);
+  return null;
+}
