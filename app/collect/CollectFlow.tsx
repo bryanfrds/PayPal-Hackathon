@@ -9,6 +9,7 @@ import {
   collectGroups,
   EMAIL_DOMAINS,
   isValidEmail,
+  pickPreview,
   sendRequest,
   withDomain,
   type CollectGroup,
@@ -81,7 +82,8 @@ export default function CollectFlow() {
   const paidCustomers = paidSummaries(debts);
   const total = groups.reduce((sum, g) => sum + g.totalSen, 0);
   const chosenTotal = chosen.reduce((sum, g) => sum + g.totalSen, 0);
-  const previewGroup = groups.find((g) => g.slug === previewSlug) ?? chosen[0] ?? groups[0];
+  const preview = pickPreview(groups, chosen, previewSlug);
+  const previewGroup = preview?.group;
   const showPane = wide && tab === "toSend" && ready && groups.length > 0;
 
   return (
@@ -218,9 +220,22 @@ export default function CollectFlow() {
 
       </div>
 
-      {showPane && previewGroup && (
+      {showPane && preview && previewGroup && (
         <aside className="collect-pane" aria-label="Invoice preview">
-          <Paper group={previewGroup} label={`Preview of ${previewGroup.customerName}'s invoice`} />
+          {/* Announced when Preview switches whose invoice is shown. */}
+          <p className="visually-hidden" aria-live="polite">
+            Showing {previewGroup.customerName}'s invoice{preview.willSend ? "" : ", not being sent"}
+          </p>
+          {!preview.willSend && (
+            <p className="collect-pane-off" role="note">
+              {preview.reason === "noEmail"
+                ? `Not being sent: add ${previewGroup.customerName}'s email first.`
+                : `Not being sent: ${previewGroup.customerName} is switched off.`}
+            </p>
+          )}
+          <div className={`collect-pane-paper${preview.willSend ? "" : " collect-pane-paper-off"}`}>
+            <Paper group={previewGroup} label={`Preview of ${previewGroup.customerName}'s invoice`} />
+          </div>
           <div className="card collect-sendbox">
             <p className="collect-sendbox-total">
               <b>{rm(chosenTotal)}</b>

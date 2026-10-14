@@ -4398,3 +4398,82 @@ a.button.tab-pay {
     height: 17px;
   }
 }
+
+.collect-pane-off {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  /* Same width on every Collect tab, so switching tabs doesn't jump. */
+  .site-main:has(.collect) {
+    max-width: 1180px;
+  }
+
+  .collect {
+    padding-bottom: 0;
+  }
+
+  .collect-pane .collect-pane-off {
+    display: block;
+    margin: 0;
+    padding: 0.65rem 0.85rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #8c6512;
+    background: #f6efdc;
+    border-radius: 14px;
+  }
+
+  .collect-pane-paper-off {
+    opacity: 0.55;
+  }
+
+  /* A long invoice scrolls inside the pane, so Send stays on screen. */
+  .collect-pane-paper {
+    max-height: calc(100vh - 17rem);
+    overflow: auto;
+    border-radius: 20px;
+  }
+}
+
+/* Small laptops: the totals sit above the grid as a strip, so the grid keeps room for every column. */
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .ledger-cols {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ledger-cols .ledger-summary {
+    position: static;
+    order: -1;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 0.4rem 1.25rem;
+  }
+
+  .ledger-summary ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.1rem;
+  }
+
+  .ledger-summary li {
+    gap: 0.4rem;
+    padding: 0;
+    border-top: 0;
+  }
+
+  .ledger-summary-k,
+  .ledger-summary-v {
+    grid-column: 1;
+  }
+
+  .ledger-summary ul {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+
+  .ledger-summary-go {
+    grid-column: 3;
+    grid-row: 1 / span 2;
+  }
+}

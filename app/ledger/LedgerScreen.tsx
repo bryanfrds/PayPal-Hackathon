@@ -8,14 +8,16 @@ import { formatSen, STATUS_LABEL, type Debt, type DebtStatus } from "@/lib/debts
 import StatusBadge from "../components/StatusBadge";
 import { SendIcon } from "../components/icons";
 import { useDebts } from "../useDebts";
+import { useCollect } from "../useCollect";
+import { useIsWide } from "../useIsWide";
+import { collectGroups } from "@/lib/collect";
+import { LEDGER_FILTERS, filterByStatus, ledgerTotals, type LedgerFilter } from "@/lib/ledger";
 import LedgerGrid from "./LedgerGrid";
 
 type Notice =
   | { kind: "deleted"; debt: Debt }
   | { kind: "error"; message: string };
 
-type Filter = "all" | DebtStatus;
-const FILTERS: Filter[] = ["all", "overdue", "sent", "unpaid", "paid"];
 
 function describe(debt: Debt) {
   return `${debt.customerName} · RM ${formatSen(debt.amountSen)}`;
@@ -31,16 +33,14 @@ export default function LedgerScreen() {
   const scannedParam = searchParams.get("scanned") ?? "";
   const scanned = /^[1-9]\d{0,3}$/.test(scannedParam) ? Number(scannedParam) : 0;
   const [notice, setNotice] = useState<Notice | null>(null);
-  // Laptop: filter chips by status. The phone keeps the search box only.
-  const [filter, setFilter] = useState<Filter>("all");
-  const counts = { all: debts.length, overdue: 0, sent: 0, unpaid: 0, paid: 0 } as Record<Filter, number>;
-  const totals = { overdue: 0, sent: 0, unpaid: 0, paid: 0 } as Record<DebtStatus, number>;
-  for (const d of debts) {
-    counts[d.status] += 1;
-    totals[d.status] += d.amountSen;
-  }
-  const shown = filter === "all" ? debts : debts.filter((d) => d.status === filter);
-  const owedSen = totals.overdue + totals.sent + totals.unpaid;
+  // Laptop: filter chips by status. The phone has no chips, so the filter only applies when wide.
+  const wide = useIsWide();
+  const [filter, setFilter] = useState<LedgerFilter>("all");
+  const { counts, sen: totals, owedSen } = ledgerTotals(debts);
+  const shown = filterByStatus(debts, wide ? filter : "all");
+  // Same list as Collect's "To send": customers with tabs not invoiced yet.
+  const { emails, pending } = useCollect();
+  const toInvoice = collectGroups(debts, emails, pending).length;
 
   function clearAdded() {
     router.replace("/ledger", { scroll: false });
@@ -158,7 +158,7 @@ export default function LedgerScreen() {
       ) : (
         <>
           <div className="ledger-chips ledger-wide-only" role="group" aria-label="Show tabs by status">
-            {FILTERS.map((f) => (
+            {LEDGER_FILTERS.map((f) => (
               <button key={f} type="button" aria-pressed={filter === f} onClick={() => setFilter(f)}>
                 {f === "all" ? "All" : STATUS_LABEL[f]} <b>{counts[f]}</b>
               </button>
@@ -177,10 +177,10 @@ export default function LedgerScreen() {
                   </li>
                 ))}
               </ul>
-              {counts.unpaid > 0 && (
+              {toInvoice > 0 && (
                 <Link href="/collect" className="button ledger-summary-go">
                   <SendIcon />
-                  Invoice the {counts.unpaid} not sent
+                  {toInvoice === 1 ? "Invoice 1 customer" : `Invoice ${toInvoice} customers`}
                 </Link>
               )}
             </aside>
