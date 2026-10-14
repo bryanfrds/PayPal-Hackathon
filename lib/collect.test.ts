@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Debt } from "./debts";
-import { collectGroups, invoiceLines, invoiceRequestId, isInvoiceable, isValidEmail, sendRequest, withDomain, type PendingSend } from "./collect";
+import { collectGroups, invoiceLines, invoiceRequestId, isInvoiceable, isValidEmail, pickPreview, sendRequest, withDomain, type CollectGroup, type PendingSend } from "./collect";
 
 function debt(id: string, customerName: string, amountSen: number, status: Debt["status"], date = "2026-10-01", item = "Milo"): Debt {
   return { id, customerName, item, amountSen, date, status, source: "manual", createdAt: `${date}T00:00:00.000Z` };
@@ -134,5 +134,34 @@ describe("sample emails", async () => {
       expect(slugs.has(slug)).toBe(true);
       expect(isValidEmail(email)).toBe(true);
     }
+  });
+});
+
+describe("pickPreview", () => {
+  const g = (slug: string, email?: string) => ({ slug, email, customerName: slug, totalSen: 100, debts: [], status: "unpaid" }) as unknown as CollectGroup;
+  const groups = [g("a", "a@x.co"), g("b", "b@x.co"), g("c")];
+
+  it("shows the picked customer and says they're being sent", () => {
+    expect(pickPreview(groups, groups.slice(0, 2), "b")).toMatchObject({ group: { slug: "b" }, willSend: true });
+  });
+
+  it("says when the picked customer is switched off", () => {
+    expect(pickPreview(groups, [groups[0]], "b")).toMatchObject({ group: { slug: "b" }, willSend: false, reason: "switchedOff" });
+  });
+
+  it("says when the picked customer has no email", () => {
+    expect(pickPreview(groups, groups.slice(0, 2), "c")).toMatchObject({ willSend: false, reason: "noEmail" });
+  });
+
+  it("falls back to the first one being sent when the pick is gone", () => {
+    expect(pickPreview(groups, [groups[1]], "gone")).toMatchObject({ group: { slug: "b" }, willSend: true });
+  });
+
+  it("with nobody being sent, shows the first and says it won't go", () => {
+    expect(pickPreview(groups, [], null)).toMatchObject({ group: { slug: "a" }, willSend: false, reason: "switchedOff" });
+  });
+
+  it("is empty with no customers", () => {
+    expect(pickPreview([], [], null)).toBeNull();
   });
 });

@@ -149,3 +149,22 @@ export function sendRequest(group: CollectGroup, now: Date): PendingSend {
     startedAt: now.toISOString(),
   };
 }
+
+export type Preview = {
+  group: CollectGroup;
+  /** False when this customer isn't in the batch: switched off, or no email yet. */
+  willSend: boolean;
+  reason?: "noEmail" | "switchedOff";
+};
+
+/**
+ * Whose invoice the laptop's side pane shows: the one the owner picked, else the first being
+ * sent, else the first on the list. Says whether it will actually go out, so the pane never
+ * passes off a switched-off invoice as one that's being sent.
+ */
+export function pickPreview(groups: CollectGroup[], chosen: CollectGroup[], slug: string | null): Preview | null {
+  const group = groups.find((g) => g.slug === slug) ?? chosen[0] ?? groups[0];
+  if (!group) return null;
+  if (chosen.some((c) => c.slug === group.slug)) return { group, willSend: true };
+  return { group, willSend: false, reason: group.email ? "switchedOff" : "noEmail" };
+}
