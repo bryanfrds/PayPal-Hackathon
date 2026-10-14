@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Logo from "./components/Logo";
+import { SparkIcon } from "./components/icons";
 import NavLinks, { type NavLink } from "./NavLinks";
 
 // The shop owner's header and menu. Hidden on a customer's own tab page (/tab/...),
@@ -19,6 +20,14 @@ export default function SiteHeader({ links }: { links: NavLink[] }) {
       <nav aria-label="Main">
         <NavLinks links={links} />
       </nav>
+      {/* Laptop sidebar only: Nudge, one click from every screen. */}
+      <Link href="/nudge" className="side-nudge">
+        <strong>
+          <SparkIcon />
+          Ask Nudge
+        </strong>
+        <span>&ldquo;Who should I remind today?&rdquo;</span>
+      </Link>
     </header>
   );
 }

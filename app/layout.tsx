@@ -25,6 +25,7 @@ const NAV_LINKS: NavLink[] = [
   { href: "/scan", label: "Scan", icon: "scan" },
   { href: "/ledger", label: "Ledger", icon: "ledger" },
   { href: "/insights", label: "Insights", icon: "insights" },
+  { href: "/reminders", label: "Reminders", icon: "reminders", wideOnly: true },
   { href: "/collect", label: "Collect", icon: "collect" },
 ];
 
