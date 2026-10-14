@@ -1,6 +1,7 @@
 // Numbers and labels for the home dashboard. Pure functions so they can be tested in Node.
 
-import { customerSlug } from "./customer-tab";
+import { customerSlug, daysBetween, dueDateFor } from "./customer-tab";
+import type { ScheduleItem } from "./reminders";
 import { outstanding, type Debt } from "./debts";
 
 export type HomeSummary = {
@@ -94,3 +95,115 @@ export function customerSummaries(debts: Debt[]): CustomerSummary[] {
     (a, b) => URGENCY[a.status] - URGENCY[b.status] || a.since.localeCompare(b.since),
   );
 }
+
+// ---- Home redesign: the figures behind the hero, stat tiles, Today list and board ----
+
+export type BoardRow = {
+  customerName: string;
+  slug: string;
+  owedSen: number;
+  /** Most urgent: past the due date counts as overdue, like the customer's own page. */
+  status: Exclude<Debt["status"], "paid">;
+  /** Days the oldest unpaid bill is past its due date (the 10th of the next month); 0 if not yet. */
+  daysLate: number;
+  /** Owed as a share of the biggest balance, 0–100, for the bars. */
+  sharePct: number;
+};
+
+/** Who owes, biggest balance first, with days late and a bar length. */
+export function owedBoard(debts: Debt[], today: string): BoardRow[] {
+  const rows = customerSummaries(debts).map((row) => {
+    const daysLate = Math.max(0, daysBetween(dueDateFor(row.since.slice(0, 7)), today));
+    const status: BoardRow["status"] = row.status === "sent" && daysLate > 0 ? "overdue" : row.status;
+    return { customerName: row.customerName, slug: customerSlug(row.customerName), owedSen: row.owedSen, status, daysLate, sharePct: 0 };
+  });
+  rows.sort((a, b) => b.owedSen - a.owedSen || b.daysLate - a.daysLate || a.customerName.localeCompare(b.customerName));
+  const top = rows[0]?.owedSen ?? 0;
+  for (const row of rows) row.sharePct = top > 0 ? Math.max(4, Math.round((row.owedSen / top) * 100)) : 0;
+  return rows;
+}
+
+export type HomeOverview = HomeSummary & {
+  /** Owed on tabs past their due date (or marked overdue), in sen, and as a share of everything. */
+  overdueSen: number;
+  overduePct: number;
+  overdueTabs: number;
+  /** The most days any unpaid bill is past due. */
+  oldestDaysLate: number;
+  customersOwing: number;
+  /** Reminders that should go out today, one per customer, names in schedule order. */
+  remindNow: string[];
+  /** The next day a reminder is planned after today, if any. */
+  nextReminder?: string;
+  /** Tabs with no PayPal invoice yet. */
+  notInvoiced: { count: number; sen: number; names: string[] };
+  paidTabs: { count: number; sen: number };
+};
+
+/** Everything on Home's hero, stat tiles and Today list. `schedule` is buildSchedule's output. */
+export function homeOverview(debts: Debt[], schedule: ScheduleItem[], today: string): HomeOverview {
+  const summary = summariseHome(debts);
+  let overdueSen = 0;
+  let overdueTabs = 0;
+  let oldestDaysLate = 0;
+  const notInvoiced = { count: 0, sen: 0, names: [] as string[] };
+  const paidTabs = { count: 0, sen: 0 };
+  for (const debt of debts) {
+    if (debt.status === "paid") {
+      paidTabs.count += 1;
+      paidTabs.sen += debt.amountSen;
+      continue;
+    }
+    const daysLate = Math.max(0, daysBetween(dueDateFor(debt.date.slice(0, 7)), today));
+    if (daysLate > 0 || debt.status === "overdue") {
+      overdueSen += debt.amountSen;
+      overdueTabs += 1;
+      oldestDaysLate = Math.max(oldestDaysLate, daysLate);
+    }
+    if (debt.status === "unpaid") {
+      notInvoiced.count += 1;
+      notInvoiced.sen += debt.amountSen;
+      if (!notInvoiced.names.includes(debt.customerName)) notInvoiced.names.push(debt.customerName);
+    }
+  }
+  const all = summary.owedSen + summary.paidSen;
+  const reminders = schedule.filter((i) => i.kind === "reminder");
+  const remindNow: string[] = [];
+  for (const r of reminders) if (r.dueNow && !remindNow.includes(r.customer)) remindNow.push(r.customer);
+  const next = reminders.filter((r) => !r.sent && r.day > today).map((r) => r.day).sort()[0];
+  return {
+    ...summary,
+    overdueSen,
+    overduePct: all === 0 ? 0 : Math.round((overdueSen / all) * 100),
+    overdueTabs,
+    oldestDaysLate,
+    customersOwing: customerSummaries(debts).length,
+    remindNow,
+    nextReminder: next,
+    notInvoiced,
+    paidTabs,
+  };
+}
+
+export type MonthTotal = { month: string; label: string; owedSen: number; collectedSen: number };
+
+/** Owed and collected per month the tabs were written down, the last `count` months up to today. */
+export function monthTotals(debts: Debt[], today: string, count = 4): MonthTotal[] {
+  const [y, m] = today.split("-").map(Number);
+  const months: MonthTotal[] = [];
+  for (let i = count - 1; i >= 0; i -= 1) {
+    const d = new Date(Date.UTC(y, m - 1 - i, 1));
+    const month = d.toISOString().slice(0, 7);
+    months.push({ month, label: SHORT_MONTHS[d.getUTCMonth()], owedSen: 0, collectedSen: 0 });
+  }
+  const byMonth = new Map(months.map((row) => [row.month, row]));
+  for (const debt of debts) {
+    const row = byMonth.get(debt.date.slice(0, 7));
+    if (!row) continue;
+    if (debt.status === "paid") row.collectedSen += debt.amountSen;
+    else row.owedSen += debt.amountSen;
+  }
+  return months;
+}
+
+const SHORT_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
