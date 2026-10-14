@@ -23,6 +23,7 @@ import Avatar from "../components/Avatar";
 import StatusBadge from "../components/StatusBadge";
 import { BackIcon, CheckIcon, ChevronIcon, CloseIcon, MailIcon, PlusIcon, SendIcon } from "../components/icons";
 import { useCollect } from "../useCollect";
+import { useIsWide } from "../useIsWide";
 import { useDebts } from "../useDebts";
 
 const SHOP_NAME = "Kedai Ah Seng";
@@ -42,6 +43,9 @@ export default function CollectFlow() {
   const [emailFor, setEmailFor] = useState<CollectGroup | null>(null);
   // Frozen when sending starts, so the list doesn't shift as debts are marked sent.
   const [batch, setBatch] = useState<CollectGroup[]>([]);
+  const wide = useIsWide();
+  // Laptop: whose invoice the side pane shows. Falls back to the first one being sent.
+  const [previewSlug, setPreviewSlug] = useState<string | null>(null);
 
   const groups = collectGroups(debts, emails, pending);
   const chosen = groups.filter((g) => g.email && !off.has(g.slug));
@@ -77,12 +81,17 @@ export default function CollectFlow() {
   const paidCustomers = paidSummaries(debts);
   const total = groups.reduce((sum, g) => sum + g.totalSen, 0);
   const chosenTotal = chosen.reduce((sum, g) => sum + g.totalSen, 0);
+  const previewGroup = groups.find((g) => g.slug === previewSlug) ?? chosen[0] ?? groups[0];
+  const showPane = wide && tab === "toSend" && ready && groups.length > 0;
 
   return (
-    <div className="collect">
+    <div className={`collect${showPane ? " collect-wide" : ""}`}>
       <div className="collect-top">
         <h1>Collect</h1>
       </div>
+
+      <div className="collect-cols">
+      <div className="collect-left">
 
       <section className="collect-hero" aria-labelledby="collect-hero-label">
         <p id="collect-hero-label">Ready to collect</p>
@@ -133,6 +142,8 @@ export default function CollectFlow() {
                     })
                   }
                   onAddEmail={() => setEmailFor(g)}
+                  previewing={showPane && previewGroup?.slug === g.slug}
+                  onPreview={showPane ? () => setPreviewSlug(g.slug) : undefined}
                 />
               ))}
             </ul>
@@ -205,7 +216,38 @@ export default function CollectFlow() {
         )}
       </div>
 
-      {tab === "toSend" && ready && groups.length > 0 && (
+      </div>
+
+      {showPane && previewGroup && (
+        <aside className="collect-pane" aria-label="Invoice preview">
+          <Paper group={previewGroup} label={`Preview of ${previewGroup.customerName}'s invoice`} />
+          <div className="card collect-sendbox">
+            <p className="collect-sendbox-total">
+              <b>{rm(chosenTotal)}</b>
+              <span>{chosen.length === 1 ? "1 invoice" : `${chosen.length} invoices`} · nothing is charged</span>
+            </p>
+            <button
+              type="button"
+              className="button button-primary collect-sendbox-go"
+              disabled={chosen.length === 0}
+              onClick={() => {
+                setBatch(chosen);
+                setPhase("send");
+              }}
+            >
+              <SendIcon />
+              {chosen.length === 1 ? "Send 1 PayPal invoice" : `Send ${chosen.length} PayPal invoices`}
+            </button>
+            <p className="collect-sendbox-note">
+              Each customer gets their own invoice by email.
+              {groups.some((g) => !g.email) ? " Customers without an email are left out until you add one." : ""}
+            </p>
+          </div>
+        </aside>
+      )}
+      </div>
+
+      {tab === "toSend" && ready && groups.length > 0 && !showPane && (
         <div className="collect-bar">
           <p>
             <small>{chosen.length === 1 ? "1 invoice" : `${chosen.length} invoices`}</small>
@@ -281,15 +323,20 @@ function CustomerCard({
   on,
   onToggle,
   onAddEmail,
+  previewing,
+  onPreview,
 }: {
   group: CollectGroup;
   on: boolean;
   onToggle: (on: boolean) => void;
   onAddEmail: () => void;
+  /** Laptop only: this card's invoice is the one in the side pane. */
+  previewing?: boolean;
+  onPreview?: () => void;
 }) {
   const missing = !group.email;
   return (
-    <li className={`card collect-card${missing ? " collect-card-missing" : ""}`}>
+    <li className={`card collect-card${missing ? " collect-card-missing" : ""}${previewing ? " collect-card-previewing" : ""}`}>
       <Avatar name={group.customerName} />
       <span className="tab-who">
         <span className="tab-name">{group.customerName}</span>
@@ -308,6 +355,17 @@ function CustomerCard({
         )}
       </span>
       <span className="collect-amt">{rm(group.totalSen)}</span>
+      {onPreview && (
+        <button
+          type="button"
+          className="collect-preview-btn"
+          aria-pressed={previewing}
+          aria-label={`Preview ${group.customerName}'s invoice`}
+          onClick={onPreview}
+        >
+          Preview
+        </button>
+      )}
       <button
         type="button"
         role="switch"
@@ -439,6 +497,43 @@ function EmailSheet({ group, onClose, onSaved }: { group: CollectGroup; onClose:
   );
 }
 
+
+/** One invoice, drawn like the paper the customer gets. Used by Review (phone) and the side pane (laptop). */
+function Paper({ group: g, label }: { group: CollectGroup; label: string }) {
+  return (
+    <article className="paper" aria-label={label}>
+      <div className="paper-head">
+        <p className="paper-from">
+          {SHOP_NAME}
+          <small>Invoice via PayPal</small>
+        </p>
+        <span className="paper-tag">INVOICE</span>
+      </div>
+      <p className="paper-to">
+        Bill to<b>{g.customerName}</b>
+        {g.email ?? "No email yet"}
+      </p>
+      <ul className="paper-lines">
+        {g.debts.map((d) => (
+          <li key={d.id}>
+            <span>
+              {d.item || "Shop items"}
+              <small>{formatDay(d.date)}</small>
+            </span>
+            <span>{formatSen(d.amountSen)}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="paper-total">
+        <span>Total (MYR)</span>
+        <b>{rm(g.totalSen)}</b>
+      </p>
+      <p className="paper-pay">The customer gets PayPal&apos;s Pay button here: PayPal or card.</p>
+      <div className="paper-perf" aria-hidden="true" />
+    </article>
+  );
+}
+
 /* Review: one paper-style preview per invoice, swipe between them */
 
 function Review({ groups, onBack, onSend }: { groups: CollectGroup[]; onBack: () => void; onSend: () => void }) {
@@ -480,36 +575,7 @@ function Review({ groups, onBack, onSend }: { groups: CollectGroup[]; onBack: ()
         }}
       >
         {groups.map((g, i) => (
-          <article key={g.slug} className="paper" aria-label={`Invoice ${i + 1} of ${groups.length}, ${g.customerName}`}>
-            <div className="paper-head">
-              <p className="paper-from">
-                {SHOP_NAME}
-                <small>Invoice via PayPal</small>
-              </p>
-              <span className="paper-tag">INVOICE</span>
-            </div>
-            <p className="paper-to">
-              Bill to<b>{g.customerName}</b>
-              {g.email}
-            </p>
-            <ul className="paper-lines">
-              {g.debts.map((d) => (
-                <li key={d.id}>
-                  <span>
-                    {d.item || "Shop items"}
-                    <small>{formatDay(d.date)}</small>
-                  </span>
-                  <span>{formatSen(d.amountSen)}</span>
-                </li>
-              ))}
-            </ul>
-            <p className="paper-total">
-              <span>Total (MYR)</span>
-              <b>{rm(g.totalSen)}</b>
-            </p>
-            <p className="paper-pay">The customer gets PayPal&apos;s Pay button here: PayPal or card.</p>
-            <div className="paper-perf" aria-hidden="true" />
-          </article>
+          <Paper key={g.slug} group={g} label={`Invoice ${i + 1} of ${groups.length}, ${g.customerName}`} />
         ))}
       </div>
 
