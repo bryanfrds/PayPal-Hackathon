@@ -28,8 +28,10 @@ describe("POST /api/invoices/status", () => {
     );
     const res = await post({ ids: ["INV2-PAID", "INV2-OPEN"] });
     expect(res.status).toBe(200);
-    expect((await res.json()).results).toEqual({
-      "INV2-PAID": { ok: true, status: "PAID", totalSen: 2340, paidSen: 2340, dueSen: 0 },
+    const body = await res.json();
+    expect(body.currency).toBe("MYR");
+    expect(body.results).toEqual({
+      "INV2-PAID": { ok: true, status: "PAID", currency: "MYR", totalSen: 2340, paidSen: 2340, dueSen: 0 },
       "INV2-OPEN": { ok: true, status: "SENT", totalSen: 1000, dueSen: 1000 },
     });
   });
@@ -49,6 +51,14 @@ describe("POST /api/invoices/status", () => {
     const res = await post({ ids: ["INV2-1", "INV2-2", "INV2-3", "INV2-4", "INV2-5", "INV2-6", "INV2-7"] });
     expect(res.status).toBe(503);
     expect((await res.json()).error).toBe("PayPal isn't connected on this server yet.");
+    expect(paypal.getInvoice.mock.calls.length).toBeLessThanOrEqual(5);
+  });
+
+  it("stops calling PayPal once it says to slow down", async () => {
+    paypal.getInvoice.mockRejectedValue(new PayPalError("busy", { status: 429 }));
+    const res = await post({ ids: ["INV2-1", "INV2-2", "INV2-3", "INV2-4", "INV2-5", "INV2-6", "INV2-7"] });
+    expect(res.status).toBe(503);
+    expect((await res.json()).error).toBe("PayPal is busy. Try again in a minute.");
     expect(paypal.getInvoice.mock.calls.length).toBeLessThanOrEqual(5);
   });
 

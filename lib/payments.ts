@@ -7,9 +7,10 @@
 import type { InvoiceRecord } from "./collect-store";
 import type { Debt } from "./debts";
 
-/** What PayPal reported about one invoice, amounts in whole sen. */
+/** What PayPal reported about one invoice, amounts in whole sen (cents for USD). */
 export type InvoiceFacts = {
   status: string;
+  currency?: string;
   totalSen?: number;
   paidSen?: number;
   dueSen?: number;
@@ -21,8 +22,8 @@ export type StatusResult = ({ ok: true } & InvoiceFacts) | { ok: false; error: s
 /**
  * paid: settled in full for the billed amount. open: still waiting, or partly paid.
  * closed: cancelled or refunded, so its debts need billing again.
- * check: PayPal's answer doesn't add up (wrong total, partial refund, unknown status);
- * the debts stay owed until the owner looks.
+ * check: PayPal's answer doesn't add up (wrong total or currency, partial refund, unknown
+ * status); the debts stay owed until the owner looks.
  */
 export type Settlement = "paid" | "open" | "closed" | "check";
 
@@ -35,7 +36,10 @@ export type InvoiceStanding = InvoiceFacts & {
 
 const PAID = new Set(["PAID", "MARKED_AS_PAID"]);
 const OPEN = new Set(["DRAFT", "SCHEDULED", "SENT", "UNPAID", "PAYMENT_PENDING", "PARTIALLY_PAID"]);
-const CLOSED = new Set(["CANCELLED", "REFUNDED", "MARKED_AS_REFUNDED"]);
+const CLOSED = new Set(["CANCELLED", "AUTO_CANCELLED", "REFUNDED", "MARKED_AS_REFUNDED"]);
+
+/** A paid invoice can still be refunded, so it's asked about again, but only this often. */
+export const PAID_RECHECK_MS = 60 * 60 * 1000;
 
 /** Reads PayPal's "12.50" into 1250 sen. Undefined for anything that isn't a plain amount. */
 export function moneyToSen(value: string | undefined): number | undefined {
@@ -44,12 +48,13 @@ export function moneyToSen(value: string | undefined): number | undefined {
   return Number(whole) * 100 + Number(frac.padEnd(2, "0"));
 }
 
-/** Classifies an invoice against the amount we billed for it. */
-export function settlementOf(facts: InvoiceFacts, billedSen: number): Settlement {
+/** Classifies an invoice against the amount and currency we billed it in. */
+export function settlementOf(facts: InvoiceFacts, billedSen: number, currency: string): Settlement {
   if (PAID.has(facts.status)) {
-    // PayPal's total must be what we billed, and nothing may still be due.
-    if (facts.totalSen !== billedSen) return "check";
+    // PayPal's total must be what we billed, in our currency, with nothing still due.
+    if (facts.currency !== currency || facts.totalSen !== billedSen) return "check";
     if (facts.dueSen !== undefined && facts.dueSen > 0) return "open";
+    if (facts.paidSen !== undefined && facts.paidSen < billedSen) return "open";
     return "paid";
   }
   if (OPEN.has(facts.status)) return "open";
@@ -57,63 +62,64 @@ export function settlementOf(facts: InvoiceFacts, billedSen: number): Settlement
   return "check";
 }
 
-/** paid and closed don't change again on their own, so they aren't re-checked. */
-export function isFinal(settlement: Settlement | undefined): boolean {
-  return settlement === "paid" || settlement === "closed";
-}
-
 /**
- * Invoices worth asking PayPal about: not settled yet, least recently tried first.
- * `triedAt` (ISO timestamps by id) counts failed tries too, so invoices PayPal keeps
- * failing on don't hold up the rest.
+ * Invoices worth asking PayPal about, least recently tried first: everything not cancelled
+ * or refunded, with paid ones only once PAID_RECHECK_MS has passed. `triedAt` (ISO
+ * timestamps by id) counts failed tries too, so invoices PayPal keeps failing on don't
+ * hold up the rest.
  */
-export function invoicesToCheck(records: InvoiceRecord[], limit: number, triedAt: Record<string, string> = {}): InvoiceRecord[] {
+export function invoicesToCheck(records: InvoiceRecord[], limit: number, now: Date, triedAt: Record<string, string> = {}): InvoiceRecord[] {
   const last = (r: InvoiceRecord) => {
     const checked = r.standing?.checkedAt ?? "";
     const tried = triedAt[r.id] ?? "";
     return tried > checked ? tried : checked;
   };
+  const recheckPaidBefore = new Date(now.getTime() - PAID_RECHECK_MS).toISOString();
   return records
-    .filter((r) => !isFinal(r.standing?.settlement))
+    .filter((r) => {
+      const settlement = r.standing?.settlement;
+      if (settlement === "closed") return false;
+      return settlement !== "paid" || last(r) < recheckPaidBefore;
+    })
     .sort((a, b) => last(a).localeCompare(last(b)))
     .slice(0, limit);
 }
 
 export type DebtChanges = {
-  /** Debts whose invoice PayPal reports paid in full. */
+  /** Sent debts whose invoice PayPal reports paid in full. */
   toPaid: string[];
-  /** Sent debts whose every invoice was cancelled or refunded: owed and not invoiced again. */
+  /** Debts whose invoice was cancelled or refunded: owed, and back on the Collect list. */
   toUnpaid: string[];
+  /** Paid debts whose invoice is owed again (a partial refund, a payment taken back). */
+  toSent: string[];
 };
 
 /**
- * The debt status changes PayPal's answers call for. Safe to run any number of times: it
- * only returns changes that aren't made yet.
+ * The debt status changes PayPal's answers call for. Only each debt's newest invoice
+ * counts: older ones were cancelled or come from before a reset of the sample tabs. Safe to
+ * run any number of times: it only returns changes that aren't made yet.
  */
 export function reconcileDebts(debts: Debt[], records: InvoiceRecord[]): DebtChanges {
-  const byDebt = new Map<string, InvoiceRecord[]>();
+  const newest = new Map<string, InvoiceRecord>();
   for (const record of records) {
     for (const id of record.debtIds) {
-      const list = byDebt.get(id);
-      if (list) list.push(record);
-      else byDebt.set(id, [record]);
+      const current = newest.get(id);
+      if (!current || record.sentAt > current.sentAt) newest.set(id, record);
     }
   }
 
-  const toPaid: string[] = [];
-  const toUnpaid: string[] = [];
+  const changes: DebtChanges = { toPaid: [], toUnpaid: [], toSent: [] };
   for (const debt of debts) {
-    const linked = byDebt.get(debt.id);
-    if (!linked) continue;
-    // Money arrived on any invoice for this debt: it's paid.
-    if (linked.some((r) => r.standing?.settlement === "paid")) {
-      if (debt.status !== "paid") toPaid.push(debt.id);
-      continue;
-    }
-    // Every invoice for it is dead, so it goes back to the Collect list.
-    if (debt.status === "sent" && linked.every((r) => r.standing?.settlement === "closed")) {
-      toUnpaid.push(debt.id);
+    const settlement = newest.get(debt.id)?.standing?.settlement;
+    if (settlement === undefined) continue;
+    if (settlement === "paid") {
+      // Only a debt that's out on this invoice: a reset tab with the same id waits for its own.
+      if (debt.status === "sent") changes.toPaid.push(debt.id);
+    } else if (settlement === "closed") {
+      if (debt.status === "sent" || debt.status === "paid") changes.toUnpaid.push(debt.id);
+    } else if (debt.status === "paid") {
+      changes.toSent.push(debt.id);
     }
   }
-  return { toPaid, toUnpaid };
+  return changes;
 }

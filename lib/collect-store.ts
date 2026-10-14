@@ -129,7 +129,7 @@ export type CollectStore = {
   invoices(): InvoiceRecord[];
   /** Adds a record, or replaces the one with the same PayPal id (a retry that already went through). */
   addInvoice(record: InvoiceRecord): void;
-  /** Saves what PayPal said about several invoices in one write. Unknown ids are skipped. */
+  /** Saves what PayPal said about several invoices in one write. Unknown ids and older answers are skipped. */
   setStandings(standings: Record<string, InvoiceStanding>): void;
   /** Unfinished sends by customer slug. */
   pending(): Record<string, PendingSend>;
@@ -169,7 +169,9 @@ export function createCollectStore(storage: StorageLike | null, seedEmails: Reco
     },
     setStandings(standings) {
       const current = storage ? readForWrite(storage, INVOICES_KEY, isRecordList, []) : memInvoices;
-      const next = current.map((r) => (standings[r.id] ? { ...r, standing: standings[r.id] } : r));
+      // A slow answer (or another tab's) never overwrites a newer one.
+      const newer = (r: InvoiceRecord) => standings[r.id] && standings[r.id].checkedAt >= (r.standing?.checkedAt ?? "");
+      const next = current.map((r) => (newer(r) ? { ...r, standing: standings[r.id] } : r));
       write(storage, INVOICES_KEY, next);
       memInvoices = next;
     },

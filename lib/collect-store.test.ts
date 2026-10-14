@@ -103,4 +103,14 @@ describe("createCollectStore", () => {
     expect(again.find((r) => r.id === "INV2")?.standing).toBeUndefined();
     expect(again).toHaveLength(2);
   });
+
+  it("never lets an older PayPal answer overwrite a newer one", () => {
+    const store = createCollectStore(new FakeStorage());
+    store.addInvoice(rec("INV1", "2026-10-13T10:00:00Z"));
+    const refunded = { status: "REFUNDED", settlement: "closed" as const, checkedAt: "2026-10-14T11:00:00Z" };
+    const slowPaid = { status: "PAID", settlement: "paid" as const, checkedAt: "2026-10-14T10:00:00Z" };
+    store.setStandings({ INV1: refunded });
+    store.setStandings({ INV1: slowPaid });
+    expect(store.invoices()[0].standing).toEqual(refunded);
+  });
 });

@@ -107,13 +107,18 @@ export function withDomain(typed: string, domain: string): string {
  * The same invoice (same tabs, email and lines) always gives the same id, so PayPal treats
  * a retry as the same invoice (PayPal-Request-Id) and never creates a second one. Changing
  * the email or an amount gives a new id, so a corrected invoice isn't swapped for the old one.
+ * `previousInvoiceIds` are invoices already sent for these tabs (cancelled, or from before a
+ * reset): billing them again gets a new id, so PayPal makes a new invoice instead of
+ * returning the old one.
  */
-export function invoiceRequestId(input: { debtIds: string[]; email: string; lines: InvoiceLine[] }): string {
-  const key = JSON.stringify([
+export function invoiceRequestId(input: { debtIds: string[]; email: string; lines: InvoiceLine[]; previousInvoiceIds?: string[] }): string {
+  const parts: unknown[] = [
     [...input.debtIds].sort(),
     input.email.trim().toLowerCase(),
     input.lines.map((l) => [l.name, l.amountSen]),
-  ]);
+  ];
+  if (input.previousInvoiceIds?.length) parts.push([...input.previousInvoiceIds].sort());
+  const key = JSON.stringify(parts);
   // FNV-1a, 32-bit, twice with different seeds for a longer id.
   let h1 = 0x811c9dc5;
   let h2 = 0x01000193;
@@ -133,7 +138,7 @@ export function invoiceLines(debts: Debt[]): InvoiceLine[] {
 }
 
 /** What goes to /api/invoices for a group: a pending send exactly as saved, otherwise a fresh one. */
-export function sendRequest(group: CollectGroup, now: Date): PendingSend {
+export function sendRequest(group: CollectGroup, now: Date, previousInvoiceIds: string[] = []): PendingSend {
   if (group.pending) return group.pending;
   const email = group.email ?? "";
   const lines = invoiceLines(group.debts);
@@ -145,7 +150,7 @@ export function sendRequest(group: CollectGroup, now: Date): PendingSend {
     debtIds,
     lines,
     amountSen: group.totalSen,
-    requestId: invoiceRequestId({ debtIds, email, lines }),
+    requestId: invoiceRequestId({ debtIds, email, lines, previousInvoiceIds }),
     startedAt: now.toISOString(),
   };
 }

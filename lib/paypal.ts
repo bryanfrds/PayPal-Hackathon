@@ -129,8 +129,13 @@ export function readPayPalConfigFromEnv(env: Record<string, string | undefined> 
     apiBase: (env.PAYPAL_API_BASE?.trim() || DEFAULT_PAYPAL_API_BASE).replace(/\/+$/, ""),
     clientId,
     clientSecret,
-    currency: env.PAYPAL_CURRENCY?.trim().toUpperCase() || DEFAULT_PAYPAL_CURRENCY,
+    currency: shopCurrency(env),
   };
+}
+
+/** The currency invoices are billed in. Needs no keys, so it never throws. */
+export function shopCurrency(env: Record<string, string | undefined> = process.env): string {
+  return env.PAYPAL_CURRENCY?.trim().toUpperCase() || DEFAULT_PAYPAL_CURRENCY;
 }
 
 /** Replaces every secret-bearing string in a message with [redacted]. */

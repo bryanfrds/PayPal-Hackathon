@@ -1,10 +1,10 @@
 // Where several sent invoices stand on PayPal, in one request, for payment reconciliation
-// (see lib/payments.ts and app/usePaymentSync.ts). Read-only: the device decides which
+// (see lib/payments.ts and app/PaymentSync.tsx). Read-only: the device decides which
 // debts that makes paid.
 
 import { NextResponse } from "next/server";
 import { moneyToSen, type InvoiceFacts, type StatusResult } from "@/lib/payments";
-import { getInvoice, PayPalError, type PayPalInvoice } from "@/lib/paypal";
+import { getInvoice, PayPalError, shopCurrency, type PayPalInvoice } from "@/lib/paypal";
 import { paypalFailure } from "../errors";
 
 const MAX_IDS = 25;
@@ -24,6 +24,7 @@ function parseIds(value: unknown): string[] | null {
 function factsOf(invoice: PayPalInvoice): InvoiceFacts {
   return {
     status: invoice.status ?? "UNKNOWN",
+    currency: invoice.amount?.currency_code ?? invoice.detail?.currency_code,
     totalSen: moneyToSen(invoice.amount?.value),
     paidSen: moneyToSen(invoice.payments?.paid_amount?.value),
     dueSen: moneyToSen(invoice.due_amount?.value),
@@ -51,8 +52,9 @@ export async function POST(request: Request) {
       } catch (error) {
         console.error("POST /api/invoices/status failed for one invoice:", error instanceof Error ? error.message : error);
         const paypal = error instanceof PayPalError ? error : null;
-        // Missing or rejected keys fail every invoice the same way: stop and say so once.
-        if (paypal && (/ is not set\./.test(paypal.message) || paypal.status === 401 || paypal.status === 403)) fatal = paypal;
+        // Missing or rejected keys fail every invoice the same way, and a rate limit only gets
+        // worse with more calls: stop and say so once.
+        if (paypal && (/ is not set\./.test(paypal.message) || [401, 403, 429].includes(paypal.status ?? 0))) fatal = paypal;
         results[id] = { ok: false, error: paypalFailure(paypal).message };
       }
     }
@@ -63,5 +65,5 @@ export async function POST(request: Request) {
     const failure = paypalFailure(fatal);
     return NextResponse.json({ error: failure.message }, { status: failure.status });
   }
-  return NextResponse.json({ results });
+  return NextResponse.json({ currency: shopCurrency(), results });
 }
