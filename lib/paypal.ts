@@ -57,10 +57,21 @@ export type PayPalInvoiceDetail = {
   };
 };
 
+export type PayPalMoney = {
+  currency_code?: string;
+  /** Major units as a string, e.g. "12.50". */
+  value?: string;
+};
+
 export type PayPalInvoice = {
   id: string;
   status?: string;
   detail?: PayPalInvoiceDetail;
+  /** The invoice total. */
+  amount?: PayPalMoney;
+  /** What the payer still owes. */
+  due_amount?: PayPalMoney;
+  payments?: { paid_amount?: PayPalMoney };
   links?: PayPalLink[];
 };
 

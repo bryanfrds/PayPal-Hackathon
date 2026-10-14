@@ -89,4 +89,18 @@ describe("createCollectStore", () => {
     expect(store.emails()).toEqual({ a: "a@b.co" });
     expect(store.invoices()).toHaveLength(1);
   });
+
+  it("saves PayPal's answers on the records, and keeps them when a retried send replaces a record", () => {
+    const storage = new FakeStorage();
+    const store = createCollectStore(storage);
+    store.addInvoice(rec("INV1", "2026-10-13T10:00:00Z"));
+    store.addInvoice(rec("INV2", "2026-10-13T11:00:00Z"));
+    const paid = { status: "PAID", totalSen: 100, settlement: "paid" as const, checkedAt: "2026-10-14T10:00:00Z" };
+    store.setStandings({ INV1: paid, UNKNOWN: paid });
+    store.addInvoice({ ...rec("INV1", "2026-10-13T10:00:00Z"), number: "0042" });
+    const again = createCollectStore(storage).invoices();
+    expect(again.find((r) => r.id === "INV1")?.standing).toEqual(paid);
+    expect(again.find((r) => r.id === "INV2")?.standing).toBeUndefined();
+    expect(again).toHaveLength(2);
+  });
 });

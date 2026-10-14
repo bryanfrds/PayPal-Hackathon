@@ -2,6 +2,7 @@
 // debts (see debt-store.ts). A server store can replace this behind the same shape.
 
 import type { PendingSend } from "./collect";
+import type { InvoiceStanding } from "./payments";
 
 type StorageLike = Pick<Storage, "getItem" | "setItem">;
 
@@ -24,6 +25,8 @@ export type InvoiceRecord = {
   sentAt: string;
   /** The link the customer opens to pay. */
   payerLink?: string;
+  /** What PayPal last said about it (see lib/payments.ts). Missing until the first check. */
+  standing?: InvoiceStanding;
 };
 
 export class CollectStoreError extends Error {
@@ -87,8 +90,15 @@ function isRecord(v: unknown): v is InvoiceRecord {
     Array.isArray(r.debtIds) &&
     r.debtIds.every((x) => typeof x === "string") &&
     typeof r.amountSen === "number" &&
-    typeof r.sentAt === "string"
+    typeof r.sentAt === "string" &&
+    (r.standing === undefined || isStanding(r.standing))
   );
+}
+
+function isStanding(v: unknown): v is InvoiceStanding {
+  if (typeof v !== "object" || v === null) return false;
+  const s = v as Record<string, unknown>;
+  return typeof s.status === "string" && typeof s.settlement === "string" && typeof s.checkedAt === "string";
 }
 
 function isPendingMap(v: unknown): v is Record<string, PendingSend> {
@@ -119,6 +129,8 @@ export type CollectStore = {
   invoices(): InvoiceRecord[];
   /** Adds a record, or replaces the one with the same PayPal id (a retry that already went through). */
   addInvoice(record: InvoiceRecord): void;
+  /** Saves what PayPal said about several invoices in one write. Unknown ids are skipped. */
+  setStandings(standings: Record<string, InvoiceStanding>): void;
   /** Unfinished sends by customer slug. */
   pending(): Record<string, PendingSend>;
   setPending(send: PendingSend): void;
@@ -149,7 +161,15 @@ export function createCollectStore(storage: StorageLike | null, seedEmails: Reco
       [...(storage ? read(storage, INVOICES_KEY, isRecordList, []) : memInvoices)].sort((a, b) => b.sentAt.localeCompare(a.sentAt)),
     addInvoice(record) {
       const current = storage ? readForWrite(storage, INVOICES_KEY, isRecordList, []) : memInvoices;
-      const next = [...current.filter((r) => r.id !== record.id), record];
+      // A retry of a send that already went through keeps what PayPal said about it.
+      const standing = record.standing ?? current.find((r) => r.id === record.id)?.standing;
+      const next = [...current.filter((r) => r.id !== record.id), standing ? { ...record, standing } : record];
+      write(storage, INVOICES_KEY, next);
+      memInvoices = next;
+    },
+    setStandings(standings) {
+      const current = storage ? readForWrite(storage, INVOICES_KEY, isRecordList, []) : memInvoices;
+      const next = current.map((r) => (standings[r.id] ? { ...r, standing: standings[r.id] } : r));
       write(storage, INVOICES_KEY, next);
       memInvoices = next;
     },
