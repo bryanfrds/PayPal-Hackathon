@@ -3,6 +3,16 @@ import { MockLanguageModelV4 } from "ai/test";
 import { simulateReadableStream } from "ai";
 import type { LanguageModelV4StreamPart } from "@ai-sdk/provider";
 
+// Signed in as the shop owner unless a test says otherwise.
+const signedIn = vi.hoisted(() => ({ value: true }));
+vi.mock("@/lib/auth-server", () => ({
+  requireOwner: async () =>
+    signedIn.value
+      ? { email: "owner@example.com", method: "email", exp: 9999999999 }
+      : Response.json({ error: "Sign in to do that." }, { status: 401 }),
+}));
+
+
 // A fake model: first it calls draft_reminder, then it says one line. Exercises the route,
 // the tool and the streamed response without a key or any network.
 const usage = {

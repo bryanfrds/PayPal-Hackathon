@@ -1,5 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+// Signed in as the shop owner unless a test says otherwise.
+const signedIn = vi.hoisted(() => ({ value: true }));
+vi.mock("@/lib/auth-server", () => ({
+  requireOwner: async () =>
+    signedIn.value
+      ? { email: "owner@example.com", method: "email", exp: 9999999999 }
+      : Response.json({ error: "Sign in to do that." }, { status: 401 }),
+}));
+
+
 const paypal = vi.hoisted(() => ({
   createDraftInvoice: vi.fn(),
   sendInvoice: vi.fn(),
@@ -34,6 +44,13 @@ beforeEach(() => {
 });
 
 describe("POST /api/invoices", () => {
+  it("refuses anyone who isn't signed in", async () => {
+    signedIn.value = false;
+    const res = await POST(new Request("http://localhost/api/invoices", { method: "POST", body: "{}" }));
+    signedIn.value = true;
+    expect(res.status).toBe(401);
+  });
+
   it("creates the draft with the request id, sends it and returns the number and pay link", async () => {
     paypal.createDraftInvoice.mockResolvedValue({ id: "INV2-1", status: "DRAFT" });
     paypal.getInvoice.mockResolvedValueOnce({ id: "INV2-1", status: "DRAFT" });
