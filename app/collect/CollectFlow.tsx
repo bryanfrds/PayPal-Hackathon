@@ -87,7 +87,7 @@ export default function CollectFlow() {
   const showPane = wide && tab === "toSend" && ready && groups.length > 0;
 
   return (
-    <div className={`collect${showPane ? " collect-wide" : ""}`}>
+    <div className={`collect collect-home${showPane ? " collect-wide" : ""}`}>
       <div className="collect-top">
         <h1>Collect</h1>
       </div>
@@ -233,7 +233,13 @@ export default function CollectFlow() {
                 : `Not being sent: ${previewGroup.customerName} is switched off.`}
             </p>
           )}
-          <div className={`collect-pane-paper${preview.willSend ? "" : " collect-pane-paper-off"}`}>
+          {/* Focusable so a long invoice can be scrolled with the keyboard. */}
+          <div
+            className={`collect-pane-paper${preview.willSend ? "" : " collect-pane-paper-off"}`}
+            tabIndex={0}
+            role="region"
+            aria-label={`${previewGroup.customerName}'s invoice`}
+          >
             <Paper group={previewGroup} label={`Preview of ${previewGroup.customerName}'s invoice`} />
           </div>
           <div className="card collect-sendbox">

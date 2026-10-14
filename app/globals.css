@@ -4228,10 +4228,6 @@ a.button.tab-pay {
 }
 
 @media (min-width: 1024px) {
-  .site-main:has(.collect-wide) {
-    max-width: 1180px;
-  }
-
   .collect-wide .collect-cols {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 380px;
@@ -4404,12 +4400,13 @@ a.button.tab-pay {
 }
 
 @media (min-width: 1024px) {
-  /* Same width on every Collect tab, so switching tabs doesn't jump. */
-  .site-main:has(.collect) {
+  /* Same width on every tab of the Collect list, so switching tabs doesn't jump. Review, Send
+     and invoice tracking keep the phone column. */
+  .site-main:has(.collect-home) {
     max-width: 1180px;
   }
 
-  .collect {
+  .collect-home {
     padding-bottom: 0;
   }
 
@@ -4434,6 +4431,11 @@ a.button.tab-pay {
     overflow: auto;
     border-radius: 20px;
   }
+
+  .collect-pane-paper:focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+  }
 }
 
 /* Small laptops: the totals sit above the grid as a strip, so the grid keeps room for every column. */
@@ -4454,6 +4456,8 @@ a.button.tab-pay {
     display: flex;
     flex-wrap: wrap;
     gap: 0.4rem 1.1rem;
+    grid-column: 2;
+    grid-row: 1 / span 2;
   }
 
   .ledger-summary li {
@@ -4465,11 +4469,6 @@ a.button.tab-pay {
   .ledger-summary-k,
   .ledger-summary-v {
     grid-column: 1;
-  }
-
-  .ledger-summary ul {
-    grid-column: 2;
-    grid-row: 1 / span 2;
   }
 
   .ledger-summary-go {
