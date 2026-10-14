@@ -6,6 +6,7 @@ import { NextResponse } from "next/server";
 import { moneyToSen, type InvoiceFacts, type StatusResult } from "@/lib/payments";
 import { getInvoice, PayPalError, shopCurrency, type PayPalInvoice } from "@/lib/paypal";
 import { paypalFailure } from "../errors";
+import { requireOwner } from "@/lib/auth-server";
 
 const MAX_IDS = 25;
 // PayPal calls at once, so a full batch doesn't trip its rate limit.
@@ -32,6 +33,10 @@ function factsOf(invoice: PayPalInvoice): InvoiceFacts {
 }
 
 export async function POST(request: Request) {
+  // Only the signed-in shop owner (proxy.ts checks too): stops anyone else fanning out PayPal calls.
+  const owner = await requireOwner();
+  if (owner instanceof Response) return owner;
+
   let raw: unknown;
   try {
     raw = await request.json();

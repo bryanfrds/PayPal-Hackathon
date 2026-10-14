@@ -13,6 +13,7 @@ import StatusBadge from "../../components/StatusBadge";
 import { BackIcon, ChatIcon, CheckIcon, ClockIcon, LinkIcon } from "../../components/icons";
 import { useCollect } from "../../useCollect";
 import { useDebts } from "../../useDebts";
+import { useShop } from "../../useShop";
 
 type Live = { state: "loading" } | { state: "ok"; status: string; payerLink?: string } | { state: "error"; message: string };
 
@@ -21,6 +22,7 @@ const PAID = new Set(["PAID", "MARKED_AS_PAID"]);
 export default function InvoiceTrack({ id }: { id: string }) {
   const { invoices, ready } = useCollect();
   const { debts } = useDebts();
+  const { name: shopName } = useShop();
   const record = invoices.find((r) => r.id === id);
   const [live, setLive] = useState<Live>({ state: "loading" });
   const [copied, setCopied] = useState<"idle" | "done" | "failed">("idle");
@@ -73,7 +75,7 @@ export default function InvoiceTrack({ id }: { id: string }) {
   const payerLink = [live.state === "ok" ? live.payerLink : undefined, record.payerLink].find(isPayPalUrl);
   const items = debts.filter((d) => record.debtIds.includes(d.id));
   const sentDay = formatDay(record.sentAt.slice(0, 10));
-  const shareText = `Hi ${record.customerName}, here's your invoice from Kedai Ah Seng for RM ${formatSen(record.amountSen)}. You can pay with PayPal or card: ${payerLink}`;
+  const shareText = `Hi ${record.customerName}, here's your invoice from ${shopName} for RM ${formatSen(record.amountSen)}. You can pay with PayPal or card: ${payerLink}`;
 
   async function copy() {
     if (!payerLink) return;

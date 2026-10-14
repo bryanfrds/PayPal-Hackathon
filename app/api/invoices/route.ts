@@ -8,6 +8,7 @@ import { isValidEmail } from "@/lib/collect";
 import { MAX_AMOUNT_SEN, MAX_NAME_LENGTH } from "@/lib/debts";
 import { createDraftInvoice, getInvoice, getPayerLink, PayPalError, sendInvoice } from "@/lib/paypal";
 import { paypalFailure } from "./errors";
+import { requireOwner } from "@/lib/auth-server";
 
 /** Statuses that mean the invoice has gone out to the customer. */
 const OUT = new Set(["SENT", "UNPAID", "PARTIALLY_PAID", "PAYMENT_PENDING", "PAID", "MARKED_AS_PAID"]);
@@ -38,6 +39,10 @@ function parseBody(value: unknown): Body | null {
 }
 
 export async function POST(request: Request) {
+  // Only the signed-in shop owner (proxy.ts checks too).
+  const owner = await requireOwner();
+  if (owner instanceof Response) return owner;
+
   let raw: unknown;
   try {
     raw = await request.json();

@@ -4476,3 +4476,838 @@ a.button.tab-pay {
     grid-row: 1 / span 2;
   }
 }
+
+/* ---------- Sign-in ---------- */
+.site-main:has(.si) {
+  max-width: none;
+  padding: 0;
+}
+
+.si {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.si-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-weight: 800;
+  font-size: 1.1rem;
+}
+
+.si-mark {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--ink);
+  background: #ffffff;
+  border-radius: 13px;
+}
+
+.si-mark::before {
+  content: "";
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  left: 7px;
+  width: 2px;
+  background: repeating-linear-gradient(currentColor 0 3px, transparent 3px 6px);
+  opacity: 0.5;
+}
+
+.si-mark span {
+  margin-left: 5px;
+}
+
+/* Welcome: dark hero on top, sign-in sheet below. */
+.si-welcome {
+  display: flex;
+  flex-direction: column;
+  background: var(--ink);
+}
+
+.si-hero {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  padding: max(2.5rem, env(safe-area-inset-top)) 1.4rem 2.5rem;
+  color: #ffffff;
+}
+
+.si-hero::after {
+  content: "";
+  position: absolute;
+  top: -60px;
+  right: -80px;
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.12), transparent 70%);
+  pointer-events: none;
+}
+
+.si-headline {
+  max-width: 20ch;
+  margin: 1.5rem 0 0.5rem;
+  font-size: 1.85rem;
+  line-height: 1.12;
+  letter-spacing: -0.035em;
+}
+
+.si-lede {
+  max-width: 30ch;
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  color: #c9c5bd;
+}
+
+.si-feats {
+  display: none;
+}
+
+.si-peek {
+  position: relative;
+  height: 130px;
+  margin-top: 1.6rem;
+}
+
+.si-float {
+  position: absolute;
+  padding: 0.7rem 0.85rem;
+  font-size: 0.78rem;
+  color: var(--ink);
+  background: #ffffff;
+  border-radius: 18px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+}
+
+.si-float-owed {
+  top: 0;
+  left: 0;
+  display: grid;
+  gap: 0.1rem;
+}
+
+.si-float-k {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.si-float-v {
+  font-size: 1.3rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.si-float-meter {
+  display: flex;
+  width: 140px;
+  height: 5px;
+  margin-top: 0.35rem;
+  overflow: hidden;
+  background: #efece6;
+  border-radius: 3px;
+}
+
+.si-float-meter b {
+  width: 30%;
+  background: var(--ink);
+}
+
+.si-float-meter .si-float-late {
+  width: 25%;
+  background: #ff8a73;
+}
+
+.si-float-paid {
+  top: 56px;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-weight: 700;
+}
+
+.si-float-paid i {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  color: #2b7a46;
+  background: #e6f3ea;
+  border-radius: 9px;
+}
+
+.si-float-paid i .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.si-float-paid small {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.si-sheet {
+  display: grid;
+  gap: 0.65rem;
+  padding: 1.4rem 1.25rem max(1.4rem, env(safe-area-inset-bottom));
+  background: var(--paper);
+  border-radius: 30px 30px 0 0;
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.18);
+}
+
+.si-sheet-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+/* Stand-in for PayPal's official button until it's swapped in. */
+.si-paypal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 52px;
+  font-weight: 800;
+  color: var(--ink);
+  text-decoration: none;
+  background: #ffffff;
+  border: 1.5px solid var(--field-line);
+  border-radius: 16px;
+}
+
+.si-paypal:focus-visible,
+.si-btn:focus-visible,
+.si-back:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.si-or {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.si-or::before,
+.si-or::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+.si-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  height: 52px;
+  font: inherit;
+  font-weight: 800;
+  color: #ffffff;
+  cursor: pointer;
+  background: var(--ink);
+  border: 0;
+  border-radius: 16px;
+}
+
+.si-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.si-btn .icon {
+  width: 19px;
+  height: 19px;
+}
+
+.si-btn-light {
+  color: var(--ink);
+  background: #ffffff;
+  box-shadow: 0 1px 0 var(--line);
+}
+
+.si-fine {
+  margin: 0.2rem 0 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--muted);
+  text-align: center;
+}
+
+.si-error {
+  margin: 0;
+  padding: 0.65rem 0.8rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #9b2d1a;
+  background: #ffe9e4;
+  border-radius: 12px;
+}
+
+/* Email, code and shop steps */
+.si-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 440px;
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: max(1.5rem, env(safe-area-inset-top)) 1.25rem max(1.4rem, env(safe-area-inset-bottom));
+}
+
+.si-form h1 {
+  margin: 0.75rem 0 0;
+  font-size: 1.7rem;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+}
+
+.si-form h1:focus {
+  outline: none;
+}
+
+.si-sub {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.si-sub b {
+  color: var(--ink);
+}
+
+.si-back {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  color: var(--ink);
+  cursor: pointer;
+  background: #ffffff;
+  border: 0;
+  border-radius: 50%;
+  box-shadow: 0 1px 0 var(--line);
+}
+
+.si-back .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.si-field {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.6rem 0.9rem 0.7rem;
+  background: #ffffff;
+  border: 2px solid var(--field-line);
+  border-radius: 18px;
+}
+
+.si-field:focus-within {
+  border-color: var(--ink);
+}
+
+.si-field > span:first-child {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.si-field-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.si-field-row .icon {
+  width: 18px;
+  height: 18px;
+  color: var(--muted);
+}
+
+.si-field input {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  outline: 0;
+}
+
+.si-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.si-chips button {
+  padding: 0.4rem 0.75rem;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--ink);
+  cursor: pointer;
+  background: #ffffff;
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+}
+
+.si-grow {
+  flex: 1;
+}
+
+.si-code {
+  position: relative;
+  display: block;
+}
+
+/* The real input sits invisibly on top of the boxes so taps, paste and autofill reach it. */
+.si-code input {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  font-size: 16px;
+  color: transparent;
+  caret-color: transparent;
+  background: transparent;
+  border: 0;
+  outline: 0;
+}
+
+.si-code-boxes {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0.5rem;
+}
+
+.si-code-boxes span {
+  display: grid;
+  place-items: center;
+  height: 58px;
+  font-size: 1.6rem;
+  font-weight: 800;
+  background: #ffffff;
+  border-radius: 14px;
+  box-shadow: 0 1px 0 var(--line);
+}
+
+.si-code:focus-within .si-code-boxes span.on {
+  outline: 2px solid var(--ink);
+}
+
+.si-resend {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+.si-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  font-weight: 800;
+  font-size: 1.1rem;
+  color: #ffffff;
+  background: var(--ink);
+  border-radius: 22px;
+}
+
+.si-preview small {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #c9c5bd;
+}
+
+.si-preview-av {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  color: var(--ink);
+  background: #ffffff;
+  border-radius: 50%;
+}
+
+.si-types {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.si-types legend {
+  width: 100%;
+  margin-bottom: 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.si-types label {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  background: #ffffff;
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+}
+
+.si-types label.on {
+  color: #ffffff;
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.si-types label:focus-within {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.si-types input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Laptop: what 555 Buku does on the dark left, signing in on the right. */
+@media (min-width: 1024px) {
+  .si-welcome {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+  }
+
+  .si-hero {
+    display: flex;
+    flex-direction: column;
+    padding: 2.75rem 3rem;
+  }
+
+  .si-headline {
+    max-width: 16ch;
+    margin-top: 2.5rem;
+    font-size: 2.6rem;
+  }
+
+  .si-lede {
+    font-size: 1rem;
+  }
+
+  .si-feats {
+    display: grid;
+    gap: 0.8rem;
+    margin: 2rem 0 0;
+    padding: 0;
+    list-style: none;
+    font-weight: 700;
+  }
+
+  .si-feats li {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .si-feats i {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 11px;
+  }
+
+  .si-feats .icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .si-peek {
+    display: flex;
+    gap: 0.75rem;
+    height: auto;
+    margin-top: auto;
+    padding-top: 2rem;
+  }
+
+  .si-float {
+    position: static;
+  }
+
+  .si-sheet {
+    align-content: center;
+    justify-items: stretch;
+    padding: 3rem calc(50% - 190px);
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .si-sheet-title {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0 0 0.6rem;
+    overflow: visible;
+    clip: auto;
+    font-size: 1.6rem;
+    letter-spacing: -0.03em;
+  }
+
+  .si-form {
+    min-height: 0;
+    margin: 8vh auto;
+    padding: 2rem;
+    background: #ffffff;
+    border-radius: 28px;
+    box-shadow: 0 1px 0 var(--line), 0 20px 50px rgba(0, 0, 0, 0.08);
+  }
+
+  .si-form .si-grow {
+    flex: 0 0 0.5rem;
+  }
+
+  .si-form .si-field,
+  .si-form .si-code-boxes span {
+    background: var(--paper);
+  }
+}
+
+/* ---------- Account sheet ---------- */
+.home-acct {
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+  border: 1px solid var(--line);
+}
+
+.home-acct:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.acct-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(20, 20, 20, 0.45);
+}
+
+.acct-sheet {
+  position: relative;
+  width: min(100%, 480px);
+  padding: 1.25rem 1.1rem max(1.4rem, env(safe-area-inset-bottom));
+  background: var(--paper);
+  border-radius: 30px 30px 0 0;
+}
+
+.acct-close {
+  position: absolute;
+  top: 0.9rem;
+  right: 0.9rem;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  color: var(--ink);
+  cursor: pointer;
+  background: #ffffff;
+  border: 0;
+  border-radius: 50%;
+}
+
+.acct-close .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.acct-who {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.25rem 2.5rem 1rem 0;
+}
+
+.acct-who b {
+  display: block;
+  font-size: 1.05rem;
+}
+
+.acct-who > span:last-child > span {
+  font-size: 0.82rem;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.acct-av {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  font-weight: 800;
+  color: #ffffff;
+  background: var(--ink);
+  border-radius: 50%;
+}
+
+.acct-rows {
+  margin: 0 0 0.75rem;
+  padding: 0.1rem 0.9rem;
+  background: #ffffff;
+  border-radius: 18px;
+}
+
+.acct-rows div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.8rem 0;
+  font-size: 0.9rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.acct-rows div:last-child {
+  border-bottom: 0;
+}
+
+.acct-rows dt {
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.acct-rows dd {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin: 0;
+  font-weight: 700;
+}
+
+.acct-rows .acct-ok {
+  color: #2b7a46;
+}
+
+.acct-ok .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.acct-signout {
+  width: 100%;
+  height: 50px;
+  font: inherit;
+  font-weight: 800;
+  color: #c23b22;
+  cursor: pointer;
+  background: #ffffff;
+  border: 0;
+  border-radius: 16px;
+  box-shadow: 0 1px 0 var(--line);
+}
+
+.acct-signout:disabled {
+  opacity: 0.6;
+}
+
+.acct-signout:focus-visible,
+.acct-close:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.side-account {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .acct-backdrop {
+    align-items: center;
+  }
+
+  .acct-sheet {
+    width: 420px;
+    border-radius: 26px;
+  }
+
+  .side-account {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.55rem 0.6rem;
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--ink);
+    text-align: left;
+    cursor: pointer;
+    background: transparent;
+    border: 0;
+    border-radius: 12px;
+  }
+
+  .side-account:hover,
+  .side-account:focus-visible {
+    background: var(--paper);
+  }
+
+  .side-account-av {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: #ffffff;
+    background: var(--ink);
+    border-radius: 50%;
+  }
+
+  .side-account-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Nudge's box no longer pushes to the bottom by itself; the account button sits under it. */
+  .side-nudge {
+    margin-top: auto;
+  }
+}

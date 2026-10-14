@@ -15,8 +15,8 @@ import { BackIcon, ChatIcon, SendIcon } from "../components/icons";
 import { useCollect } from "../useCollect";
 import { useDebts } from "../useDebts";
 import { useReminders } from "../useReminders";
+import { useShop } from "../useShop";
 
-const SHOP_NAME = "Kedai Ah Seng";
 
 const SUGGESTIONS = ["Who should I remind today?", "Draft reminders for the overdue ones", "Summarise this month"];
 
@@ -42,14 +42,15 @@ export default function NudgeChat() {
   const { debts, ready } = useDebts();
   const { invoices } = useCollect();
   const { rules, moves, sent } = useReminders();
+  const { name: shopName } = useShop();
   const [input, setInput] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
 
   const today = todayLocal();
   const context = useMemo<NudgeContext>(() => {
     const schedule = buildSchedule(debts, invoices, rules, moves, today, sent);
-    return buildNudgeContext(SHOP_NAME, debts, invoices, schedule, today);
-  }, [debts, invoices, rules, moves, sent, today]);
+    return buildNudgeContext(shopName, debts, invoices, schedule, today);
+  }, [shopName, debts, invoices, rules, moves, sent, today]);
   // The transport reads the latest summary when each message goes out.
   const contextRef = useRef(context);
   useEffect(() => {

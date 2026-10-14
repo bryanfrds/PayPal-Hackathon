@@ -8,6 +8,7 @@
 import { convertToModelMessages, createUIMessageStreamResponse, isStepCount, streamText, tool, toUIMessageStream, type UIMessage } from "ai";
 import { z } from "zod";
 import { MAX_MESSAGE_CHARS, cleanMessages, nudgeContextSchema, nudgeSystemPrompt } from "@/lib/nudge";
+import { requireOwner } from "@/lib/auth-server";
 
 /** Fast and cheap enough for short drafts; override with AI_GATEWAY_MODEL. */
 const DEFAULT_MODEL = "anthropic/claude-haiku-5.5";
@@ -25,6 +26,10 @@ function fail(status: number, error: string) {
 }
 
 export async function POST(req: Request) {
+  // Only the signed-in shop owner (proxy.ts checks too).
+  const owner = await requireOwner();
+  if (owner instanceof Response) return owner;
+
   if (!connected(req)) {
     return fail(503, "Nudge isn't connected yet. Add an AI Gateway key to .env.local (AI_GATEWAY_API_KEY), then restart.");
   }
