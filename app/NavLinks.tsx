@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookIcon, ChartIcon, HomeIcon, ScanIcon, SendIcon } from "./components/icons";
+import { BellIcon, BookIcon, ChartIcon, HomeIcon, ScanIcon, SendIcon } from "./components/icons";
 
-const ICONS = { home: HomeIcon, scan: ScanIcon, ledger: BookIcon, insights: ChartIcon, collect: SendIcon };
+const ICONS = { home: HomeIcon, scan: ScanIcon, ledger: BookIcon, insights: ChartIcon, reminders: BellIcon, collect: SendIcon };
 
-export type NavLink = { href: string; label: string; icon: keyof typeof ICONS };
+/** `wideOnly` links show in the laptop sidebar but not in the phone's five-tab menu. */
+export type NavLink = { href: string; label: string; icon: keyof typeof ICONS; wideOnly?: boolean };
 
 // Marks the link for the current page with aria-current="page" (styled in globals.css).
 export default function NavLinks({ links }: { links: NavLink[] }) {
@@ -18,7 +19,7 @@ export default function NavLinks({ links }: { links: NavLink[] }) {
           link.href === "/" ? pathname === "/" : pathname === link.href || pathname.startsWith(`${link.href}/`);
         const Icon = ICONS[link.icon];
         return (
-          <li key={link.href}>
+          <li key={link.href} className={link.wideOnly ? "nav-wide-only" : undefined}>
             <Link href={link.href} aria-current={active ? "page" : undefined}>
               <Icon />
               <span>{link.label}</span>

@@ -3376,3 +3376,824 @@ a.button.tab-pay {
   opacity: 0.4;
   cursor: not-allowed;
 }
+
+/* ---------- Home (redesign) ---------- */
+.home-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.home-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.home-head-actions .button {
+  gap: 0.45rem;
+}
+
+.home-head-actions .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.home-top {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 0.9rem;
+}
+
+.home-hero {
+  position: relative;
+  overflow: hidden;
+  padding: 1.15rem 1.15rem 1rem;
+  color: #ffffff;
+  background: var(--ink);
+  border-radius: 26px;
+}
+
+/* A soft light in the corner, like the Insights tiles. */
+.home-hero::after {
+  content: "";
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 170px;
+  height: 170px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.1), transparent 70%);
+  pointer-events: none;
+}
+
+.home-hero p {
+  margin: 0;
+}
+
+.home-hero-label {
+  font-size: 0.82rem;
+  color: #c9c5bd;
+}
+
+.home-hero-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.15rem;
+}
+
+.home-hero-big {
+  font-size: 2.75rem;
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  line-height: 1;
+}
+
+.home-hero-big small {
+  margin-right: 0.25rem;
+  font-size: 0.42em;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: #c9c5bd;
+}
+
+.home-hero-scan {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.7rem 0.9rem;
+  font-weight: 800;
+  font-size: 0.9rem;
+  color: var(--ink);
+  text-decoration: none;
+  background: #ffffff;
+  border-radius: 14px;
+}
+
+.home-hero-scan .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.home-hero-scan:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
+.home-meter {
+  display: flex;
+  height: 7px;
+  margin: 1rem 0 0.45rem;
+  overflow: hidden;
+  background: #3a3a3a;
+  border-radius: 4px;
+}
+
+.home-meter b {
+  display: block;
+  height: 100%;
+  background: #ffffff;
+}
+
+.home-meter .home-meter-late {
+  background: #ff8a73;
+}
+
+.home-meter-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.76rem;
+  color: #c9c5bd;
+}
+
+.home-meter-label strong {
+  color: #ffffff;
+}
+
+.home-hero .home-late {
+  color: #ff8a73;
+}
+
+.home-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+.home-stat {
+  padding: 0.7rem 0.75rem;
+  background: var(--card);
+  border-radius: 18px;
+  box-shadow: 0 1px 0 var(--line);
+}
+
+.home-stat p {
+  margin: 0;
+}
+
+.home-stat-k {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.home-stat-v {
+  margin-top: 0.1rem;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.home-stat-d {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.home-good {
+  color: #2b7a46;
+}
+
+.home-stat .home-late {
+  color: #c23b22;
+}
+
+.home-acts {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.home-act {
+  display: grid;
+  justify-items: center;
+  gap: 0.35rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.home-act span {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  background: var(--card);
+  border-radius: 17px;
+  box-shadow: 0 1px 0 var(--line);
+}
+
+.home-act-primary span {
+  color: #ffffff;
+  background: var(--ink);
+}
+
+.home-act:focus-visible span {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+/* Phone: one column, in the mock's order (Today, Nudge, Who owes you, chart). */
+.home-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.home-main,
+.home-side {
+  display: contents;
+}
+
+.home-side > .section-head,
+.home-todo {
+  order: 1;
+}
+
+.home-nudge {
+  order: 2;
+}
+
+.home-main > * {
+  order: 3;
+}
+
+.home-chart {
+  order: 4;
+}
+
+.home-count {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.home-board,
+.home-todo {
+  margin: 0 0 1rem;
+  padding: 0.25rem 0.9rem;
+  list-style: none;
+}
+
+.home-board-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.65rem 0;
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid var(--line);
+}
+
+.home-board li:last-child .home-board-row {
+  border-bottom: 0;
+}
+
+.home-board-main {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.home-board-name {
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-board-track {
+  display: block;
+  height: 6px;
+  overflow: hidden;
+  background: #efece6;
+  border-radius: 4px;
+}
+
+.home-board-track b {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+}
+
+.home-board-amt {
+  display: grid;
+  justify-items: end;
+  gap: 0.2rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.home-todo-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.home-todo-row:last-child {
+  border-bottom: 0;
+}
+
+.home-todo-ic {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+}
+
+.home-todo-ic .icon {
+  width: 19px;
+  height: 19px;
+}
+
+.home-todo-late {
+  color: #c23b22;
+  background: #ffe9e4;
+}
+
+.home-todo-wait {
+  color: #8c6512;
+  background: #f6efdc;
+}
+
+.home-todo-good {
+  color: #2b7a46;
+  background: #e6f3ea;
+}
+
+.home-todo-main {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.home-todo-n {
+  font-weight: 700;
+}
+
+.home-todo-w {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.home-todo-go {
+  padding: 0.45rem 0.7rem;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #ffffff;
+  text-decoration: none;
+  white-space: nowrap;
+  background: var(--ink);
+  border-radius: 11px;
+}
+
+.home-todo-go-light {
+  color: var(--ink);
+  background: var(--paper);
+}
+
+.home-nudge {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding: 0.85rem;
+  color: inherit;
+  text-decoration: none;
+  background: linear-gradient(135deg, #ffffff, #f6f3ec);
+}
+
+.home-nudge-dot {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  color: #ffffff;
+  background: var(--ink);
+  border-radius: 13px;
+}
+
+.home-nudge-q {
+  display: grid;
+  flex: 1;
+  font-size: 0.85rem;
+}
+
+.home-nudge-q span {
+  color: var(--muted);
+}
+
+.home-chart {
+  margin-bottom: 1rem;
+  padding: 0.9rem 1rem;
+}
+
+.home-chart-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.home-chart-head h2 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.home-chart-sub {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.home-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.6rem;
+  height: 74px;
+  margin-top: 0.75rem;
+}
+
+.home-bars div {
+  display: flex;
+  flex: 1;
+  align-items: flex-end;
+  gap: 3px;
+  height: 100%;
+}
+
+.home-bars i {
+  display: block;
+  flex: 1;
+  min-height: 2px;
+  background: var(--ink);
+  border-radius: 5px 5px 2px 2px;
+}
+
+.home-bars .home-bar-owed {
+  background: #d8d3c8;
+}
+
+.home-bar-labels {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 0.35rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.home-bar-labels span {
+  flex: 1;
+  text-align: center;
+}
+
+.home-legend {
+  margin: 0.4rem 0 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.home-key {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin: 0 0.15rem 0 0.4rem;
+  vertical-align: -1px;
+  background: var(--ink);
+  border-radius: 3px;
+}
+
+.home-key-owed {
+  background: #d8d3c8;
+}
+
+.home-wide-only {
+  display: none;
+}
+
+.home-loading {
+  padding: 1rem;
+}
+
+/* Home's AG Grid table (laptop) */
+.home-grid {
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.hg-who {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  height: 100%;
+  font-weight: 700;
+  color: inherit;
+  text-decoration: none;
+}
+
+.hg-who .avatar {
+  width: 30px;
+  height: 30px;
+  font-size: 0.65rem;
+  line-height: 1;
+}
+
+.hg-who-main {
+  display: grid;
+  flex: 1;
+  gap: 0.3rem;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.hg-who-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hg-bar {
+  display: block;
+  width: 100%;
+  max-width: 160px;
+  height: 6px;
+  overflow: hidden;
+  background: #efece6;
+  border-radius: 4px;
+}
+
+.hg-bar b {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+}
+
+.hg-num {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.hg-act {
+  padding: 0.4rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--ink);
+  text-decoration: none;
+  background: var(--paper);
+  border-radius: 10px;
+}
+
+.hg-act-dark {
+  color: #ffffff;
+  background: var(--ink);
+}
+
+.home-studio {
+  margin-top: 0.5rem;
+}
+
+/* The sidebar's Nudge box: laptop only. */
+.side-nudge,
+.nav-wide-only {
+  display: none;
+}
+
+/* ---------- Laptop: sidebar menu and the wide Home ---------- */
+@media (min-width: 1024px) {
+  body:has(> .site-header) {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .site-header {
+    position: sticky;
+    top: 0;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 1.25rem;
+    height: 100vh;
+    max-width: none;
+    margin: 0;
+    padding: 1.25rem 0.9rem;
+    background: var(--card);
+    border-right: 1px solid var(--line);
+  }
+
+  .site-header .brand {
+    padding: 0 0.5rem;
+  }
+
+  .site-header nav {
+    position: static;
+    z-index: auto;
+    width: auto;
+    transform: none;
+  }
+
+  .site-nav {
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 0;
+    background: transparent;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .site-nav li.nav-wide-only {
+    display: block;
+  }
+
+  .site-nav a {
+    flex-direction: row;
+    gap: 0.65rem;
+    padding: 0.65rem 0.75rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--muted);
+    border-radius: 12px;
+  }
+
+  .site-nav a:hover,
+  .site-nav a:focus-visible {
+    color: var(--ink);
+    background: var(--paper);
+  }
+
+  .site-nav a:focus-visible {
+    outline-color: var(--ink);
+  }
+
+  .site-nav a[aria-current="page"] {
+    color: #ffffff;
+    background: var(--ink);
+  }
+
+  .site-nav .icon {
+    width: 20px;
+    height: 20px;
+  }
+
+  .side-nudge {
+    display: grid;
+    gap: 0.2rem;
+    margin-top: auto;
+    padding: 0.8rem;
+    font-size: 0.8rem;
+    color: var(--muted);
+    text-decoration: none;
+    background: var(--paper);
+    border-radius: 16px;
+  }
+
+  .side-nudge strong {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.88rem;
+    color: var(--ink);
+  }
+
+  .side-nudge .icon {
+    width: 16px;
+    height: 16px;
+  }
+
+  /* No floating menu to leave room for. */
+  .site-header + .site-main {
+    width: 100%;
+    padding-bottom: 2.5rem;
+  }
+
+  .site-main:has(.home) {
+    max-width: 1180px;
+    padding: 1.5rem 1.75rem 2.5rem;
+  }
+
+  .home-phone-only {
+    display: none;
+  }
+
+  .home-head-actions .home-wide-only {
+    display: inline-flex;
+  }
+
+  .home-stat.home-wide-only {
+    display: block;
+  }
+
+  .home-stat-d .home-wide-only {
+    display: inline;
+  }
+
+  .home-head {
+    margin-bottom: 1.1rem;
+  }
+
+  .home .dash-shop {
+    font-size: 1.75rem;
+  }
+
+  .home-top {
+    grid-template-columns: 1.35fr 3fr;
+    gap: 0.9rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .home-stats {
+    gap: 0.9rem;
+  }
+
+  .home-stat {
+    padding: 1rem 1.1rem;
+    border-radius: 22px;
+    box-shadow: 0 1px 0 var(--line), 0 10px 26px rgba(0, 0, 0, 0.05);
+  }
+
+  .home-stat-k {
+    font-size: 0.8rem;
+  }
+
+  .home-stat-v {
+    margin-top: 0.35rem;
+    font-size: 1.75rem;
+    letter-spacing: -0.03em;
+  }
+
+  .home-stat-d {
+    margin-top: 0.2rem;
+    font-size: 0.76rem;
+  }
+
+  .home-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+    gap: 0.9rem;
+    align-items: start;
+  }
+
+  .home-main,
+  .home-side {
+    display: block;
+  }
+}
+
+.home-act .icon {
+  width: 22px;
+  height: 22px;
+}
+
+.home-nudge .icon {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+
+.home-nudge > .icon {
+  color: var(--muted);
+}
+
+.home-nudge-dot .icon {
+  width: 20px;
+  height: 20px;
+}
+
+/* The grid's "Next step" header: read by screen readers, not shown. */
+.hg-hidden-header .ag-header-cell-text {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (min-width: 1024px) {
+  /* Floating bars sit over the content column, not the whole window, and there's no
+     bottom menu to clear. */
+  .collect-bar {
+    left: calc(50% + 110px);
+    bottom: 1.5rem;
+  }
+
+  .nudge-ask {
+    bottom: 1.5rem;
+  }
+}

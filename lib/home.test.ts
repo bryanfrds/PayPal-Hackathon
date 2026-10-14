@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Debt } from "./debts";
-import { colourIndex, customerSummaries, greeting, initials, summariseHome } from "./home";
+import { colourIndex, customerSummaries, greeting, homeOverview, initials, monthTotals, owedBoard, summariseHome } from "./home";
+import { DEFAULT_RULES, buildSchedule } from "./reminders";
 
 function debt(amountSen: number, status: Debt["status"]): Debt {
   return {
@@ -112,5 +113,73 @@ describe("customerSummaries", () => {
 
   it("is empty when everything is paid", () => {
     expect(customerSummaries([d("A", 100, "2026-10-01", "paid")])).toEqual([]);
+  });
+});
+
+describe("Home redesign figures", () => {
+  const TODAY = "2026-10-13";
+  const d = (over: Partial<Debt>): Debt => ({
+    id: Math.random().toString(36).slice(2),
+    customerName: "Mak Cik Siti",
+    item: "",
+    amountSen: 4850,
+    date: "2026-08-02",
+    status: "overdue",
+    source: "manual",
+    createdAt: "2026-08-02T09:00:00.000Z",
+    ...over,
+  });
+
+  it("owedBoard calls a never-invoiced tab past its due date overdue, but not invoiced", () => {
+    const [row] = owedBoard([d({ customerName: "Uncle Tan", amountSen: 1780, date: "2026-08-05", status: "unpaid" })], TODAY);
+    expect(row).toMatchObject({ status: "overdue", invoiced: false, daysLate: 33 });
+  });
+
+  it("owedBoard puts the biggest balance first, with days late and bar lengths", () => {
+    const rows = owedBoard(
+      [d({}), d({ customerName: "Kak Lina", amountSen: 2240, date: "2026-09-28", status: "sent" }), d({ customerName: "Uncle Tan", amountSen: 1780, date: "2026-10-05", status: "unpaid" })],
+      TODAY,
+    );
+    expect(rows.map((r) => [r.customerName, r.status, r.daysLate, r.sharePct])).toEqual([
+      ["Mak Cik Siti", "overdue", 33, 100],
+      ["Kak Lina", "overdue", 3, 46],
+      ["Uncle Tan", "unpaid", 0, 37],
+    ]);
+  });
+
+  it("homeOverview counts overdue by date, tabs not invoiced and reminders due", () => {
+    const debts = [
+      d({}),
+      d({ customerName: "Kak Lina", amountSen: 2240, date: "2026-09-28", status: "sent" }),
+      d({ customerName: "Uncle Tan", amountSen: 1780, date: "2026-10-05", status: "unpaid" }),
+      d({ customerName: "Ah Hock", amountSen: 1200, status: "paid" }),
+    ];
+    const schedule = buildSchedule(debts, [], DEFAULT_RULES, {}, TODAY);
+    const o = homeOverview(debts, schedule, TODAY);
+    expect(o).toMatchObject({
+      overdueSen: 7090,
+      overdueTabs: 2,
+      oldestDaysLate: 33,
+      customersOwing: 3,
+      notInvoiced: { count: 1, sen: 1780, names: ["Uncle Tan"] },
+      paidTabs: { count: 1, sen: 1200 },
+    });
+    // Kak Lina's bill fell due on the 10th, so her first reminder is due today too.
+    expect(o.remindNow).toEqual(["Kak Lina", "Mak Cik Siti"]);
+    expect(o.overduePct).toBe(Math.round((7090 / (8870 + 1200)) * 100));
+  });
+
+  it("monthTotals splits the last four months into owed and collected", () => {
+    const totals = monthTotals([d({}), d({ date: "2026-10-01", status: "paid", amountSen: 500 }), d({ date: "2026-05-01" })], TODAY);
+    expect(totals.map((t) => [t.label, t.owedSen, t.collectedSen])).toEqual([
+      ["Jul", 0, 0],
+      ["Aug", 4850, 0],
+      ["Sep", 0, 0],
+      ["Oct", 0, 500],
+    ]);
+  });
+
+  it("monthTotals crosses into last year in January", () => {
+    expect(monthTotals([], "2026-01-15").map((t) => t.month)).toEqual(["2025-10", "2025-11", "2025-12", "2026-01"]);
   });
 });
