@@ -27,6 +27,18 @@ describe("createMemoryHistoryStore", () => {
     expect((await store.listThreads()).map((s) => s.threadId)).toEqual(["c"]);
   });
 
+  it("deletes nested threads at every depth", async () => {
+    const store = createMemoryHistoryStore();
+    await store.saveThread(thread("a", 1));
+    await store.saveThread(thread("b", 2, "a"));
+    await store.saveThread(thread("c", 3, "b"));
+    await store.saveThread(thread("d", 4, "c"));
+    await store.saveThread(thread("other", 5));
+    await store.deleteThread("a");
+    expect((await store.listThreads()).map((s) => s.threadId)).toEqual(["other"]);
+    expect(await store.loadThread("d")).toBeUndefined();
+  });
+
   it("outlives the harness that wrote to it", async () => {
     const store = createMemoryHistoryStore();
     await store.saveThread(thread("a", 1));

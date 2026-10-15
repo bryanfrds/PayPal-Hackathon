@@ -21,9 +21,12 @@ export function createMemoryHistoryStore(): AgAiHistoryStore {
       threads.set(thread.summary.threadId, thread);
     },
     async deleteThread(threadId) {
-      threads.delete(threadId);
-      // Anything nested under it goes too.
-      for (const [id, t] of threads) if (t.summary.parentThreadId === threadId) threads.delete(id);
+      // Anything nested under it goes too, however deep.
+      const doomed = [threadId];
+      for (let i = 0; i < doomed.length; i++) {
+        threads.delete(doomed[i]);
+        for (const [id, t] of threads) if (t.summary.parentThreadId === doomed[i]) doomed.push(id);
+      }
     },
     // Only this tab writes here, so there are never outside changes to announce.
     addEventListener(_type, listener) {
