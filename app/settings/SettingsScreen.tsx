@@ -9,30 +9,18 @@ import Link from "next/link";
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { resetDemoData } from "@/lib/demo-reset";
 import { initials } from "@/lib/home";
-import { languageInfo, type T } from "@/lib/i18n";
+import { languageInfo } from "@/lib/i18n";
 import { THEME_CHOICES } from "@/lib/preferences";
 import { TONES } from "@/lib/share";
 import { BackIcon, BellIcon, ChatIcon, CheckIcon, ChevronIcon, LinkIcon, ResetIcon, SignOutIcon } from "../components/icons";
 import { useDebts } from "../useDebts";
 import { usePrefs } from "../usePrefs";
 import { useReminders } from "../useReminders";
-import { MAX_SHOP_NAME, SHOP_TYPES, useShop, type ShopType } from "../useShop";
+import { MAX_SHOP_NAME, SHOP_TYPES, shopTypeLabel, useShop, type ShopType } from "../useShop";
 import { useSignOut, type Me } from "../useSignOut";
 import { useT } from "../useT";
 import { takeFlash } from "./flash";
 
-/** Shop types are saved as typed (Malaysian names); only what's shown is translated. */
-const SHOP_TYPE_KEY = {
-  "Kedai runcit": "settings.shopType.kedai",
-  Kopitiam: "settings.shopType.kopitiam",
-  Mamak: "settings.shopType.mamak",
-  "Pasar stall": "settings.shopType.pasar",
-  Other: "settings.shopType.other",
-} as const satisfies Record<ShopType, string>;
-
-export function shopTypeLabel(type: ShopType, t: T): string {
-  return t(SHOP_TYPE_KEY[type]);
-}
 
 function ThemePicture({ choice }: { choice: (typeof THEME_CHOICES)[number] }) {
   return (

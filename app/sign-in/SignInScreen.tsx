@@ -10,7 +10,7 @@ import { CODE_LENGTH, OWNER_CODE_LENGTH, safeNext, tidyCode } from "@/lib/auth";
 import { initials } from "@/lib/home";
 import type { TKey } from "@/lib/i18n";
 import { BackIcon, BellIcon, CheckIcon, MailIcon, ScanIcon, SendIcon } from "../components/icons";
-import { DEFAULT_SHOP_NAME, MAX_SHOP_NAME, SHOP_TYPES, useShop, type ShopType } from "../useShop";
+import { DEFAULT_SHOP_NAME, MAX_SHOP_NAME, SHOP_TYPES, shopTypeLabel, useShop, type ShopType } from "../useShop";
 import { useT } from "../useT";
 
 type Step = "welcome" | "email" | "code" | "shop";
@@ -404,7 +404,7 @@ export default function SignInScreen() {
             {SHOP_TYPES.map((type) => (
               <label key={type} className={type === shopType ? "on" : undefined}>
                 <input type="radio" name="shop-type" checked={type === shopType} onChange={() => setShopType(type)} />
-                {type}
+                {shopTypeLabel(type, t)}
               </label>
             ))}
           </fieldset>
