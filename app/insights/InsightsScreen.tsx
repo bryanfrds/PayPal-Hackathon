@@ -20,12 +20,14 @@ import { AgStudio, FILL, VIEW_PANELS, manropeFamily } from "./studio-loader";
 import {
   dataFor,
   initialStateFor,
+  STUDIO_CANVAS,
   themeFor,
   widgets,
 } from "./studio-config";
 import { NUDGE_LOCALE_TEXT, NUDGE_PANELS, NudgeRoster } from "./NudgePanel";
 import { nudgeHarness, nudgeToolDisplay, type NudgeShop } from "./nudge-ai";
 import { inertOutside, useStudioSlot } from "./studio-dom";
+import { useResolvedTheme } from "../usePrefs";
 
 const AI_MODULES = [AgStudioAiModule];
 const SHEET_ID = "nudge-sheet";
@@ -92,7 +94,9 @@ export default function InsightsScreen() {
     () => (kind === null ? null : initialStateFor(kind)),
     [kind],
   );
-  const theme = useMemo(() => themeFor(manropeFamily()), []);
+  // Passed as a new theme when the owner switches light/dark; Studio restyles in place.
+  const mode = useResolvedTheme();
+  const theme = useMemo(() => themeFor(manropeFamily(), STUDIO_CANVAS[mode], mode === "dark"), [mode]);
 
   // What Nudge's tools read: built the same way as the Nudge chat's summary (app/nudge).
   const shop = useMemo<NudgeShop>(() => {
