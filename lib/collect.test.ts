@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Debt } from "./debts";
-import { collectGroups, invoiceLines, invoiceRequestId, isInvoiceable, isValidEmail, pickPreview, sendRequest, withDomain, type CollectGroup, type PendingSend } from "./collect";
+import { collectGroups, invoiceLines, invoiceRequestId, isInvoiceable, isValidEmail, pickPreview, sendRequest, SHOP_ITEMS, withDomain, type CollectGroup, type PendingSend } from "./collect";
+import { LANGUAGES } from "./i18n";
 
 function debt(id: string, customerName: string, amountSen: number, status: Debt["status"], date = "2026-10-01", item = "Milo"): Debt {
   return { id, customerName, item, amountSen, date, status, source: "manual", createdAt: `${date}T00:00:00.000Z` };
@@ -170,5 +171,44 @@ describe("pickPreview", () => {
 
   it("is empty with no customers", () => {
     expect(pickPreview([], [], null)).toBeNull();
+  });
+});
+
+describe("the PayPal request ignores the app language", () => {
+  // "Shop items" feeds the PayPal line text and the retry ID, so it must stay English whatever
+  // language the owner picked (saved in localStorage as buku.prefs.v1).
+  const tabs = [debt("1", "Uncle Tan", 1000, "unpaid", "2026-10-01", ""), debt("2", "Uncle Tan", 1280, "unpaid", "2026-10-02", "Gula")];
+  const at = new Date("2026-10-13T10:00:00Z");
+
+  function requestWithLanguage(language: string | null) {
+    const saved = (globalThis as { localStorage?: unknown }).localStorage;
+    const store: Record<string, string> = language ? { "buku.prefs.v1": JSON.stringify({ language }) } : {};
+    (globalThis as { localStorage?: unknown }).localStorage = {
+      getItem: (k: string) => store[k] ?? null,
+      setItem: (k: string, v: string) => (store[k] = v),
+      removeItem: (k: string) => delete store[k],
+    };
+    try {
+      const [g] = collectGroups(tabs, { "uncle-tan": "tan@example.com" });
+      return sendRequest(g, at);
+    } finally {
+      (globalThis as { localStorage?: unknown }).localStorage = saved;
+    }
+  }
+
+  it("gives the same lines and request ID in every language", () => {
+    const english = requestWithLanguage(null);
+    expect(english.lines[0].name).toBe(`${SHOP_ITEMS} (2026-10-01)`);
+    expect(SHOP_ITEMS).toBe("Shop items");
+    for (const { code } of LANGUAGES) {
+      const r = requestWithLanguage(code);
+      expect(r.lines).toEqual(english.lines);
+      expect(r.requestId).toBe(english.requestId);
+    }
+  });
+
+  it("takes no language argument", () => {
+    expect(invoiceLines.length).toBe(1);
+    expect(sendRequest.length).toBeLessThanOrEqual(3);
   });
 });

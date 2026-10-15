@@ -92,7 +92,6 @@ export const collect = {
   "invoice.tag": "INVOICE",
   "invoice.billTo": "Bill to",
   "invoice.noEmail": "No email yet",
-  "invoice.shopItems": "Shop items",
   "invoice.total": "Total (MYR)",
   "invoice.payNote": "The customer gets PayPal's Pay button here: PayPal or card.",
   // One sent invoice, tracked

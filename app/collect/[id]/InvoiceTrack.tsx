@@ -5,6 +5,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { SHOP_ITEMS } from "@/lib/collect";
 import { isPayPalUrl } from "@/lib/customer-pay";
 import { formatSen } from "@/lib/debts";
 import Avatar from "../../components/Avatar";
@@ -169,7 +170,8 @@ export default function InvoiceTrack({ id }: { id: string }) {
         <ul className="card track-lines">
           {items.map((d) => (
             <li key={d.id}>
-              <span>{d.item || t("invoice.shopItems")}</span>
+              {/* The words on the PayPal invoice itself, which stay English. */}
+              <span>{d.item || SHOP_ITEMS}</span>
               <b>RM {formatSen(d.amountSen)}</b>
             </li>
           ))}

@@ -11,6 +11,7 @@ import {
   isValidEmail,
   pickPreview,
   sendRequest,
+  SHOP_ITEMS,
   withDomain,
   type CollectGroup,
   type PendingSend,
@@ -547,7 +548,8 @@ function Paper({ group: g, label }: { group: CollectGroup; label: string }) {
         {g.debts.map((d) => (
           <li key={d.id}>
             <span>
-              {d.item || t("invoice.shopItems")}
+              {/* Same fallback as the real PayPal line, so the preview matches the invoice. */}
+              {d.item || SHOP_ITEMS}
               <small>{formatDay(d.date)}</small>
             </span>
             <span>{formatSen(d.amountSen)}</span>

@@ -3,7 +3,6 @@
 
 import { customerSlug } from "./customer-tab";
 import type { Debt } from "./debts";
-import { translator, type T } from "./i18n";
 
 /**
  * An invoice request saved on the device before it goes to PayPal, and kept until the
@@ -133,16 +132,23 @@ export function invoiceRequestId(input: { debtIds: string[]; email: string; line
 
 export type InvoiceLine = { name: string; amountSen: number };
 
-/** One invoice line per tab, named by what was taken and when. A tab with no item name says "Shop items" in `t`'s language. */
-export function invoiceLines(debts: Debt[], t: T = translator()): InvoiceLine[] {
-  return debts.map((d) => ({ name: `${d.item || t("invoice.shopItems")} (${d.date})`.slice(0, 200), amountSen: d.amountSen }));
+/**
+ * What an invoice line says for a tab with no item name. Always English, whatever the app's
+ * language: it's the PayPal line text and part of the retry ID (invoiceRequestId), so a
+ * language switch must never change a send. Collect's preview and the invoice page show it too.
+ */
+export const SHOP_ITEMS = "Shop items";
+
+/** One invoice line per tab, named by what was taken and when. */
+export function invoiceLines(debts: Debt[]): InvoiceLine[] {
+  return debts.map((d) => ({ name: `${d.item || SHOP_ITEMS} (${d.date})`.slice(0, 200), amountSen: d.amountSen }));
 }
 
 /** What goes to /api/invoices for a group: a pending send exactly as saved, otherwise a fresh one. */
-export function sendRequest(group: CollectGroup, now: Date, previousInvoiceIds: string[] = [], t: T = translator()): PendingSend {
+export function sendRequest(group: CollectGroup, now: Date, previousInvoiceIds: string[] = []): PendingSend {
   if (group.pending) return group.pending;
   const email = group.email ?? "";
-  const lines = invoiceLines(group.debts, t);
+  const lines = invoiceLines(group.debts);
   const debtIds = group.debts.map((d) => d.id);
   return {
     slug: group.slug,
