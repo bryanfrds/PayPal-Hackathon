@@ -1,9 +1,15 @@
 import { describe, expect, it } from "vitest";
 import type { InvoiceRecord } from "./collect-store";
 import type { Debt } from "./debts";
-import { buildShareMessage, itemSummary, payLinkFor, unpaidItems, whatsappUrl, type ShareInput } from "./share";
+import type { InvoiceStanding } from "./payments";
+import { buildShareMessage, itemSummary, payLinkFor, plainName, unpaidItems, whatsappUrl, type ShareInput } from "./share";
 
 const LINK = "https://www.sandbox.paypal.com/invoice/p/#INV2-K4LN-ABCD";
+const FULL = { link: LINK, amountSen: 12800, full: true };
+
+function standing(settlement: InvoiceStanding["settlement"]): InvoiceStanding {
+  return { settlement, checkedAt: "2026-10-10T00:00:00.000Z" } as InvoiceStanding;
+}
 
 const base: ShareInput = {
   customerName: "Kak Lina",
@@ -98,15 +104,34 @@ describe("buildShareMessage", () => {
   });
 
   it("adds the PayPal link when there is one", () => {
-    const m = buildShareMessage({ ...base, payLink: LINK });
+    const m = buildShareMessage({ ...base, pay: FULL });
     expect(m.link).toBe(LINK);
-    expect(m.payLine).toBeTruthy();
+    expect(m.linkSen).toBe(12800);
+    expect(m.payLine).toBe("Pay easily with PayPal or card:");
     expect(m.text).toBe(`${m.intro}\n\n${m.payLine} ${LINK}\n\nTerima kasih!`);
   });
 
+  it("says how much the link pays when its invoice covers only part of the tab", () => {
+    const m = buildShareMessage({ ...base, pay: { link: LINK, amountSen: 4000, full: false } });
+    expect(m.linkSen).toBe(4000);
+    expect(m.payLine).toBe("RM 40.00 of this can be paid here:");
+    expect(m.text).toContain(`RM 40.00 of this can be paid here: ${LINK}`);
+    expect(m.intro).toContain("*RM 128.00*");
+  });
+
+  it("strips WhatsApp formatting marks from names", () => {
+    expect(plainName(" *Kak* _Lina_ ~x~ ")).toBe("Kak Lina x");
+    const m = buildShareMessage({ ...base, customerName: "*Kak_Lina*", shopName: "~Kedai~ *Ah* Seng" });
+    expect(m.intro).toBe(
+      "Hi KakLina, Kedai Ah Seng here 🙂 Just a friendly note: your tab is *RM 128.00* (Milo, gula, beras and 1 more).",
+    );
+    expect(m.text.match(/\*/g)).toHaveLength(2);
+  });
+
   it("leaves the link out when there's none, or when it isn't a PayPal page", () => {
-    for (const payLink of [undefined, "", "https://evil.example/pay", "http://www.paypal.com/x", "/tab/kak-lina"]) {
-      const m = buildShareMessage({ ...base, payLink });
+    const links = ["", "https://evil.example/pay", "http://www.paypal.com/x", "/tab/kak-lina"];
+    for (const pay of [undefined, ...links.map((link) => ({ link, amountSen: 12800, full: true }))]) {
+      const m = buildShareMessage({ ...base, pay });
       expect(m.link).toBeUndefined();
       expect(m.payLine).toBeUndefined();
       expect(m.text).toBe(`${m.intro}\n\nTerima kasih!`);
@@ -140,12 +165,30 @@ describe("payLinkFor", () => {
   it("uses the newest invoice that still covers an unpaid debt", () => {
     const older = invoice({ id: "old", sentAt: "2026-10-01T00:00:00.000Z", payerLink: "https://www.paypal.com/invoice/p/#OLD" });
     const newer = invoice({ id: "new", sentAt: "2026-10-09T00:00:00.000Z" });
-    expect(payLinkFor([older, newer], debts, "kak-lina")).toBe(LINK);
+    expect(payLinkFor([older, newer], debts, "kak-lina")).toEqual({ link: LINK, amountSen: 1000, full: true });
+  });
+
+  it("skips a cancelled or paid invoice, and doesn't fall back to an older one for the same debt", () => {
+    const older = invoice({ id: "old", sentAt: "2026-10-01T00:00:00.000Z", payerLink: "https://www.paypal.com/invoice/p/#OLD" });
+    const closed = invoice({ id: "new", sentAt: "2026-10-09T00:00:00.000Z", standing: standing("closed") });
+    expect(payLinkFor([older, closed], debts, "kak-lina")).toBeUndefined();
+    expect(payLinkFor([invoice({ standing: standing("paid") })], debts, "kak-lina")).toBeUndefined();
+    expect(payLinkFor([invoice({ standing: standing("open") })], debts, "kak-lina")?.link).toBe(LINK);
+  });
+
+  it("marks the link partial when the invoice doesn't cover the whole tab", () => {
+    const two = [debt({ id: "d1", amountSen: 1000 }), debt({ id: "d3", amountSen: 3000, date: "2026-10-08" })];
+    // Covers d1 only: RM 10 of RM 40.
+    expect(payLinkFor([invoice({ debtIds: ["d1"], amountSen: 1000 })], two, "kak-lina")).toEqual({ link: LINK, amountSen: 1000, full: false });
+    // Covers both, but asks for a different amount than is owed.
+    expect(payLinkFor([invoice({ debtIds: ["d1", "d3"], amountSen: 3500 })], two, "kak-lina")?.full).toBe(false);
+    // Covers both for exactly what's owed.
+    expect(payLinkFor([invoice({ debtIds: ["d1", "d3"], amountSen: 4000 })], two, "kak-lina")?.full).toBe(true);
   });
 
   it("ignores invoices for paid debts, other customers or without a PayPal link", () => {
     expect(payLinkFor([invoice({ debtIds: ["d2"] })], debts, "kak-lina")).toBeUndefined();
-    expect(payLinkFor([invoice({ slug: "mr-raj", debtIds: ["x"] })], debts, "kak-lina")).toBeUndefined();
+    expect(payLinkFor([invoice({ slug: "mr-raj", customerName: "Mr Raj", debtIds: ["x"] })], debts, "kak-lina")).toBeUndefined();
     expect(payLinkFor([invoice({ payerLink: undefined })], debts, "kak-lina")).toBeUndefined();
     expect(payLinkFor([invoice({ payerLink: "https://evil.example/" })], debts, "kak-lina")).toBeUndefined();
     expect(payLinkFor([], debts, "kak-lina")).toBeUndefined();

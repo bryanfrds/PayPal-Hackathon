@@ -51,10 +51,10 @@ export default function ShareSheet({
 
   const row = useMemo(() => owedBoard(debts, today).find((r) => r.slug === slug), [debts, today, slug]);
   const mine = useMemo(() => debts.filter((d) => d.status !== "paid" && customerSlug(d.customerName) === slug), [debts, slug]);
-  const payLink = useMemo(() => payLinkFor(invoices, debts, slug), [invoices, debts, slug]);
+  const pay = useMemo(() => payLinkFor(invoices, debts, slug), [invoices, debts, slug]);
   const since = mine.reduce((min, d) => (d.date < min ? d.date : min), mine[0]?.date ?? today);
   const message = row
-    ? buildShareMessage({ customerName: row.customerName, shopName, owedSen: row.owedSen, items: unpaidItems(mine), tone, payLink })
+    ? buildShareMessage({ customerName: row.customerName, shopName, owedSen: row.owedSen, items: unpaidItems(mine), tone, pay })
     : null;
 
   // Focus moves in, stays in, Escape closes, and focus goes back to the opener afterwards.
@@ -168,7 +168,8 @@ export default function ShareSheet({
                       <LinkIcon />
                     </span>
                     <span>
-                      <b>Pay RM {formatSen(row.owedSen)} with PayPal</b>
+                      {/* The invoice's own amount: it can be less than the whole tab. */}
+                      <b>Pay RM {formatSen(message.linkSen ?? 0)} with PayPal</b>
                       <small>{message.link.replace(/^https:\/\//, "")}</small>
                     </span>
                   </span>

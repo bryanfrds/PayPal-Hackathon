@@ -46,16 +46,53 @@ export function unpaidItems(debts: Debt[]): string[] {
   return out;
 }
 
+export type PayLink = {
+  /** PayPal's page for the invoice. */
+  link: string;
+  /** What that invoice asks for, in sen. */
+  amountSen: number;
+  /** True when this one invoice covers everything the customer still owes, for exactly that amount. */
+  full: boolean;
+};
+
+/** PayPal's last word says this invoice can't be paid any more (cancelled, refunded) or already is. */
+function settled(record: InvoiceRecord): boolean {
+  const settlement = record.standing?.settlement;
+  return settlement === "closed" || settlement === "paid";
+}
+
 /**
- * The PayPal pay link for this customer's newest sent invoice that still covers an unpaid
- * debt. Undefined when there's no such invoice or its link isn't a PayPal https page.
+ * The PayPal pay link for this customer, or undefined when there's none worth sending.
+ *
+ * Same rule as payPlan and reconcileDebts: if a debt was invoiced more than once, only its
+ * newest invoice counts. Invoices PayPal says are closed or paid are skipped, so a cancelled
+ * invoice's dead link is never sent. When several invoices are live, the newest is used.
  */
-export function payLinkFor(invoices: InvoiceRecord[], debts: Debt[], slug: string): string | undefined {
-  const unpaid = new Set(debts.filter((d) => d.status !== "paid" && customerSlug(d.customerName) === slug).map((d) => d.id));
-  const match = invoices
-    .filter((r) => r.slug === slug && isPayPalUrl(r.payerLink) && r.debtIds.some((id) => unpaid.has(id)))
+export function payLinkFor(invoices: InvoiceRecord[], debts: Debt[], slug: string): PayLink | undefined {
+  const unpaid = debts.filter((d) => d.status !== "paid" && customerSlug(d.customerName) === slug);
+  if (unpaid.length === 0) return undefined;
+  const owedSen = unpaid.reduce((sum, d) => sum + d.amountSen, 0);
+
+  const newestFor = new Map<string, InvoiceRecord>();
+  for (const debt of unpaid) {
+    const newest = invoices
+      .filter((r) => r.debtIds.includes(debt.id))
+      .sort((a, b) => b.sentAt.localeCompare(a.sentAt))[0];
+    if (newest) newestFor.set(debt.id, newest);
+  }
+
+  const live = [...new Set(newestFor.values())]
+    .filter((r) => !settled(r) && isPayPalUrl(r.payerLink))
     .sort((a, b) => b.sentAt.localeCompare(a.sentAt))[0];
-  return match?.payerLink;
+  if (!live?.payerLink) return undefined;
+
+  const coversAll = unpaid.every((d) => newestFor.get(d.id) === live);
+  return { link: live.payerLink, amountSen: live.amountSen, full: coversAll && live.amountSen === owedSen };
+}
+
+/** Names go in as typed, minus *, _ and ~, so WhatsApp doesn't turn them into bold, italics or strike-through. */
+export function plainName(name: string): string {
+  return name.replace(/[*_~]/g, "").replace(/\s+/g, " ").trim();
 }
 
 export type ShareInput = {
@@ -64,8 +101,8 @@ export type ShareInput = {
   owedSen: number;
   items: string[];
   tone: Tone;
-  /** A PayPal pay link; left out of the message when missing. */
-  payLink?: string;
+  /** From payLinkFor; left out of the message when missing or not a PayPal page. */
+  pay?: PayLink;
 };
 
 export type ShareMessage = {
@@ -74,18 +111,21 @@ export type ShareMessage = {
   /** The words before the link, when there is one. */
   payLine?: string;
   link?: string;
+  /** What the link's invoice asks for, in sen, when there's a link. */
+  linkSen?: number;
   closing: string;
   /** Everything above as one message, paragraphs separated by a blank line. */
   text: string;
 };
 
 export function buildShareMessage(input: ShareInput): ShareMessage {
-  const name = input.customerName.trim() || "there";
-  const shop = input.shopName.trim();
+  const name = plainName(input.customerName) || "there";
+  const shop = plainName(input.shopName) || "your shop";
   const amount = `*RM ${formatSen(input.owedSen)}*`;
   const list = itemSummary(input.items);
   const what = list ? `${amount} (${list})` : amount;
-  const link = isPayPalUrl(input.payLink) ? input.payLink : undefined;
+  const pay = input.pay && isPayPalUrl(input.pay.link) ? input.pay : undefined;
+  const link = pay?.link;
 
   let intro: string;
   let payLine: string;
@@ -103,6 +143,9 @@ export function buildShareMessage(input: ShareInput): ShareMessage {
       payLine = "Pay easily with PayPal or card:";
   }
 
+  // An invoice for only part of the tab says so, rather than "pay your tab" for less than is owed.
+  if (pay && !pay.full) payLine = `RM ${formatSen(pay.amountSen)} of this can be paid here:`;
+
   const parts = [intro];
   if (link) parts.push(`${payLine} ${link}`);
   parts.push(CLOSING);
@@ -110,6 +153,7 @@ export function buildShareMessage(input: ShareInput): ShareMessage {
     intro,
     payLine: link ? payLine : undefined,
     link,
+    linkSen: pay?.amountSen,
     closing: CLOSING,
     text: parts.join("\n\n"),
   };
