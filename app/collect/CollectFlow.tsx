@@ -166,7 +166,7 @@ export default function CollectFlow() {
                       <span className="tab-name">{r.customerName}</span>
                       <span className="tab-item">
                         {r.number ? `Invoice ${r.number} · ` : ""}sent {formatDay(r.sentAt.slice(0, 10)).replace(/ \d{4}$/, "")}
-                        {r.standing && settlementLabel(r.standing.settlement) && ` · ${settlementLabel(r.standing.settlement)}`}
+                        {settlementLabel(r.standing) && ` · ${settlementLabel(r.standing)}`}
                       </span>
                     </span>
                     <span className="tab-amt">

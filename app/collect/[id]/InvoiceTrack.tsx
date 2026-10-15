@@ -1,11 +1,13 @@
 "use client";
 
 // One sent invoice, tracked like a parcel: Sent, then Paid. The pay link can be copied or
-// shared on WhatsApp. PayPal's live status is read from /api/invoices/<id>.
+// shared on WhatsApp. PayPal's live answer comes from the same check the ledger uses
+// (/api/invoices/status and lib/payments.ts), so the two never disagree.
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { invoicePayState, isPayPalUrl } from "@/lib/customer-pay";
+import { isPayPalUrl } from "@/lib/customer-pay";
+import { invoiceView, standingFrom, type InvoiceStanding, type StatusResult } from "@/lib/payments";
 import { formatDay } from "@/lib/customer-tab";
 import { formatSen } from "@/lib/debts";
 import Avatar from "../../components/Avatar";
@@ -15,10 +17,19 @@ import { useCollect } from "../../useCollect";
 import { useDebts } from "../../useDebts";
 import { useShop } from "../../useShop";
 
-type Live = { state: "loading" } | { state: "ok"; status: string; payerLink?: string } | { state: "error"; message: string };
+type Live = { state: "loading" } | { state: "ok"; standing: InvoiceStanding } | { state: "error"; message: string };
+
+const VIEW_NOTE: Record<ReturnType<typeof invoiceView>, string> = {
+  waiting: "PayPal says it's waiting for payment.",
+  processing: "PayPal is processing the customer's payment.",
+  paid: "PayPal says this invoice is paid.",
+  cancelled: "PayPal says this invoice was cancelled. Its tab is owed again; send a new invoice from Collect.",
+  refunded: "PayPal says this invoice was refunded. Its tab is owed again; send a new invoice from Collect.",
+  check: "PayPal's answer doesn't match what you billed (a partial refund, or a changed total). The tab stays owed; check it on PayPal.",
+};
 
 export default function InvoiceTrack({ id }: { id: string }) {
-  const { invoices, ready } = useCollect();
+  const { invoices, ready, setStandings } = useCollect();
   const { debts } = useDebts();
   const { name: shopName } = useShop();
   const record = invoices.find((r) => r.id === id);
@@ -26,15 +37,31 @@ export default function InvoiceTrack({ id }: { id: string }) {
   const [copied, setCopied] = useState<"idle" | "done" | "failed">("idle");
 
   const recordId = record?.id;
+  const billedSen = record?.amountSen;
   useEffect(() => {
-    if (!recordId) return;
+    if (!recordId || billedSen === undefined) return;
     let cancelled = false;
-    fetch(`/api/invoices/${encodeURIComponent(recordId)}`)
+    fetch("/api/invoices/status", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ids: [recordId] }),
+    })
       .then(async (res) => {
-        const data = (await res.json().catch(() => ({}))) as { status?: string; payerLink?: string; error?: string };
+        const data = (await res.json().catch(() => ({}))) as { currency?: string; results?: Record<string, StatusResult>; error?: string };
         if (cancelled) return;
-        if (!res.ok || !data.status) setLive({ state: "error", message: data.error ?? "Couldn't reach PayPal." });
-        else setLive({ state: "ok", status: data.status, payerLink: data.payerLink });
+        const result = data.results?.[recordId];
+        const standing = res.ok && data.currency ? standingFrom(result, billedSen, data.currency, new Date().toISOString()) : undefined;
+        if (!standing) {
+          setLive({ state: "error", message: data.error ?? (result && !result.ok ? result.error : "Couldn't reach PayPal.") });
+          return;
+        }
+        setLive({ state: "ok", standing });
+        // Saved like the background check's answers, so the ledger catches up straight away.
+        try {
+          setStandings({ [recordId]: standing });
+        } catch {
+          // Not saved on this device; the background check will try again.
+        }
       })
       .catch(() => {
         if (!cancelled) setLive({ state: "error", message: "No internet connection." });
@@ -42,7 +69,7 @@ export default function InvoiceTrack({ id }: { id: string }) {
     return () => {
       cancelled = true;
     };
-  }, [recordId]);
+  }, [recordId, billedSen, setStandings]);
 
   if (!ready) {
     return (
@@ -69,10 +96,12 @@ export default function InvoiceTrack({ id }: { id: string }) {
     );
   }
 
-  const state = live.state === "ok" ? invoicePayState(live.status) : undefined;
-  const paid = state === "paid";
-  const closed = state === "closed";
-  const payerLink = [live.state === "ok" ? live.payerLink : undefined, record.payerLink].find(isPayPalUrl);
+  // PayPal's answer now, or what the last check on this device found.
+  const standing = live.state === "ok" ? live.standing : record.standing;
+  const view = standing ? invoiceView(standing) : "waiting";
+  const paid = view === "paid";
+  const closed = view === "cancelled" || view === "refunded";
+  const payerLink = isPayPalUrl(record.payerLink) ? record.payerLink : undefined;
   const items = debts.filter((d) => record.debtIds.includes(d.id));
   const sentDay = formatDay(record.sentAt.slice(0, 10));
   const shareText = `Hi ${record.customerName}, here's your invoice from ${shopName} for RM ${formatSen(record.amountSen)}. You can pay with PayPal or card: ${payerLink}`;
@@ -126,7 +155,7 @@ export default function InvoiceTrack({ id }: { id: string }) {
               <ClockIcon />
             </span>
             Waiting
-            <small>{paid ? "Done" : closed ? "Stopped" : state === "processing" ? "Processing" : "For payment"}</small>
+            <small>{paid ? "Done" : closed ? "Stopped" : view === "processing" ? "Processing" : view === "check" ? "Check" : "For payment"}</small>
           </li>
           <li className={paid ? "done" : undefined}>
             <span aria-hidden="true">
@@ -137,19 +166,8 @@ export default function InvoiceTrack({ id }: { id: string }) {
           </li>
         </ol>
         <p className="tab-note" role="status">
-          {live.state === "loading"
-            ? "Checking PayPal…"
-            : live.state === "error"
-              ? `${live.message} Showing what this device knows.`
-              : paid
-                ? "PayPal says this invoice is paid."
-                : closed
-                  ? "PayPal says this invoice was cancelled or refunded. Its tab is owed again; send a new invoice from Collect."
-                  : state === "processing"
-                    ? "PayPal is processing the customer's payment."
-                    : state === "open"
-                      ? "PayPal says it's waiting for payment."
-                      : `PayPal says this invoice is ${live.status.toLowerCase().replaceAll("_", " ")}. Check it on PayPal.`}
+          {live.state === "loading" ? "Checking PayPal… " : live.state === "error" ? `${live.message} Showing what this device knows. ` : ""}
+          {live.state !== "loading" && VIEW_NOTE[view]}
         </p>
       </section>
 

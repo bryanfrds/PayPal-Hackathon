@@ -28,12 +28,41 @@ export type StatusResult = ({ ok: true } & InvoiceFacts) | { ok: false; error: s
  */
 export type Settlement = "paid" | "open" | "closed" | "check";
 
+/** How an invoice is shown to the owner. Derived from the same standing the ledger uses, so they agree. */
+export type InvoiceView = "waiting" | "processing" | "paid" | "cancelled" | "refunded" | "check";
+
+export function invoiceView(standing: Pick<InvoiceStanding, "status" | "settlement">): InvoiceView {
+  switch (standing.settlement) {
+    case "paid":
+      return "paid";
+    case "closed":
+      return standing.status.includes("REFUND") ? "refunded" : "cancelled";
+    case "check":
+      return "check";
+    case "open":
+      return standing.status === "PAYMENT_PENDING" ? "processing" : "waiting";
+  }
+}
+
+const VIEW_LABEL: Record<InvoiceView, string | undefined> = {
+  waiting: undefined,
+  processing: "Processing",
+  paid: "Paid",
+  cancelled: "Cancelled",
+  refunded: "Refunded",
+  check: "Check on PayPal",
+};
+
 /** A short word for where an invoice stands, or undefined while it's simply waiting for payment. */
-export function settlementLabel(settlement: Settlement | undefined): string | undefined {
-  if (settlement === "paid") return "Paid";
-  if (settlement === "closed") return "Cancelled";
-  if (settlement === "check") return "Check on PayPal";
-  return undefined;
+export function settlementLabel(standing: InvoiceStanding | undefined): string | undefined {
+  return standing ? VIEW_LABEL[invoiceView(standing)] : undefined;
+}
+
+/** What one /api/invoices/status answer means for an invoice we billed, or undefined if PayPal didn't say. */
+export function standingFrom(result: StatusResult | undefined, billedSen: number, currency: string, checkedAt: string): InvoiceStanding | undefined {
+  if (!result?.ok) return undefined;
+  const { ok: _ok, ...facts } = result;
+  return { ...facts, settlement: settlementOf(facts, billedSen, currency), checkedAt };
 }
 
 /** What the device last learned from PayPal about an invoice. */
@@ -88,7 +117,8 @@ export function settlementOf(facts: InvoiceFacts, billedSen: number, currency: s
 export type NoReminder = "paid" | "closed" | "pending" | "unknown";
 
 // Still owed and waiting on the customer. PAYMENT_PENDING is excluded: their payment is on its way.
-const REMINDABLE = new Set(["SENT", "SHARED", "UNPAID", "PARTIALLY_PAID"]);
+// SHARED is left out: we never make shared-link invoices, and PayPal's remind may not apply to them.
+const REMINDABLE = new Set(["SENT", "UNPAID", "PARTIALLY_PAID"]);
 
 /** Whether PayPal should email this invoice's customer a reminder now. */
 export function noReminderReason(facts: InvoiceFacts): NoReminder | null {

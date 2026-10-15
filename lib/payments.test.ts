@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { InvoiceRecord } from "./collect-store";
 import type { Debt, DebtStatus } from "./debts";
-import { invoicesToCheck, invoicesToRemind, moneyToSen, noReminderReason, reconcileDebts, settlementLabel, settlementOf, type InvoiceStanding, type Settlement } from "./payments";
+import { invoiceView, invoicesToCheck, invoicesToRemind, moneyToSen, noReminderReason, reconcileDebts, settlementLabel, settlementOf, standingFrom, type InvoiceStanding, type Settlement } from "./payments";
 
 function debt(id: string, status: DebtStatus): Debt {
   return { id, customerName: "Mr Raj", item: "", amountSen: 500, date: "2026-10-01", status, source: "manual", createdAt: "2026-10-01T00:00:00Z" };
@@ -187,14 +187,53 @@ describe("PayPal's newer statuses", () => {
     expect(settlementOf({ ...facts, status: "PAID_EXTERNAL" }, 1000, "MYR")).toBe("paid");
     expect(settlementOf({ ...facts, status: "REFUNDED_EXTERNAL" }, 1000, "MYR")).toBe("closed");
     expect(settlementOf({ ...facts, status: "SHARED", dueSen: 1000 }, 1000, "MYR")).toBe("open");
-    expect(noReminderReason({ status: "SHARED", dueSen: 1000 })).toBeNull();
     expect(noReminderReason({ status: "REFUNDED_EXTERNAL" })).toBe("closed");
   });
 
-  it("labels an invoice that's done or needs a look", () => {
-    expect(settlementLabel("paid")).toBe("Paid");
-    expect(settlementLabel("closed")).toBe("Cancelled");
-    expect(settlementLabel("check")).toBe("Check on PayPal");
-    expect(settlementLabel("open")).toBeUndefined();
+  it("never counts paid-outside-PayPal as paid when the total changed or money is still due", () => {
+    expect(settlementOf({ status: "PAID_EXTERNAL", currency: "MYR", totalSen: 800, dueSen: 0 }, 1000, "MYR")).toBe("check");
+    expect(settlementOf({ status: "PAID_EXTERNAL", currency: "MYR", totalSen: 1000, dueSen: 300 }, 1000, "MYR")).toBe("open");
+  });
+
+  it("doesn't remind about a shared-link invoice", () => {
+    expect(noReminderReason({ status: "SHARED", dueSen: 1000 })).toBe("unknown");
+  });
+});
+
+describe("invoiceView", () => {
+  const view = (status: string, settlement: Settlement) => invoiceView({ status, settlement });
+
+  it("shows what the ledger decided, named for the owner", () => {
+    expect(view("PAID", "paid")).toBe("paid");
+    expect(view("SENT", "open")).toBe("waiting");
+    expect(view("PAYMENT_PENDING", "open")).toBe("processing");
+    expect(view("CANCELLED", "closed")).toBe("cancelled");
+    expect(view("AUTO_CANCELLED", "closed")).toBe("cancelled");
+    expect(view("REFUNDED", "closed")).toBe("refunded");
+    expect(view("REFUNDED_EXTERNAL", "closed")).toBe("refunded");
+    // The ledger keeps the debt owed, so the tracker mustn't call it cancelled.
+    expect(view("PARTIALLY_REFUNDED", "check")).toBe("check");
+    // Paid with the wrong total: not shown as paid.
+    expect(view("PAID", "check")).toBe("check");
+  });
+
+  it("labels an invoice that's done or needs a look, and nothing while it waits", () => {
+    const at = "2026-10-15T00:00:00Z";
+    expect(settlementLabel({ status: "PAID", settlement: "paid", checkedAt: at })).toBe("Paid");
+    expect(settlementLabel({ status: "CANCELLED", settlement: "closed", checkedAt: at })).toBe("Cancelled");
+    expect(settlementLabel({ status: "REFUNDED", settlement: "closed", checkedAt: at })).toBe("Refunded");
+    expect(settlementLabel({ status: "PARTIALLY_REFUNDED", settlement: "check", checkedAt: at })).toBe("Check on PayPal");
+    expect(settlementLabel({ status: "SENT", settlement: "open", checkedAt: at })).toBeUndefined();
+    expect(settlementLabel(undefined)).toBeUndefined();
+  });
+});
+
+describe("standingFrom", () => {
+  it("applies the billed amount and currency to PayPal's answer", () => {
+    const at = "2026-10-15T00:00:00Z";
+    expect(standingFrom({ ok: true, status: "PAID", currency: "MYR", totalSen: 1000, dueSen: 0 }, 1000, "MYR", at)).toMatchObject({ settlement: "paid", checkedAt: at });
+    expect(standingFrom({ ok: true, status: "PAID", currency: "MYR", totalSen: 900, dueSen: 0 }, 1000, "MYR", at)).toMatchObject({ settlement: "check" });
+    expect(standingFrom({ ok: false, error: "x" }, 1000, "MYR", at)).toBeUndefined();
+    expect(standingFrom(undefined, 1000, "MYR", at)).toBeUndefined();
   });
 });
