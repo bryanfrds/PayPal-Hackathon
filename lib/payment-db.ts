@@ -17,7 +17,6 @@ export type NewInvoice = {
   number?: string;
   customerName: string;
   slug: string;
-  email: string;
   debtIds: string[];
   amountSen: number;
   currency: string;
@@ -36,7 +35,11 @@ export type PaymentDb = {
    * Returns the settlement, or null if we have no such invoice (or a newer answer).
    */
   saveFacts(id: string, facts: InvoiceFacts, checkedAt: Date, by: CheckedBy): Promise<Settlement | null>;
-  /** Notes a webhook event. False if it was already noted: PayPal delivered it again. */
+  /**
+   * Notes a webhook event. False if it was already noted: PayPal delivered it again. An event
+   * noted but never finished (the function died, or forgetting it failed) is taken over after
+   * a few minutes, so PayPal's retry still gets handled; handling one twice is harmless.
+   */
   recordEvent(id: string, type: string, invoiceId: string | null): Promise<boolean>;
   /** Marks a noted event done, with what came of it. */
   finishEvent(id: string, outcome: string): Promise<void>;
@@ -52,10 +55,10 @@ export function createPaymentDb(query: Query): PaymentDb {
   return {
     async saveInvoice(i) {
       await query(
-        `INSERT INTO invoices (id, owner_email, number, customer_name, slug, email, debt_ids, amount_sen, currency, payer_link, sent_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        `INSERT INTO invoices (id, owner_email, number, customer_name, slug, debt_ids, amount_sen, currency, payer_link, sent_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
          ON CONFLICT (id) DO NOTHING`,
-        [i.id, i.ownerEmail, i.number ?? null, i.customerName, i.slug, i.email, i.debtIds, i.amountSen, i.currency, i.payerLink ?? null, i.sentAt],
+        [i.id, i.ownerEmail.trim().toLowerCase(), i.number ?? null, i.customerName, i.slug, i.debtIds, i.amountSen, i.currency, i.payerLink ?? null, i.sentAt],
       );
     },
 
@@ -76,7 +79,9 @@ export function createPaymentDb(query: Query): PaymentDb {
     async recordEvent(id, type, invoiceId) {
       const rows = await query(
         `INSERT INTO paypal_events (id, event_type, invoice_id) VALUES ($1, $2, $3)
-         ON CONFLICT (id) DO NOTHING RETURNING id`,
+         ON CONFLICT (id) DO UPDATE SET received_at = now()
+         WHERE paypal_events.processed_at IS NULL AND paypal_events.received_at < now() - interval '5 minutes'
+         RETURNING id`,
         [id, type, invoiceId],
       );
       return rows.length > 0;
@@ -106,6 +111,15 @@ export function createPaymentDb(query: Query): PaymentDb {
       await query(`DELETE FROM reminder_holds WHERE invoice_id = $1`, [invoiceId]);
     },
   };
+}
+
+/** Waits at most `ms` for a database call, so a slow database can't hold up a PayPal action. */
+export function within<T>(promise: Promise<T>, ms = 2000): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`The database didn't answer within ${ms}ms.`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
 let cached: { url: string; db: PaymentDb } | null = null;

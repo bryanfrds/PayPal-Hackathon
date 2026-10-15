@@ -36,6 +36,8 @@ export async function POST(request: Request) {
   }
 
   const rawBody = await request.text();
+  // PayPal's invoice events are a few KB; anything far bigger isn't one.
+  if (rawBody.length > 200_000) return NextResponse.json({ error: "Too big." }, { status: 413 });
   let event: WebhookEvent;
   try {
     event = JSON.parse(rawBody) as WebhookEvent;
@@ -54,7 +56,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Couldn't check with PayPal." }, { status: 503 });
   }
   if (!verified) {
-    console.error(`PayPal webhook: event ${event.id} failed verification.`);
+    console.error("PayPal webhook: a delivery failed verification.");
     return NextResponse.json({ error: "Not verified." }, { status: 400 });
   }
 
@@ -67,8 +69,10 @@ export async function POST(request: Request) {
   try {
     let outcome = "ignored";
     if (invoiceId) {
+      // Timed before the read, like the app's check, so the newer-wins rule compares like with like.
+      const readAt = new Date();
       const facts = invoiceFacts(await getInvoice(invoiceId));
-      const settlement = await db.saveFacts(invoiceId, facts, new Date(), "webhook");
+      const settlement = await db.saveFacts(invoiceId, facts, readAt, "webhook");
       outcome = settlement ?? "not ours or older";
     }
     await db.finishEvent(eventId, outcome);

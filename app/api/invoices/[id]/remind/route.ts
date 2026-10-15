@@ -74,16 +74,21 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
       { status: 409 },
     );
   }
-  // Only for answers that prove nothing was sent.
-  const release = () => {
-    hold.release(id).catch((error: unknown) => console.error("POST /api/invoices/[id]/remind: couldn't release the hold:", error instanceof Error ? error.message : error));
+  // Only for answers that prove nothing was sent. Awaited: on Vercel, work left running after
+  // the response may never finish, and a stuck hold would block the owner for 12 hours.
+  const release = async () => {
+    try {
+      await hold.release(id);
+    } catch (error) {
+      console.error("POST /api/invoices/[id]/remind: couldn't release the hold:", error instanceof Error ? error.message : error);
+    }
   };
 
   let facts;
   try {
     facts = invoiceFacts(await getInvoice(id));
   } catch (error) {
-    release();
+    await release();
     console.error("POST /api/invoices/[id]/remind lookup failed:", error instanceof Error ? error.message : error);
     const paypal = error instanceof PayPalError ? error : null;
     if (paypal?.status === 404) return NextResponse.json({ error: "PayPal has no invoice with that id." }, { status: 404 });
@@ -93,7 +98,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
 
   const reason = noReminderReason(facts);
   if (reason) {
-    release();
+    await release();
     return NextResponse.json({ error: WHY_NOT[reason], reason, status: facts.status }, { status: 409 });
   }
 
@@ -111,7 +116,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
         { status: 502 },
       );
     }
-    release();
+    await release();
     const failure = paypalFailure(paypal);
     return NextResponse.json({ error: failure.status === 422 ? "PayPal didn't accept this reminder." : failure.message }, { status: failure.status });
   }

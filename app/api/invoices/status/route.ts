@@ -3,7 +3,7 @@
 // debts that makes paid.
 
 import { NextResponse } from "next/server";
-import { paymentDb } from "@/lib/payment-db";
+import { paymentDb, within } from "@/lib/payment-db";
 import { invoiceFacts, type StatusResult } from "@/lib/payments";
 import { getInvoice, PayPalError, shopCurrency } from "@/lib/paypal";
 import { paypalFailure } from "../errors";
@@ -73,7 +73,7 @@ async function saveToDb(results: Record<string, StatusResult>, checkedAt: Date) 
   const saves = Object.entries(results).flatMap(([id, result]) => {
     if (!result.ok) return [];
     const { ok: _ok, ...facts } = result;
-    return [db.saveFacts(id, facts, checkedAt, "app")];
+    return [within(db.saveFacts(id, facts, checkedAt, "app"))];
   });
   for (const outcome of await Promise.allSettled(saves)) {
     if (outcome.status === "rejected") console.error("POST /api/invoices/status: couldn't save to the database:", outcome.reason instanceof Error ? outcome.reason.message : outcome.reason);

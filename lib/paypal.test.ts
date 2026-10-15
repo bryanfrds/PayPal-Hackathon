@@ -546,6 +546,16 @@ describe("verifyWebhook", () => {
     await expect(client.verifyWebhook({ webhookId: "WHID", headers: new Headers(signed), rawBody: "{}" })).resolves.toBe(false);
   });
 
+  it("says no without asking PayPal when the certificate isn't PayPal's", async () => {
+    const { fetchImpl, calls } = fakeFetch(() => tokenResponse());
+    const client = createPayPalClient(CONFIG, { fetch: fetchImpl, now: () => 0 });
+    for (const cert of ["https://evil.example/cert", "http://api.paypal.com/cert", "https://paypal.com.evil.example/cert"]) {
+      const headers = new Headers({ ...signed, "paypal-cert-url": cert });
+      await expect(client.verifyWebhook({ webhookId: "WHID", headers, rawBody: "{}" })).resolves.toBe(false);
+    }
+    expect(calls).toHaveLength(0);
+  });
+
   it("says no without asking PayPal when signature headers are missing", async () => {
     const { fetchImpl, calls } = fakeFetch(() => tokenResponse());
     const client = createPayPalClient(CONFIG, { fetch: fetchImpl, now: () => 0 });

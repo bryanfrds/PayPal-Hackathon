@@ -7,7 +7,7 @@ import { NextResponse } from "next/server";
 import { isValidEmail } from "@/lib/collect";
 import { MAX_AMOUNT_SEN, MAX_NAME_LENGTH } from "@/lib/debts";
 import { customerSlug } from "@/lib/customer-tab";
-import { paymentDb } from "@/lib/payment-db";
+import { paymentDb, within } from "@/lib/payment-db";
 import { createDraftInvoice, getInvoice, getPayerLink, PayPalError, sendInvoice, shopCurrency } from "@/lib/paypal";
 import { paypalFailure } from "./errors";
 import { requireOwner } from "@/lib/auth-server";
@@ -53,19 +53,18 @@ async function saveToDb(ownerEmail: string, body: Body, sent: { id: string; numb
   const db = paymentDb();
   if (!db) return;
   try {
-    await db.saveInvoice({
+    await within(db.saveInvoice({
       id: sent.id,
       ownerEmail,
       number: sent.number,
       customerName: body.customerName,
       slug: customerSlug(body.customerName),
-      email: body.email,
       debtIds: body.debtIds,
       amountSen: body.lines.reduce((sum, l) => sum + l.amountSen, 0),
       currency: shopCurrency(),
       payerLink: sent.payerLink,
       sentAt: new Date().toISOString(),
-    });
+    }));
   } catch (error) {
     console.error("POST /api/invoices: sent, but couldn't save to the database:", error instanceof Error ? error.message : error);
   }

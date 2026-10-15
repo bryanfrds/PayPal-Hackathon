@@ -23,7 +23,7 @@ vi.mock("@/lib/paypal", async (importOriginal) => {
 
 // No payments database unless a test gives it one.
 const db = vi.hoisted(() => ({ value: null as null | { saveInvoice: ReturnType<typeof vi.fn> } }));
-vi.mock("@/lib/payment-db", () => ({ paymentDb: () => db.value }));
+vi.mock("@/lib/payment-db", () => ({ paymentDb: () => db.value, within: <T,>(p: Promise<T>) => p }));
 
 import { PayPalError } from "@/lib/paypal";
 import { POST } from "./route";

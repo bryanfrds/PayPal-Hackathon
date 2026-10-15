@@ -116,6 +116,11 @@ describe("POST /api/paypal/webhook", () => {
     expect(paypal.verifyWebhook).not.toHaveBeenCalled();
   });
 
+  it("refuses an oversized body without asking PayPal", async () => {
+    expect((await deliver(`{"id":"WH-1","event_type":"X","pad":"${"x".repeat(200_001)}"}`)).status).toBe(413);
+    expect(paypal.verifyWebhook).not.toHaveBeenCalled();
+  });
+
   it("refuses a body that isn't a PayPal event", async () => {
     expect((await deliver("nope")).status).toBe(400);
     expect((await deliver(JSON.stringify({ hello: 1 }))).status).toBe(400);

@@ -13,7 +13,10 @@ if (existsSync(ENV_FILE)) process.loadEnvFile(ENV_FILE);
 
 const DIR = resolve(process.cwd(), "db/migrations");
 
-/** Splits a file into statements on ";" at a line end, ignoring "--" comments. */
+/**
+ * Splits a file into statements on ";" at a line end, dropping "--" comments. Simple on purpose:
+ * keep migrations to plain statements (no "--" inside strings, no $$ function bodies).
+ */
 function statements(text: string): string[] {
   return text
     .split("\n")

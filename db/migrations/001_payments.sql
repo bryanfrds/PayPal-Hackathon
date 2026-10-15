@@ -5,11 +5,10 @@
 -- One row per PayPal invoice the app sent.
 CREATE TABLE IF NOT EXISTS invoices (
   id text PRIMARY KEY,                -- PayPal's invoice id (INV2-…)
-  owner_email text NOT NULL,          -- the signed-in owner who sent it
+  owner_email text NOT NULL,          -- the signed-in owner who sent it, lower-case
   number text,                        -- PayPal's invoice number, e.g. 0012
   customer_name text NOT NULL,
   slug text NOT NULL,                 -- customer key, as on the device (lib/customer-tab.ts)
-  email text NOT NULL,                -- where PayPal sent it
   debt_ids text[] NOT NULL,           -- the device's debt ids this invoice covers
   amount_sen integer NOT NULL CHECK (amount_sen > 0),
   currency text NOT NULL,

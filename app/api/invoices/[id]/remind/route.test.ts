@@ -171,6 +171,17 @@ describe("POST /api/invoices/[id]/remind", () => {
       expect(db.value.releaseReminder).toHaveBeenCalledWith("INV2-DB-PAID");
     });
 
+    it("finishes letting go of the hold before it answers", async () => {
+      let released = false;
+      db.value = {
+        claimReminder: vi.fn().mockResolvedValue(true),
+        releaseReminder: vi.fn(() => new Promise<void>((resolve) => setTimeout(() => ((released = true), resolve()), 20))),
+      };
+      paypal.getInvoice.mockResolvedValue(owed("INV2-DB-SLOW", "CANCELLED"));
+      await remind("INV2-DB-SLOW");
+      expect(released).toBe(true);
+    });
+
     it("sends nothing when the hold can't be checked", async () => {
       db.value = { claimReminder: vi.fn().mockRejectedValue(new Error("db down")), releaseReminder: vi.fn() };
       expect((await remind("INV2-DB-DOWN")).status).toBe(503);

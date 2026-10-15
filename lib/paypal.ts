@@ -87,6 +87,15 @@ export type PayPalClient = {
   verifyWebhook: (delivery: WebhookDelivery) => Promise<boolean>;
 };
 
+function isPayPalCertUrl(value: string | null): boolean {
+  try {
+    const url = new URL(value ?? "");
+    return url.protocol === "https:" && (url.hostname === "paypal.com" || url.hostname.endsWith(".paypal.com"));
+  } catch {
+    return false;
+  }
+}
+
 /** One webhook delivery as received: PayPal's signature headers and the raw body. */
 export type WebhookDelivery = {
   webhookId: string;
@@ -430,6 +439,8 @@ export function createPayPalClient(config: PayPalConfig, deps: PayPalDeps = {}):
       webhook_id: webhookId,
     };
     if (Object.values(fields).some((v) => !v)) return false;
+    // PayPal signs with a certificate it hosts; anything else isn't worth asking PayPal about.
+    if (!isPayPalCertUrl(fields.cert_url)) return false;
     // The event goes back exactly as received: re-serialising it can change bytes and fail the check.
     const body = `${JSON.stringify(fields).slice(0, -1)},"webhook_event":${rawBody}}`;
     const result = await request<{ verification_status?: string }>("verifyWebhook", "POST", "/v1/notifications/verify-webhook-signature", {
