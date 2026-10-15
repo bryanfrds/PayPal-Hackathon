@@ -16,7 +16,8 @@ if (!existsSync(from)) {
 }
 
 mkdirSync(to, { recursive: true });
-for (const file of ["calendar.umd.js", "calendar.css", "svalbard-light.css"]) {
+// svalbard-dark.css: the board switches to it when the app is in dark mode.
+for (const file of ["calendar.umd.js", "calendar.css", "svalbard-light.css", "svalbard-dark.css"]) {
   cpSync(join(from, file), join(to, file));
 }
 // The theme's icons: css/ points at ../webfonts/.
