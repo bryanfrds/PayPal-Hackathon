@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Debt } from "./debts";
-import { colourIndex, customerSummaries, greeting, homeOverview, initials, monthTotals, owedBoard, summariseHome } from "./home";
+import { colourIndex, customerSummaries, greeting, homeOverview, initials, lateLabel, monthTotals, owedBoard, summariseHome } from "./home";
 import { DEFAULT_RULES, buildSchedule } from "./reminders";
 
 function debt(amountSen: number, status: Debt["status"]): Debt {
@@ -181,5 +181,15 @@ describe("Home redesign figures", () => {
 
   it("monthTotals crosses into last year in January", () => {
     expect(monthTotals([], "2026-01-15").map((t) => t.month)).toEqual(["2025-10", "2025-11", "2025-12", "2026-01"]);
+  });
+});
+
+describe("lateLabel", () => {
+  it("says how many days late once past due, otherwise the status", () => {
+    expect(lateLabel({ status: "overdue", daysLate: 5 })).toBe("5 days late");
+    expect(lateLabel({ status: "overdue", daysLate: 1 })).toBe("1 day late");
+    expect(lateLabel({ status: "overdue", daysLate: 0 })).toBe("Overdue");
+    expect(lateLabel({ status: "sent", daysLate: 0 })).toBe("Invoice sent");
+    expect(lateLabel({ status: "unpaid", daysLate: 0 })).toBe("Not sent");
   });
 });

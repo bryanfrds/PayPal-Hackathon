@@ -112,6 +112,14 @@ export type BoardRow = {
   sharePct: number;
 };
 
+const BOARD_STATUS_TEXT: Record<BoardRow["status"], string> = { overdue: "Overdue", sent: "Invoice sent", unpaid: "Not sent" };
+
+/** The badge on a board row: "5 days late" once past due, otherwise Overdue / Invoice sent / Not sent. */
+export function lateLabel(row: Pick<BoardRow, "status" | "daysLate">): string {
+  if (row.status === "overdue" && row.daysLate > 0) return `${row.daysLate} ${row.daysLate === 1 ? "day" : "days"} late`;
+  return BOARD_STATUS_TEXT[row.status];
+}
+
 /** Who owes, biggest balance first, with days late and a bar length. */
 export function owedBoard(debts: Debt[], today: string): BoardRow[] {
   const rows = customerSummaries(debts).map((row) => {
