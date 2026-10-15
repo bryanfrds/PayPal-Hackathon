@@ -431,8 +431,7 @@ export const ms: Dictionary = {
   "reminders.sendNow": "Hantar sekarang",
   "reminders.since": "sejak {day}",
   "reminders.whatsappLabel": "WhatsApp {name}",
-  "reminders.sendFoot":
-    "Buka WhatsApp dengan nota mesra dan pautan bayaran PayPal mereka. Pilih pelanggan di sana dan hantar; ia ditanda dihantar di sini dan yang seterusnya dirancang dari hari ini.",
+  "reminders.sendFoot": "E-mel meminta PayPal menghantar peringatan tentang invois pelanggan, dengan butang Bayar. WhatsApp membuka nota mesra dengan pautan bayaran PayPal mereka; pilih pelanggan di sana dan hantar. Kedua-duanya ditanda dihantar di sini dan peringatan seterusnya dirancang mulai hari ini.",
   "reminders.comingUp": "Akan datang",
   "reminders.moved": "dialih",
   "reminders.moveLabel": "Alih {label} untuk {name}",
@@ -738,4 +737,11 @@ export const ms: Dictionary = {
   "insights.scoreboard.label": "Siapa berhutang",
   "insights.scoreboard.customer": "Pelanggan",
   "insights.scoreboard.owed": "Jumlah hutang",
+  "reminders.email": "E-mel",
+  "reminders.sending": "Menghantar…",
+  "reminders.emailLabel": "E-mel peringatan PayPal kepada {name}",
+  "reminders.emailSentNotice": "PayPal telah e-mel peringatan kepada {name} dengan butang Bayar. Peringatan seterusnya dirancang mulai hari ini.",
+  "reminders.markedMaybe": "{label} untuk {name} ditanda sebagai dihantar, kerana ia mungkin sudah keluar. Jika anda pasti ia tidak dihantar, buat asal dan cuba lagi nanti.",
+  "reminders.emailSaveFailed": "PayPal telah e-mel {name}, tetapi peranti ini tidak dapat menyimpannya. Jangan hantar lagi hari ini.",
+  "signin.error.paypalUnverified": "E-mel PayPal anda belum disahkan. Sahkan dalam PayPal, atau guna e-mel anda.",
 };

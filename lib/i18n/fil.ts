@@ -436,8 +436,7 @@ export const fil: Dictionary = {
   "reminders.sendNow": "Ipadala ngayon",
   "reminders.since": "mula {day}",
   "reminders.whatsappLabel": "I-WhatsApp si {name}",
-  "reminders.sendFoot":
-    "Bubuksan ang WhatsApp na may magiliw na mensahe at ang PayPal pay link nila. Piliin doon ang customer at ipadala; mamarkahan itong na-send dito at ang susunod ay nakaplano mula ngayon.",
+  "reminders.sendFoot": "Sa Email, ang PayPal ang magse-send sa customer ng paalala tungkol sa invoice, may Pay button. Sa WhatsApp, magbubukas ang magiliw na mensahe na may PayPal pay link; piliin doon ang customer at i-send. Alinman dito, mamarkahan itong na-send dito at ang susunod ay itatakda simula ngayon.",
   "reminders.comingUp": "Paparating",
   "reminders.moved": "inilipat",
   "reminders.moveLabel": "Ilipat ang {label} ni {name}",
@@ -747,4 +746,11 @@ export const fil: Dictionary = {
   "insights.scoreboard.label": "Sino ang may utang sa iyo",
   "insights.scoreboard.customer": "Customer",
   "insights.scoreboard.owed": "Halaga ng utang",
+  "reminders.email": "Email",
+  "reminders.sending": "Nagse-send…",
+  "reminders.emailLabel": "I-email kay {name} ang PayPal na paalala",
+  "reminders.emailSentNotice": "Nag-email ang PayPal kay {name} ng paalala na may Pay button. Ang susunod ay itatakda simula ngayon.",
+  "reminders.markedMaybe": "Minarkahang na-send ang {label} ni {name}, dahil baka nakaalis na ito. Kung sigurado kang hindi, i-undo at subukan ulit mamaya.",
+  "reminders.emailSaveFailed": "Nag-email ang PayPal kay {name}, pero hindi ito na-save ng device na ito. Huwag nang mag-send ulit ngayong araw.",
+  "signin.error.paypalUnverified": "Hindi pa verified ang PayPal email mo. I-verify ito sa PayPal, o gamitin na lang ang email mo.",
 };

@@ -429,8 +429,7 @@ export const zh: Dictionary = {
   "reminders.sendNow": "立即发送",
   "reminders.since": "自 {day} 起",
   "reminders.whatsappLabel": "WhatsApp {name}",
-  "reminders.sendFoot":
-    "会打开 WhatsApp，附上亲切的留言和对方的 PayPal 付款链接。在那里选择顾客并发送；这里会标记为已发送，下一次从今天开始安排。",
+  "reminders.sendFoot": "电邮会让 PayPal 给顾客发账单提醒，附有付款按钮。WhatsApp 会打开一条附有 PayPal 付款链接的亲切留言；在那里选好顾客再发送。两种方式都会在这里标记为已发送，下一次提醒从今天起安排。",
   "reminders.comingUp": "即将到来",
   "reminders.moved": "已移动",
   "reminders.moveLabel": "移动 {name} 的{label}",
@@ -736,4 +735,11 @@ export const zh: Dictionary = {
   "insights.scoreboard.label": "谁欠你钱",
   "insights.scoreboard.customer": "顾客",
   "insights.scoreboard.owed": "欠款金额",
+  "reminders.email": "电邮",
+  "reminders.sending": "发送中…",
+  "reminders.emailLabel": "用电邮给 {name} 发 PayPal 提醒",
+  "reminders.emailSentNotice": "PayPal 已用电邮给 {name} 发提醒，附有付款按钮。下一次提醒从今天起安排。",
+  "reminders.markedMaybe": "已把 {name} 的{label}标记为已发送，因为它可能已经发出。如果确定没发出，请撤销并稍后再试。",
+  "reminders.emailSaveFailed": "PayPal 已给 {name} 发电邮，但这台设备没能保存。今天请不要再发。",
+  "signin.error.paypalUnverified": "你的 PayPal 电邮还没验证。请到 PayPal 验证，或改用你的电邮。",
 };

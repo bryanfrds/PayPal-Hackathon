@@ -136,4 +136,5 @@ export const shell = {
   "signin.shopName": "Shop name",
   "signin.shopType": "Type of shop",
   "signin.open": "Open my buku",
+  "signin.error.paypalUnverified": "Your PayPal email isn't verified yet. Verify it in PayPal, or use your email instead.",
 } as const;

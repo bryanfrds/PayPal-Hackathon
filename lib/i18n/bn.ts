@@ -436,8 +436,7 @@ export const bn: Dictionary = {
   "reminders.sendNow": "এখনই পাঠান",
   "reminders.since": "{day} থেকে",
   "reminders.whatsappLabel": "{name}-কে WhatsApp করুন",
-  "reminders.sendFoot":
-    "একটা বন্ধুত্বপূর্ণ বার্তা আর তাদের PayPal পেমেন্ট লিংক দিয়ে WhatsApp খুলবে। সেখানে কাস্টমার বেছে পাঠান; এখানে এটা পাঠানো হিসেবে চিহ্নিত হবে আর পরেরটা আজ থেকে ঠিক করা হবে।",
+  "reminders.sendFoot": "ইমেল দিলে PayPal গ্রাহককে তাঁর ইনভয়েস নিয়ে Pay বোতামসহ রিমাইন্ডার পাঠায়। WhatsApp তাঁদের PayPal পেমেন্ট লিংকসহ একটি বন্ধুত্বপূর্ণ বার্তা খোলে; সেখানে গ্রাহক বেছে পাঠান। যেভাবেই হোক, এখানে পাঠানো হয়েছে বলে চিহ্নিত হবে আর পরেরটি আজ থেকে ঠিক করা হবে।",
   "reminders.comingUp": "আসছে",
   "reminders.moved": "সরানো হয়েছে",
   "reminders.moveLabel": "{name}-এর {label} সরান",
@@ -747,4 +746,11 @@ export const bn: Dictionary = {
   "insights.scoreboard.label": "কে আপনার কাছে বাকি রেখেছে",
   "insights.scoreboard.customer": "গ্রাহক",
   "insights.scoreboard.owed": "বাকির পরিমাণ",
+  "reminders.email": "ইমেল",
+  "reminders.sending": "পাঠানো হচ্ছে…",
+  "reminders.emailLabel": "{name}-কে PayPal রিমাইন্ডার ইমেল করুন",
+  "reminders.emailSentNotice": "PayPal {name}-কে Pay বোতামসহ রিমাইন্ডার ইমেল করেছে। পরেরটি আজ থেকে ঠিক করা হবে।",
+  "reminders.markedMaybe": "{name}-এর {label} পাঠানো হয়েছে বলে চিহ্নিত করা হলো, কারণ এটি হয়তো চলে গেছে। নিশ্চিত হলে যে যায়নি, পূর্বাবস্থায় ফেরান আর পরে আবার চেষ্টা করুন।",
+  "reminders.emailSaveFailed": "PayPal {name}-কে ইমেল করেছে, কিন্তু এই ডিভাইস তা সেভ করতে পারেনি। আজ আর পাঠাবেন না।",
+  "signin.error.paypalUnverified": "আপনার PayPal ইমেল এখনও যাচাই হয়নি। PayPal-এ যাচাই করুন, অথবা আপনার ইমেল ব্যবহার করুন।",
 };

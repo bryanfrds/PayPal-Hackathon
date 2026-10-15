@@ -140,8 +140,7 @@ export const collect = {
   "reminders.sendNow": "Send now",
   "reminders.since": "since {day}",
   "reminders.whatsappLabel": "WhatsApp {name}",
-  "reminders.sendFoot":
-    "Opens WhatsApp with a friendly note and their PayPal pay link. Pick the customer there and send; it's marked sent here and the next one is planned from today.",
+  "reminders.sendFoot": "Email has PayPal send the customer a reminder about their invoice, with a Pay button. WhatsApp opens a friendly note with their PayPal pay link; pick the customer there and send. Either way it's marked sent here and the next one is planned from today.",
   "reminders.comingUp": "Coming up",
   "reminders.moved": "moved",
   "reminders.moveLabel": "Move {name}'s {label}",
@@ -205,4 +204,10 @@ export const collect = {
   "rules.preview": "Preview",
   "rules.putBack_one": "Put {count} moved reminder back on schedule",
   "rules.putBack_other": "Put {count} moved reminders back on schedule",
+  "reminders.email": "Email",
+  "reminders.sending": "Sending…",
+  "reminders.emailLabel": "Email {name} a PayPal reminder",
+  "reminders.emailSentNotice": "PayPal emailed {name} a reminder with their Pay button. The next one is planned from today.",
+  "reminders.markedMaybe": "Marked {name}'s {label} as sent, since it may have gone out. If you know it didn't, undo and try again later.",
+  "reminders.emailSaveFailed": "PayPal emailed {name}, but this device couldn't save that. Don't send it again today.",
 } as const;

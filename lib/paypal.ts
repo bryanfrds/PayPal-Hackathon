@@ -81,6 +81,8 @@ export type PayPalClient = {
   /** Sends the invoice to the payer. Returns the payer link from PayPal's response, if any. */
   sendInvoice: (invoiceId: string) => Promise<string | undefined>;
   getInvoice: (invoiceId: string) => Promise<PayPalInvoice>;
+  /** Has PayPal email the payer a reminder about the invoice, with its Pay button. */
+  remindInvoice: (invoiceId: string) => Promise<void>;
 };
 
 export const DEFAULT_PAYPAL_API_BASE = "https://api-m.sandbox.paypal.com";
@@ -401,7 +403,15 @@ export function createPayPalClient(config: PayPalConfig, deps: PayPalDeps = {}):
     return invoice;
   }
 
-  return { getAccessToken, createDraftInvoice, sendInvoice, getInvoice };
+  async function remindInvoice(invoiceId: string): Promise<void> {
+    // PayPal writes the subject and note itself (ours would be ignored). It takes no
+    // PayPal-Request-Id here, so callers must not retry blindly. Answers 204 with no body.
+    await request<undefined>("remindInvoice", "POST", `/v2/invoicing/invoices/${encodeURIComponent(invoiceId)}/remind`, {
+      body: { send_to_recipient: true, send_to_invoicer: false },
+    });
+  }
+
+  return { getAccessToken, createDraftInvoice, sendInvoice, getInvoice, remindInvoice };
 }
 
 function isInvoice(value: unknown): value is PayPalInvoice {
@@ -457,4 +467,8 @@ export function sendInvoice(invoiceId: string): Promise<string | undefined> {
 
 export function getInvoice(invoiceId: string): Promise<PayPalInvoice> {
   return getDefaultClient().getInvoice(invoiceId);
+}
+
+export function remindInvoice(invoiceId: string): Promise<void> {
+  return getDefaultClient().remindInvoice(invoiceId);
 }

@@ -20,6 +20,7 @@ const ERRORS: Record<string, TKey> = {
   "paypal-setup": "signin.error.paypalSetup",
   "paypal-cancelled": "signin.error.paypalCancelled",
   "paypal-state": "signin.error.paypalState",
+  "paypal-unverified": "signin.error.paypalUnverified",
   "paypal-email": "signin.error.paypalEmail",
   paypal: "signin.error.paypal",
   setup: "signin.error.setup",

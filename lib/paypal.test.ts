@@ -486,3 +486,29 @@ describe("readPayPalConfigFromEnv", () => {
     expect(message).not.toContain("client-id-value-XYZ");
   });
 });
+
+describe("remindInvoice", () => {
+  it("asks PayPal to email the payer only, without an idempotency key", async () => {
+    const { fetchImpl, calls } = fakeFetch((call) =>
+      call.url.endsWith("/v1/oauth2/token") ? tokenResponse() : new Response(null, { status: 204 }),
+    );
+    const client = createPayPalClient(CONFIG, { fetch: fetchImpl, now: () => 0 });
+
+    await expect(client.remindInvoice("INV2-TEST-1")).resolves.toBeUndefined();
+
+    const remind = calls[1];
+    expect(remind.url).toBe(`${API_BASE}/v2/invoicing/invoices/INV2-TEST-1/remind`);
+    expect(remind.init.method).toBe("POST");
+    expect(JSON.parse(remind.init.body as string)).toEqual({ send_to_recipient: true, send_to_invoicer: false });
+    expect(headerOf(remind.init, "PayPal-Request-Id")).toBeUndefined();
+  });
+
+  it("throws PayPal's error when the reminder is refused", async () => {
+    const { fetchImpl } = fakeFetch((call) =>
+      call.url.endsWith("/v1/oauth2/token") ? tokenResponse() : json({ name: "RESOURCE_NOT_FOUND", message: "Not found." }, 404),
+    );
+    const client = createPayPalClient(CONFIG, { fetch: fetchImpl, now: () => 0 });
+
+    await expect(client.remindInvoice("INV2-TEST-1")).rejects.toMatchObject({ status: 404 });
+  });
+});

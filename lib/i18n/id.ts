@@ -20,7 +20,7 @@ export const id: Dictionary = {
   // shell: menu
   "nav.home": "Beranda",
   "nav.scan": "Pindai",
-  "nav.ledger": "Buku utang",
+  "nav.ledger": "Utang",
   "nav.insights": "Wawasan",
   "nav.reminders": "Pengingat",
   "nav.collect": "Tagih",
@@ -430,8 +430,7 @@ export const id: Dictionary = {
   "reminders.sendNow": "Kirim sekarang",
   "reminders.since": "sejak {day}",
   "reminders.whatsappLabel": "WhatsApp {name}",
-  "reminders.sendFoot":
-    "Membuka WhatsApp dengan pesan ramah dan link bayar PayPal mereka. Pilih pelanggannya di sana lalu kirim; di sini akan ditandai terkirim dan yang berikutnya dijadwalkan mulai hari ini.",
+  "reminders.sendFoot": "Email meminta PayPal mengirim pengingat tentang invoice pelanggan, lengkap dengan tombol Bayar. WhatsApp membuka pesan ramah dengan link bayar PayPal mereka; pilih pelanggannya di sana lalu kirim. Keduanya ditandai terkirim di sini dan pengingat berikutnya dijadwalkan mulai hari ini.",
   "reminders.comingUp": "Akan datang",
   "reminders.moved": "dipindah",
   "reminders.moveLabel": "Pindahkan {label} untuk {name}",
@@ -737,4 +736,11 @@ export const id: Dictionary = {
   "insights.scoreboard.label": "Siapa yang berutang",
   "insights.scoreboard.customer": "Pelanggan",
   "insights.scoreboard.owed": "Jumlah utang",
+  "reminders.email": "Email",
+  "reminders.sending": "Mengirim…",
+  "reminders.emailLabel": "Kirim email pengingat PayPal ke {name}",
+  "reminders.emailSentNotice": "PayPal sudah mengirim email pengingat ke {name} dengan tombol Bayar. Pengingat berikutnya dijadwalkan mulai hari ini.",
+  "reminders.markedMaybe": "{label} untuk {name} ditandai terkirim, karena mungkin sudah terkirim. Kalau Anda yakin belum, batalkan dan coba lagi nanti.",
+  "reminders.emailSaveFailed": "PayPal sudah mengirim email ke {name}, tapi perangkat ini gagal menyimpannya. Jangan kirim lagi hari ini.",
+  "signin.error.paypalUnverified": "Email PayPal Anda belum diverifikasi. Verifikasi di PayPal, atau pakai email Anda saja.",
 };
