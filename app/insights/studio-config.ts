@@ -112,9 +112,9 @@ export function dataFor(
   };
 }
 
-const SCOREBOARD: ScoreboardDefinition = {
+const scoreboardFor = (t: T): ScoreboardDefinition => ({
   id: "scoreboard",
-  label: "Who owes you",
+  label: t("insights.scoreboard.label"),
   icon: "leaderboard",
   dataMapping: {
     customer: {
@@ -133,8 +133,8 @@ const SCOREBOARD: ScoreboardDefinition = {
   form: (params) =>
     params.createDefaults({
       dataMappingItems: [
-        { key: "customer", label: "Customer" },
-        { key: "owed", label: "Amount owed" },
+        { key: "customer", label: t("insights.scoreboard.customer") },
+        { key: "owed", label: t("insights.scoreboard.owed") },
       ],
     }),
   comp: Scoreboard,
@@ -145,15 +145,19 @@ const SCOREBOARD: ScoreboardDefinition = {
   },
   defaultSize: { width: 360, height: 300 },
   minSize: { width: 240, height: 160 },
-};
+});
 
 // Cast: createWidgets' params type is a conditional type that TypeScript can't resolve for a
 // registry declared as an interface; the definition above is typed as ScoreboardDefinition.
-export const widgets = createWidgets<BukuRegistry>({
-  additionalTypes: [SCOREBOARD],
-  // Studio's own widgets plus ours. Studio's AI agents can only add widgets listed here.
-  menu: [..._WIDGET_MENU, { label: "555 Buku", widgetIds: ["scoreboard"] }],
-} as never);
+/** Studio's widgets plus our scoreboard, labelled in `t`'s language (Studio remounts on a language change). */
+export const widgetRegistry = (t: T = translator()) =>
+  createWidgets<BukuRegistry>({
+    additionalTypes: [scoreboardFor(t)],
+    // Studio's own widgets plus ours. Studio's AI agents can only add widgets listed here.
+    menu: [..._WIDGET_MENU, { label: "555 Buku", widgetIds: ["scoreboard"] }],
+  } as never);
+
+export const widgets = widgetRegistry();
 
 // Soft Premium: warm paper canvas, white rounded tiles, ink accents (see globals.css).
 // Takes the font family next/font gave Manrope, since Studio can't read our CSS variable.

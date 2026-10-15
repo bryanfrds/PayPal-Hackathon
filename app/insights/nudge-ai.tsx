@@ -29,7 +29,7 @@ import type { NudgeContext } from "@/lib/nudge";
 import { ChatIcon } from "../components/icons";
 import { nudgeHistory } from "./nudge-history";
 import { MAX_DRAFT_CHARS, draftReminderResult, shopSummaryResult, type DraftData } from "./nudge-tools";
-import { studioAiAdapter } from "./studio-ai-adapter";
+import { studioAiAdapterFor } from "./studio-ai-adapter";
 
 /** What Nudge's tools read: the same summary the Nudge chat sends, plus each customer's PayPal pay link. */
 export type NudgeShop = { context: NudgeContext; payLinks: Map<string, string> };
@@ -119,6 +119,7 @@ function shopTools(api: AgStudioApi, getShop: () => NudgeShop) {
 
 /** The Nudge agent and Studio's agents, with Nudge as the one the owner talks to. */
 export function nudgeHarness(getShop: () => NudgeShop, announce: (text: string) => void, t: T = translator()): AgAiHarnessSetup {
+  const studioAiAdapter = studioAiAdapterFor(t);
   return ({ api }) => {
     const { summary, draft } = shopTools(api, getShop);
     const harness = createAiHarness(api, ({ builtIn }) => {

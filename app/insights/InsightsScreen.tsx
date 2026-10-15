@@ -22,7 +22,7 @@ import {
   initialStateFor,
   STUDIO_CANVAS,
   themeFor,
-  widgets,
+  widgetRegistry,
 } from "./studio-config";
 import { NUDGE_PANELS, NudgeRoster, nudgeLocaleText } from "./NudgePanel";
 import { nudgeHarness, nudgeToolDisplay, type NudgeShop } from "./nudge-ai";
@@ -42,6 +42,7 @@ export default function InsightsScreen() {
   const { name: shopName } = useShop();
   const isWide = useIsWide();
   const { t, lang } = useT();
+  const localWidgets = useMemo(() => widgetRegistry(t), [t]);
   const boxRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState<number | null>(null);
   // On phones Nudge opens over the page; on a laptop it's always beside the dashboard.
@@ -221,7 +222,7 @@ export default function InsightsScreen() {
             data={data}
             mode="view"
             theme={theme}
-            widgets={widgets}
+            widgets={localWidgets}
             panels={showPanel ? NUDGE_PANELS : VIEW_PANELS}
             style={FILL}
             initialState={initialState}

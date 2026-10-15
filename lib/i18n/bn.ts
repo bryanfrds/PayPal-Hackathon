@@ -388,7 +388,6 @@ export const bn: Dictionary = {
   "invoice.tag": "ইনভয়েস",
   "invoice.billTo": "বিল প্রাপক",
   "invoice.noEmail": "এখনও ইমেইল নেই",
-  "invoice.shopItems": "দোকানের জিনিস",
   "invoice.total": "মোট (MYR)",
   "invoice.payNote": "কাস্টমার এখানে PayPal-এর Pay বাটন পাবে: PayPal বা কার্ড।",
   // one sent invoice, tracked
@@ -737,4 +736,15 @@ export const bn: Dictionary = {
   "msg.items.more": "{list} আর আরও {count}টি",
   "msg.items.sep": ", ",
   "msg.payCard": "PayPal দিয়ে {amount} পরিশোধ করুন",
+  "nudge.error.signedOut": "আপনি সাইন আউট হয়ে গেছেন। Nudge ব্যবহার করতে আবার সাইন ইন করুন।",
+  "nudge.error.tooLong": "এই কথোপকথন Nudge-এর জন্য খুব লম্বা। নতুন চ্যাট শুরু করে আবার চেষ্টা করুন।",
+  "nudge.error.busy": "Nudge অনেক প্রশ্ন পাচ্ছে। একটু অপেক্ষা করে আবার চেষ্টা করুন।",
+  "nudge.error.notConnected": "Nudge এখনও সংযুক্ত হয়নি, তাই এখানে উত্তর দিতে পারছে না। বিশ্লেষণের বাকি অংশ ঠিকই কাজ করছে।",
+  "nudge.error.generic": "Nudge এখন উত্তর দিতে পারছে না। একটু পরে আবার চেষ্টা করুন।",
+  "nudge.error.partWay": "Nudge মাঝপথে থেমে গেছে। একটু পরে আবার চেষ্টা করুন।",
+  "nudge.error.stopped": "থামানো হয়েছে।",
+  "nudge.error.network": "Nudge-এর সাথে যোগাযোগ করা যাচ্ছে না। সংযোগ দেখে আবার চেষ্টা করুন।",
+  "insights.scoreboard.label": "কে আপনার কাছে বাকি রেখেছে",
+  "insights.scoreboard.customer": "গ্রাহক",
+  "insights.scoreboard.owed": "বাকির পরিমাণ",
 };

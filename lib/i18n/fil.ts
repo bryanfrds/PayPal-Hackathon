@@ -388,7 +388,6 @@ export const fil: Dictionary = {
   "invoice.tag": "INVOICE",
   "invoice.billTo": "Para kay",
   "invoice.noEmail": "Wala pang email",
-  "invoice.shopItems": "Mga item sa tindahan",
   "invoice.total": "Kabuuan (MYR)",
   "invoice.payNote": "Dito makikita ng customer ang Pay button ng PayPal: PayPal o card.",
   // one sent invoice, tracked
@@ -737,4 +736,15 @@ export const fil: Dictionary = {
   "msg.items.more": "{list} at {count} pa",
   "msg.items.sep": ", ",
   "msg.payCard": "Magbayad ng {amount} gamit ang PayPal",
+  "nudge.error.signedOut": "Naka-sign out ka na. Mag-sign in ulit para magamit ang Nudge.",
+  "nudge.error.tooLong": "Masyadong mahaba ang usapang ito para sa Nudge. Magsimula ng bagong chat at subukan ulit.",
+  "nudge.error.busy": "Maraming tanong ang natatanggap ng Nudge. Maghintay sandali at subukan ulit.",
+  "nudge.error.notConnected": "Hindi pa naka-connect ang Nudge, kaya hindi pa ito makasagot dito. Gumagana pa rin ang ibang bahagi ng Insights.",
+  "nudge.error.generic": "Hindi makasagot ang Nudge ngayon. Subukan ulit mamaya.",
+  "nudge.error.partWay": "Huminto ang Nudge sa gitna. Subukan ulit mamaya.",
+  "nudge.error.stopped": "Itinigil.",
+  "nudge.error.network": "Hindi maabot ang Nudge. Tingnan ang iyong connection at subukan ulit.",
+  "insights.scoreboard.label": "Sino ang may utang sa iyo",
+  "insights.scoreboard.customer": "Customer",
+  "insights.scoreboard.owed": "Halaga ng utang",
 };
