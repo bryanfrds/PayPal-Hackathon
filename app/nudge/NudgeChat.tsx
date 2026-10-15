@@ -10,15 +10,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { isPayPalUrl } from "@/lib/customer-pay";
 import { formatSen, todayLocal } from "@/lib/debts";
 import { MAX_MESSAGE_CHARS, buildNudgeContext, type NudgeContext } from "@/lib/nudge";
+import type { T } from "@/lib/i18n";
 import { buildSchedule } from "@/lib/reminders";
 import { BackIcon, ChatIcon, SendIcon } from "../components/icons";
 import { useCollect } from "../useCollect";
 import { useDebts } from "../useDebts";
 import { useReminders } from "../useReminders";
 import { useShop } from "../useShop";
+import { useT } from "../useT";
 
 
-const SUGGESTIONS = ["Who should I remind today?", "Draft reminders for the overdue ones", "Summarise this month"];
+const SUGGESTIONS = ["nudge.suggest.remind", "nudge.suggest.drafts", "nudge.suggest.month"] as const;
 
 type Draft = { ok: true; slug: string; name: string; owedSen: number; message: string } | { ok: false; error: string };
 
@@ -26,8 +28,8 @@ function whatsAppLink(text: string): string {
   return `https://wa.me/?text=${encodeURIComponent(text)}`;
 }
 
-/** The server's plain-English error, or a fallback. */
-function errorText(error: Error | undefined): string {
+/** The server's plain-English error (left as it comes), or a fallback in the app's language. */
+function errorText(error: Error | undefined, t: T): string {
   if (!error) return "";
   try {
     const parsed = JSON.parse(error.message) as { error?: string };
@@ -35,7 +37,7 @@ function errorText(error: Error | undefined): string {
   } catch {
     // not JSON
   }
-  return "Nudge couldn't answer just now. Try again in a moment.";
+  return t("nudge.errorFallback");
 }
 
 export default function NudgeChat() {
@@ -43,6 +45,7 @@ export default function NudgeChat() {
   const { invoices } = useCollect();
   const { rules, moves, sent } = useReminders();
   const { name: shopName } = useShop();
+  const { t } = useT();
   const [input, setInput] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -92,13 +95,13 @@ export default function NudgeChat() {
   return (
     <div className="nudge">
       <div className="tab-top">
-        <Link href="/insights" className="tab-back" aria-label="Back to Insights">
+        <Link href="/insights" className="tab-back" aria-label={t("nudge.backAria")}>
           <BackIcon />
         </Link>
         <h1>Nudge</h1>
         {messages.length > 0 ? (
           <button type="button" className="link-button nudge-new" onClick={() => setMessages([])} disabled={busy}>
-            New chat
+            {t("nudge.newChat")}
           </button>
         ) : (
           <span className="nudge-new" aria-hidden="true" />
@@ -110,9 +113,9 @@ export default function NudgeChat() {
         {messages.length === 0 && (
           <div className="nudge-hello">
             <p>
-              Hi! I&apos;m Nudge. I know who owes you and how late they are
-              {ready ? ` (${context.customers.length} ${context.customers.length === 1 ? "customer" : "customers"}, RM ${formatSen(context.owedSen)} in total)` : ""}. I can
-              tell you who to remind and write friendly reminders. You send them.
+              {t("nudge.hello", {
+                summary: ready ? t("nudge.helloSummary", { count: context.customers.length, amount: `RM ${formatSen(context.owedSen)}` }) : "",
+              })}
             </p>
           </div>
         )}
@@ -126,7 +129,7 @@ export default function NudgeChat() {
                 if (part.state === "output-error") {
                   return (
                     <p key={key} className="nudge-working">
-                      That draft didn't work. Ask again.
+                      {t("nudge.draftBroke")}
                     </p>
                   );
                 }
@@ -134,7 +137,7 @@ export default function NudgeChat() {
                   // Still being written, unless the reply stopped or failed part-way.
                   return busy ? (
                     <p key={key} className="nudge-working">
-                      Writing a reminder…
+                      {t("nudge.writing")}
                     </p>
                   ) : null;
                 }
@@ -145,13 +148,13 @@ export default function NudgeChat() {
                 return (
                   <div key={key} className="nudge-draft">
                     <p className="nudge-draft-to">
-                      To {draft.name} · RM {formatSen(draft.owedSen)}
+                      {t("nudge.draftTo", { name: draft.name, amount: `RM ${formatSen(draft.owedSen)}` })}
                     </p>
                     <p className="nudge-draft-text">{draft.message}</p>
-                    {link && <p className="nudge-draft-link">+ their PayPal pay link</p>}
-                    <a className="button button-primary nudge-draft-send" href={whatsAppLink(text)} target="_blank" rel="noopener noreferrer" aria-label={`Send to ${draft.name} on WhatsApp`}>
+                    {link && <p className="nudge-draft-link">{t("nudge.payLink")}</p>}
+                    <a className="button button-primary nudge-draft-send" href={whatsAppLink(text)} target="_blank" rel="noopener noreferrer" aria-label={t("nudge.sendWhatsAppAria", { name: draft.name })}>
                       <ChatIcon />
-                      Send on WhatsApp
+                      {t("nudge.sendWhatsApp")}
                     </a>
                   </div>
                 );
@@ -161,10 +164,10 @@ export default function NudgeChat() {
           </div>
         ))}
 
-        {status === "submitted" && <p className="nudge-working">Nudge is thinking…</p>}
+        {status === "submitted" && <p className="nudge-working">{t("nudge.thinking")}</p>}
         {error && (
           <p className="notice notice-error" role="alert">
-            {errorText(error)}
+            {errorText(error, t)}
           </p>
         )}
         <div ref={endRef} />
@@ -172,9 +175,9 @@ export default function NudgeChat() {
 
       {messages.length === 0 && (
         <div className="nudge-suggest">
-          {SUGGESTIONS.map((s) => (
-            <button key={s} type="button" className="chip" onClick={() => send(s)} disabled={!ready || busy}>
-              {s}
+          {SUGGESTIONS.map((key) => (
+            <button key={key} type="button" className="chip" onClick={() => send(t(key))} disabled={!ready || busy}>
+              {t(key)}
             </button>
           ))}
         </div>
@@ -188,17 +191,17 @@ export default function NudgeChat() {
         }}
       >
         <label htmlFor="nudge-input" className="visually-hidden">
-          Ask Nudge
+          {t("insights.askNudge")}
         </label>
         <input
           id="nudge-input"
           value={input}
           maxLength={MAX_MESSAGE_CHARS}
-          placeholder="Ask Nudge about your tabs…"
+          placeholder={t("nudge.inputPlaceholder")}
           onChange={(event) => setInput(event.target.value)}
           disabled={!ready}
         />
-        <button type="submit" aria-label="Send" disabled={!ready || busy || !input.trim()}>
+        <button type="submit" aria-label={t("nudge.send")} disabled={!ready || busy || !input.trim()}>
           <SendIcon />
         </button>
       </form>

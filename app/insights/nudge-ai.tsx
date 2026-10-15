@@ -24,6 +24,7 @@ import {
 } from "ag-studio";
 import type { AgAiToolDisplay } from "ag-studio-react";
 import { formatSen } from "@/lib/debts";
+import { translator, type T } from "@/lib/i18n";
 import type { NudgeContext } from "@/lib/nudge";
 import { ChatIcon } from "../components/icons";
 import { nudgeHistory } from "./nudge-history";
@@ -33,7 +34,7 @@ import { studioAiAdapter } from "./studio-ai-adapter";
 /** What Nudge's tools read: the same summary the Nudge chat sends, plus each customer's PayPal pay link. */
 export type NudgeShop = { context: NudgeContext; payLinks: Map<string, string> };
 
-/** Studio's agents as the owner sees them in the roster and on each hand-off. */
+/** Studio's agents as the owner sees them in the roster and on each hand-off. Names, so they stay in English (Nudge's instructions use them too). */
 export const STUDIO_AGENT_NAMES: Record<AgBuiltInAgentId, string> = {
   lead: "Studio · Builder",
   data: "Studio · Query",
@@ -45,11 +46,14 @@ export const STUDIO_AGENT_NAMES: Record<AgBuiltInAgentId, string> = {
 /** The agents Nudge may hand work to, in roster order. */
 const NUDGE_TARGETS = ["lead", "data", "page", "widget"] as const satisfies readonly AgBuiltInAgentId[];
 
-export const PROMPT_STARTERS = [
-  { label: "Who should I chase this week?", prompt: "Who should I chase this week? Keep it short and most urgent first." },
-  { label: "Add a chart of how late the tabs are", prompt: "Add a chart to the dashboard showing how late the unpaid tabs are." },
-  { label: "Draft a reminder for my most overdue customer", prompt: "Draft a friendly reminder for my most overdue customer." },
-];
+/** The starter buttons: the label, and the message it sends as the owner, in the app's language. */
+export function promptStarters(t: T = translator()) {
+  return [
+    { label: t("nudge.starter.chase"), prompt: t("nudge.starter.chasePrompt") },
+    { label: t("nudge.starter.chart"), prompt: t("nudge.starter.chartPrompt") },
+    { label: t("nudge.starter.draft"), prompt: t("nudge.starter.draftPrompt") },
+  ];
+}
 
 
 function nudgeInstructions(shop: NudgeContext): string {
@@ -114,7 +118,7 @@ function shopTools(api: AgStudioApi, getShop: () => NudgeShop) {
 }
 
 /** The Nudge agent and Studio's agents, with Nudge as the one the owner talks to. */
-export function nudgeHarness(getShop: () => NudgeShop, announce: (text: string) => void): AgAiHarnessSetup {
+export function nudgeHarness(getShop: () => NudgeShop, announce: (text: string) => void, t: T = translator()): AgAiHarnessSetup {
   return ({ api }) => {
     const { summary, draft } = shopTools(api, getShop);
     const harness = createAiHarness(api, ({ builtIn }) => {
@@ -147,12 +151,12 @@ export function nudgeHarness(getShop: () => NudgeShop, announce: (text: string) 
           directLlmRunner({ ...named("widget"), adapter: studioAiAdapter }),
           directLlmRunner({ ...named("planning"), adapter: studioAiAdapter }),
         ],
-        promptStarters: PROMPT_STARTERS,
+        promptStarters: promptStarters(t),
         // Keeps conversations when the dashboard remounts; Studio reopens the newest.
         history: nudgeHistory,
       };
     });
-    return announceRuns(harness, announce);
+    return announceRuns(harness, announce, t);
   };
 }
 
@@ -160,7 +164,7 @@ export function nudgeHarness(getShop: () => NudgeShop, announce: (text: string) 
  * Tells screen readers when Nudge starts and finishes a reply, or fails: each conversation the
  * panel opens is watched for its status changing. Studio's panel says nothing aloud itself.
  */
-function announceRuns(harness: AgAiHarness, announce: (text: string) => void): AgAiHarness {
+function announceRuns(harness: AgAiHarness, announce: (text: string) => void, t: T): AgAiHarness {
   const watched = new WeakSet<AgAiChatSession>();
   const watch = (session: AgAiChatSession) => {
     if (watched.has(session)) return session;
@@ -171,12 +175,12 @@ function announceRuns(harness: AgAiHarness, announce: (text: string) => void): A
       if (status === last) return;
       const was = last;
       last = status;
-      if (status === "running") announce("Nudge is replying");
+      if (status === "running") announce(t("nudge.replying"));
       else if (status === "error") {
         const parts = session.messages.at(-1)?.parts ?? [];
         const error = [...parts].reverse().find((p) => p.type === "error");
-        announce(error && error.type === "error" ? `Nudge couldn't answer: ${error.message}` : "Nudge couldn't answer");
-      } else if (status === "idle" && was === "running") announce("Nudge replied");
+        announce(error && error.type === "error" ? t("nudge.failedWith", { error: error.message }) : t("nudge.failed"));
+      } else if (status === "idle" && was === "running") announce(t("nudge.replied"));
     });
     return session;
   };
@@ -188,23 +192,23 @@ function announceRuns(harness: AgAiHarness, announce: (text: string) => void): A
 }
 
 /** A drafted reminder: who it's for, the text, a Copy button and a link that opens WhatsApp with it. */
-function DraftCard({ draft, payLink }: { draft: DraftData; payLink?: string }) {
+function DraftCard({ draft, payLink, t }: { draft: DraftData; payLink?: string; t: T }) {
   const [copy, setCopy] = useState<"idle" | "copied" | "failed">("idle");
   const text = payLink ? `${draft.message} ${payLink}` : draft.message;
   return (
     <div className="studio-draft">
       <p className="studio-draft-to">
-        <span>To {draft.name} · RM {formatSen(draft.owedSen)}</span>
-        {draft.daysLate > 0 && <span className="badge badge-overdue">{draft.daysLate} {draft.daysLate === 1 ? "day" : "days"} late</span>}
+        <span>{t("nudge.draftTo", { name: draft.name, amount: `RM ${formatSen(draft.owedSen)}` })}</span>
+        {draft.daysLate > 0 && <span className="badge badge-overdue">{t("late.days", { count: draft.daysLate })}</span>}
       </p>
       <p className="studio-draft-text">{draft.message}</p>
-      {payLink && <p className="studio-draft-link">+ their PayPal pay link</p>}
-      <p className="studio-draft-note">Not sent. You send it.</p>
+      {payLink && <p className="studio-draft-link">{t("nudge.payLink")}</p>}
+      <p className="studio-draft-note">{t("nudge.notSent")}</p>
       <div className="studio-draft-actions">
         <button
           type="button"
           className="button"
-          aria-label={`Copy reminder for ${draft.name}`}
+          aria-label={t("nudge.copyAria", { name: draft.name })}
           onClick={() => {
             if (!navigator.clipboard) return setCopy("failed");
             navigator.clipboard.writeText(text).then(
@@ -213,15 +217,15 @@ function DraftCard({ draft, payLink }: { draft: DraftData; payLink?: string }) {
             );
           }}
         >
-          Copy
+          {t("nudge.copy")}
         </button>
-        <a className="button button-primary" href={whatsAppLink(text)} target="_blank" rel="noopener noreferrer" aria-label={`Open WhatsApp with the reminder for ${draft.name} (opens in a new tab)`}>
+        <a className="button button-primary" href={whatsAppLink(text)} target="_blank" rel="noopener noreferrer" aria-label={t("nudge.openWhatsAppAria", { name: draft.name })}>
           <ChatIcon />
-          Open WhatsApp
+          {t("nudge.openWhatsApp")}
         </a>
       </div>
       <p className="studio-draft-copied" role="status">
-        {copy === "copied" ? "Copied. Paste it into WhatsApp or a text." : copy === "failed" ? "Couldn't copy here. Select the text and copy it instead." : ""}
+        {copy === "copied" ? t("nudge.copied") : copy === "failed" ? t("nudge.copyFailed") : ""}
       </p>
     </div>
   );
@@ -238,32 +242,32 @@ function agentId(args: Record<string, unknown>): string | undefined {
 }
 
 /** How Nudge's tool calls read in the panel. Studio's own tools keep Studio's wording. */
-export function nudgeToolDisplay(getShop: () => NudgeShop): Record<string, AgAiToolDisplay> {
+export function nudgeToolDisplay(getShop: () => NudgeShop, t: T = translator()): Record<string, AgAiToolDisplay> {
   function DraftDetail(params: AgAiToolDetailParams) {
     const draft = draftOf(params);
     if (!draft) return null;
-    return <DraftCard draft={draft} payLink={getShop().payLinks.get(draft.slug)} />;
+    return <DraftCard draft={draft} payLink={getShop().payLinks.get(draft.slug)} t={t} />;
   }
 
   return {
     shop_summary: {
-      label: ({ status }) => ({ text: status === "done" ? "Read your tabs" : "Reading your tabs…" }),
+      label: ({ status }) => ({ text: status === "done" ? t("nudge.readTabs") : t("nudge.readingTabs") }),
     },
     draft_reminder: {
       label: (params) => {
         const draft = draftOf(params);
-        if (draft) return { text: `Reminder for ${draft.name}`, pill: `RM ${formatSen(draft.owedSen)}` };
-        if (params.status === "done") return { text: "Couldn't draft that reminder" };
-        return { text: "Writing a reminder…" };
+        if (draft) return { text: t("nudge.reminderFor", { name: draft.name }), pill: `RM ${formatSen(draft.owedSen)}` };
+        if (params.status === "done") return { text: t("nudge.draftFailed") };
+        return { text: t("nudge.writing") };
       },
       detail: DraftDetail,
     },
     delegate_to: {
       label: ({ args }) => {
         const id = agentId(args);
-        const name = id && id in STUDIO_AGENT_NAMES ? STUDIO_AGENT_NAMES[id as AgBuiltInAgentId] : "a Studio agent";
+        const name = id && id in STUDIO_AGENT_NAMES ? STUDIO_AGENT_NAMES[id as AgBuiltInAgentId] : t("nudge.aStudioAgent");
         // Only Nudge hands work to the Builder; Studio's own agents hand work on to the others.
-        return { text: id === "lead" ? `↳ Nudge asked ${name}` : `↳ Handed to ${name}` };
+        return { text: id === "lead" ? t("nudge.asked", { name }) : t("nudge.handed", { name }) };
       },
     },
   };
