@@ -12,19 +12,27 @@ import { wireLine } from "./studio-ai-wire";
 
 /**
  * Largest request body, in characters. Measured on Insights: Studio's widget agent sends the
- * biggest turns, about 53,000 characters (14,000 of instructions, 43,000 of tool schemas).
+ * biggest turns, about 53,000 characters (14,000 of instructions, 43,000 of tool schemas), so
+ * every limit below sits about 1.5 times above what Studio really sends, and no higher: the demo
+ * login counts as an owner, so this is what one person could make the model read per turn.
  */
-export const MAX_BODY_CHARS = 400_000;
+export const MAX_BODY_CHARS = 120_000;
+/** Turns one IP, or one signed-in email, may run per minute. */
+export const TURNS_PER_MINUTE = 60;
+/** Turns one signed-in email may run per day (per server instance). About 15 questions to Nudge. */
+export const TURNS_PER_DAY = 200;
+/** Largest JSON Schema for a JSON response, in characters. */
+export const MAX_RESPONSE_SCHEMA_CHARS = 20_000;
 /** Most conversation items in one turn (messages, tool calls and their results). */
 export const MAX_ITEMS = 160;
 /** Most text across the whole conversation, in characters: messages, tool arguments and results. */
-export const MAX_CONVERSATION_CHARS = 200_000;
+export const MAX_CONVERSATION_CHARS = 80_000;
 /** Longest system instructions, in characters. */
-export const MAX_INSTRUCTIONS_CHARS = 40_000;
+export const MAX_INSTRUCTIONS_CHARS = 25_000;
 /** Most tools offered in one turn. */
 export const MAX_TOOLS = 30;
 /** Most JSON across all tool schemas, in characters. */
-export const MAX_TOOL_SCHEMA_CHARS = 120_000;
+export const MAX_TOOL_SCHEMA_CHARS = 60_000;
 
 const text = (max: number) => z.string().max(max);
 
@@ -163,6 +171,9 @@ export function parseStudioRequest(body: unknown): ParsedRequest {
   if (!parsedTools.success) return { ok: false, status: 400, error: UNREADABLE };
   if (new Set(parsedTools.data.map((t) => t.name)).size !== parsedTools.data.length) return { ok: false, status: 400, error: UNREADABLE };
 
+  if (JSON.stringify(raw.responseFormat ?? null).length > MAX_RESPONSE_SCHEMA_CHARS) {
+    return { ok: false, status: 413, error: "The answer format asked for is too big." };
+  }
   const format = responseFormat.safeParse(raw.responseFormat ?? { type: "text" });
   if (!format.success) return { ok: false, status: 400, error: UNREADABLE };
   const choice = raw.toolChoice === undefined ? undefined : toolChoice.safeParse(raw.toolChoice);
@@ -279,12 +290,13 @@ export function toModelMessages(items: CleanItem[]): { system: string[]; message
 
 /**
  * Studio's tool schemas as AI SDK tools with no execute: the model can call them, and Studio's
- * loop in the browser runs them. Provider-hosted tools aren't supported and are left out.
+ * loop in the browser runs them. Only browser (client) tools are offered: nothing here runs
+ * server tools, and provider-hosted ones aren't supported.
  */
 export function toToolSet(tools: StudioToolSchema[]): Record<string, Tool> {
   const set: Record<string, Tool> = {};
   for (const t of tools) {
-    if (t.kind === "provided") continue;
+    if (t.kind === "provided" || t.kind === "server") continue;
     set[t.name] = tool({ description: t.description, inputSchema: jsonSchema(t.parameters as JSONSchema7) });
   }
   return set;
@@ -293,7 +305,9 @@ export function toToolSet(tools: StudioToolSchema[]): Record<string, Tool> {
 export function toToolChoice(choice: StudioToolChoice | undefined, toolNames: string[]) {
   if (choice === undefined) return undefined;
   if (typeof choice === "string") return choice;
-  return toolNames.includes(choice.name) ? { type: "tool" as const, toolName: choice.name } : "required";
+  if (toolNames.includes(choice.name)) return { type: "tool" as const, toolName: choice.name };
+  // The named tool isn't on offer: any tool will do, or none if there are none.
+  return toolNames.length > 0 ? "required" : "auto";
 }
 
 /** The system prompt for one turn: Studio's instructions, its system notes and any JSON format asked for. */

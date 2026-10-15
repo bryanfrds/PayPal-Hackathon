@@ -11,19 +11,26 @@
 
 import { streamText, type ToolSet } from "ai";
 import { requireOwner } from "@/lib/auth-server";
-import { MAX_BODY_CHARS, parseStudioRequest, systemPrompt, toModelMessages, toToolChoice, toToolSet, toWireLines, type ModelStreamPart } from "@/lib/studio-ai";
+import { MAX_BODY_CHARS, TURNS_PER_DAY, TURNS_PER_MINUTE, parseStudioRequest, systemPrompt, toModelMessages, toToolChoice, toToolSet, toWireLines, type ModelStreamPart } from "@/lib/studio-ai";
 import { clientIp, createThrottle } from "@/lib/throttle";
 
 /** Same model as /api/nudge; override with AI_GATEWAY_MODEL. */
 const DEFAULT_MODEL = "anthropic/claude-haiku-5.5";
-/** Room for a widget configuration, which the built-in agents write as tool arguments. */
-const MAX_OUTPUT_TOKENS = 4_000;
+/**
+ * Room for one turn. The biggest output is a widget configuration or a plan, written as tool
+ * arguments by Studio's agents; Nudge's own replies and drafts are far shorter.
+ */
+const MAX_OUTPUT_TOKENS = 2_500;
 
 export const maxDuration = 60;
 
 // One question to Nudge can take a dozen or more turns (Nudge, then Studio's agents), so the
-// brake is per turn and generous; it stops a runaway loop or a script, not a busy owner.
-const throttle = createThrottle(60, 60_000);
+// brakes count turns. Per IP and per signed-in email, since the demo login is shared by many
+// people; plus a daily cap per email, the real limit on what one login can spend. All per
+// server instance (see lib/throttle.ts).
+const perIp = createThrottle(TURNS_PER_MINUTE, 60_000);
+const perEmail = createThrottle(TURNS_PER_MINUTE, 60_000);
+const perEmailDaily = createThrottle(TURNS_PER_DAY, 24 * 60 * 60_000);
 
 function connected(req: Request): boolean {
   // A key locally. On Vercel the project's OIDC token also works (see /api/nudge).
@@ -39,7 +46,8 @@ export async function POST(req: Request) {
   const owner = await requireOwner();
   if (owner instanceof Response) return owner;
 
-  const wait = throttle.hit(clientIp(req));
+  const email = owner.email.toLowerCase();
+  const wait = perIp.hit(clientIp(req)) || perEmail.hit(email);
   if (wait > 0) {
     return fail(429, "Nudge is getting a lot of questions. Wait a moment and try again.", { "Retry-After": String(wait) });
   }
@@ -71,6 +79,12 @@ export async function POST(req: Request) {
 
   const { system, messages } = toModelMessages(request.items);
   if (!messages.some((m) => m.role === "user")) return fail(400, "That request couldn't be read.");
+
+  // Counted only for turns that reach the model.
+  const dailyWait = perEmailDaily.hit(email);
+  if (dailyWait > 0) {
+    return fail(429, "Nudge has answered a lot of questions today. Try again tomorrow.", { "Retry-After": String(dailyWait) });
+  }
   const tools = toToolSet(request.tools);
   const model = process.env.AI_GATEWAY_MODEL || DEFAULT_MODEL;
 

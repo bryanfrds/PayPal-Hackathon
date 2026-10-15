@@ -3,6 +3,7 @@ import {
   MAX_CONVERSATION_CHARS,
   MAX_INSTRUCTIONS_CHARS,
   MAX_ITEMS,
+  MAX_BODY_CHARS,
   MAX_TOOLS,
   TURN_FAILED,
   parseStudioRequest,
@@ -63,6 +64,19 @@ describe("parseStudioRequest", () => {
     expect(parseStudioRequest(body({ tools: [huge] }))).toMatchObject({ ok: false, status: 413 });
   });
 
+  it("fits the biggest turn Studio really sends (the widget agent, about 53,000 characters)", () => {
+    const tools = Array.from({ length: 7 }, (_, i) => ({ ...TOOL, name: `t${i}`, parameters: { type: "object", description: "x".repeat(6_000) } }));
+    const big = body({ instructions: "x".repeat(14_000), tools, input: [user("hi"), reply("x".repeat(5_000))] });
+    expect(JSON.stringify(big).length).toBeGreaterThan(55_000);
+    expect(JSON.stringify(big).length).toBeLessThan(MAX_BODY_CHARS);
+    expect(parseStudioRequest(big).ok).toBe(true);
+  });
+
+  it("refuses a huge JSON answer format", () => {
+    const schema = { type: "object", description: "x".repeat(30_000) };
+    expect(parseStudioRequest(body({ responseFormat: { type: "json", name: "plan", schema } }))).toMatchObject({ ok: false, status: 413 });
+  });
+
   it("refuses images, unknown items and bad tool names", () => {
     const image = { ...user("hi"), content: [{ type: "image", detail: "auto", imageUrl: "https://example.com/x.png" }] };
     expect(parseStudioRequest(body({ input: [image] }))).toMatchObject({ ok: false, status: 400 });
@@ -113,8 +127,8 @@ describe("toModelMessages", () => {
 });
 
 describe("tools and the system prompt", () => {
-  it("makes tools with no execute, leaving out provider-hosted ones", () => {
-    const set = toToolSet([TOOL as never, { ...TOOL, name: "web", kind: "provided" } as never]);
+  it("makes tools with no execute, leaving out server and provider-hosted ones", () => {
+    const set = toToolSet([TOOL as never, { ...TOOL, name: "web", kind: "provided" } as never, { ...TOOL, name: "remote", kind: "server" } as never]);
     expect(Object.keys(set)).toEqual(["draft_reminder"]);
     expect(set.draft_reminder.execute).toBeUndefined();
   });
@@ -124,6 +138,8 @@ describe("tools and the system prompt", () => {
     expect(toToolChoice("required", ["a"])).toBe("required");
     expect(toToolChoice({ name: "a" }, ["a"])).toEqual({ type: "tool", toolName: "a" });
     expect(toToolChoice({ name: "gone" }, ["a"])).toBe("required");
+    // Nothing on offer: forcing a tool would make the provider refuse the turn.
+    expect(toToolChoice({ name: "gone" }, [])).toBe("auto");
   });
 
   it("asks for JSON when Studio asks for a JSON response", () => {

@@ -1,11 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 // Signed in as the shop owner unless a test says otherwise.
-const signedIn = vi.hoisted(() => ({ value: true }));
+// Each request gets its own email too, unless a test pins one, so the per-email brakes only
+// count where a test means them to.
+const signedIn = vi.hoisted(() => ({ value: true, email: "owner@example.com" }));
 vi.mock("@/lib/auth-server", () => ({
   requireOwner: async () =>
     signedIn.value
-      ? { email: "owner@example.com", method: "email", exp: 9999999999 }
+      ? { email: signedIn.email, method: "email", exp: 9999999999 }
       : Response.json({ error: "Sign in to do that." }, { status: 401 }),
 }));
 
@@ -22,8 +24,9 @@ const user = (text: string) => ({ id: "u", kind: "input", type: "message", role:
 
 let ip = 0;
 function request(body: unknown, headers: Record<string, string> = {}) {
-  // A fresh IP each time, so the throttle only counts where a test means it to.
+  // A fresh IP and email each time, so the throttles only count where a test means them to.
   ip += 1;
+  signedIn.email = `owner${ip}@example.com`;
   return new Request("http://localhost/api/studio-ai", {
     method: "POST",
     headers: { "x-forwarded-for": `10.0.0.${ip}`, ...headers },
@@ -100,6 +103,7 @@ describe("POST /api/studio-ai", () => {
   it("slows down one IP that sends too many turns", async () => {
     vi.stubEnv("AI_GATEWAY_API_KEY", "");
     vi.stubEnv("VERCEL_OIDC_TOKEN", "");
+    signedIn.email = "busy-ip@example.com";
     const same = () => new Request("http://localhost/api/studio-ai", { method: "POST", headers: { "x-forwarded-for": "10.9.9.9" }, body: "{}" });
     const statuses: number[] = [];
     for (let i = 0; i < 60; i++) statuses.push((await POST(same())).status);
@@ -108,5 +112,21 @@ describe("POST /api/studio-ai", () => {
     const last = await POST(same());
     expect(last.status).toBe(429);
     expect(Number(last.headers.get("Retry-After"))).toBeGreaterThan(0);
+  });
+
+  it("slows down one login sending turns from many IPs", async () => {
+    vi.stubEnv("AI_GATEWAY_API_KEY", "");
+    vi.stubEnv("VERCEL_OIDC_TOKEN", "");
+    const statuses: number[] = [];
+    for (let i = 0; i < 61; i++) {
+      signedIn.email = "Shared.Demo@example.com";
+      const req = new Request("http://localhost/api/studio-ai", { method: "POST", headers: { "x-forwarded-for": `10.8.${Math.floor(i / 200)}.${i % 200}` }, body: "{}" });
+      statuses.push((await POST(req)).status);
+    }
+    expect(statuses.slice(0, 60).every((s) => s === 503)).toBe(true);
+    expect(statuses[60]).toBe(429);
+    // The same login in another case still counts as the same login.
+    signedIn.email = "shared.demo@EXAMPLE.com";
+    expect((await POST(new Request("http://localhost/api/studio-ai", { method: "POST", headers: { "x-forwarded-for": "10.7.7.7" }, body: "{}" }))).status).toBe(429);
   });
 });
