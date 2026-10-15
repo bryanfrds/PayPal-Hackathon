@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { emailFromCode, verifiedEmail } from "./paypal-login";
+import { emailFromCode, PayPalUnverifiedEmailError, verifiedEmail } from "./paypal-login";
 
 describe("verifiedEmail", () => {
   it("takes the email PayPal says is verified", () => {
@@ -26,8 +26,9 @@ describe("verifiedEmail", () => {
     ).toBe("a@shop.my");
   });
 
-  it("doesn't fall back to the list when the main email is unverified", () => {
-    expect(verifiedEmail({ email: "owner@shop.my", email_verified: false, emails: [{ value: "owner@shop.my" }] })).toBeUndefined();
+  it("with the main email unverified, only a confirmed address from the list counts", () => {
+    expect(verifiedEmail({ email: "owner@shop.my", email_verified: false, emails: [{ value: "owner@shop.my", primary: true }] })).toBeUndefined();
+    expect(verifiedEmail({ email: "owner@shop.my", email_verified: false, emails: [{ value: "other@shop.my", confirmed: true }] })).toBe("other@shop.my");
   });
 });
 
@@ -52,7 +53,7 @@ describe("emailFromCode", () => {
   });
 
   it("refuses an unverified email", async () => {
-    await expect(emailFromCode("code", "https://x/cb", paypal({ email: "owner@shop.my" }))).rejects.toThrow("isn't verified");
+    await expect(emailFromCode("code", "https://x/cb", paypal({ email: "owner@shop.my" }))).rejects.toThrow(PayPalUnverifiedEmailError);
   });
 
   it("says when PayPal shares no email at all", async () => {

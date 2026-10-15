@@ -15,6 +15,14 @@ export class PayPalLoginError extends Error {
   }
 }
 
+/** The PayPal account's email isn't verified, so it can't prove who's signing in. */
+export class PayPalUnverifiedEmailError extends PayPalLoginError {
+  constructor() {
+    super("This PayPal account's email isn't verified yet.");
+    this.name = "PayPalUnverifiedEmailError";
+  }
+}
+
 /** PayPal's own site (where people log in), matching the API's sandbox or live mode. */
 function webBase(apiBase: string): string {
   return apiBase.includes("sandbox") ? "https://www.sandbox.paypal.com" : "https://www.paypal.com";
@@ -75,7 +83,7 @@ export async function emailFromCode(code: string, redirectUri: string, fetchImpl
   const info = (await infoRes.json()) as UserInfo;
   const email = verifiedEmail(info);
   if (!email) {
-    if (info.email || info.emails?.length) throw new PayPalLoginError("This PayPal account's email isn't verified yet.");
+    if (info.email || info.emails?.length) throw new PayPalUnverifiedEmailError();
     throw new PayPalLoginError("PayPal didn't share an email for this account. Tick the email scope for the app.");
   }
   return email;

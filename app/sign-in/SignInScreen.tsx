@@ -17,6 +17,7 @@ const ERRORS: Record<string, string> = {
   "paypal-setup": "Log in with PayPal isn't set up yet. Use your email instead.",
   "paypal-cancelled": "PayPal login was cancelled. Try again, or use your email.",
   "paypal-state": "That PayPal login expired. Try again.",
+  "paypal-unverified": "Your PayPal email isn't verified yet. Verify it in PayPal, or use your email instead.",
   "paypal-email": "PayPal didn't share an email for this account. Use your email instead.",
   paypal: "PayPal login didn't work just now. Try again, or use your email.",
   setup: "Sign-in isn't set up on this server yet.",
