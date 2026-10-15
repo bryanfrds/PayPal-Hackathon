@@ -3,7 +3,7 @@
 // (requireOwner), so this is the first gate, not the only one.
 //
 // Open to everyone: sign-in, a customer's own tab pages (/tab/...), reading one invoice's
-// status (the customer's pay page polls it), and static files.
+// status (the customer's pay page polls it), PayPal's webhook, and static files.
 
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, isAllowedOwner, readSession } from "@/lib/auth";
@@ -13,6 +13,8 @@ function isPublic(req: NextRequest): boolean {
   if (pathname === "/sign-in" || pathname.startsWith("/sign-in/")) return true;
   if (pathname.startsWith("/tab/")) return true;
   if (pathname.startsWith("/api/auth/")) return true;
+  // PayPal's webhook: PayPal isn't signed in; the route checks each delivery's signature with PayPal.
+  if (pathname === "/api/paypal/webhook" && req.method === "POST") return true;
   // One invoice's live status for the customer's pay page: GET /api/invoices/<id> only.
   const invoice = pathname.match(/^\/api\/invoices\/([^/]+)$/);
   if (invoice && req.method === "GET" && invoice[1] !== "status") return true;

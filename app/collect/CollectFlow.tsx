@@ -741,7 +741,7 @@ function Send({ groups, onDone }: { groups: CollectGroup[]; onDone: () => void }
       response = await fetch("/api/invoices", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ customerName: request.customerName, email: request.email, lines: request.lines, requestId: request.requestId }),
+        body: JSON.stringify({ customerName: request.customerName, email: request.email, lines: request.lines, requestId: request.requestId, debtIds: request.debtIds }),
       });
     } catch {
       setResults((prev) => ({ ...prev, [g.slug]: { state: "failed", message: t("collect.send.offline") } }));

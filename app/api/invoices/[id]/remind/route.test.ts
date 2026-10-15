@@ -15,6 +15,10 @@ vi.mock("@/lib/paypal", async (importOriginal) => {
   return { ...actual, ...paypal };
 });
 
+// In-memory holds unless a test gives the route a payments database.
+const db = vi.hoisted(() => ({ value: null as null | { claimReminder: ReturnType<typeof vi.fn>; releaseReminder: ReturnType<typeof vi.fn> } }));
+vi.mock("@/lib/payment-db", () => ({ paymentDb: () => db.value }));
+
 import { PayPalError } from "@/lib/paypal";
 import { POST } from "./route";
 
@@ -29,6 +33,7 @@ function owed(id: string, status = "SENT") {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  db.value = null;
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
@@ -147,5 +152,29 @@ describe("POST /api/invoices/[id]/remind", () => {
     paypal.getInvoice.mockResolvedValueOnce(owed("INV2-LATER", "PAYMENT_PENDING")).mockResolvedValue(owed("INV2-LATER"));
     expect((await remind("INV2-LATER")).status).toBe(409);
     expect((await remind("INV2-LATER")).status).toBe(200);
+  });
+
+  describe("with the payments database", () => {
+    it("holds the invoice in the database, across server instances", async () => {
+      db.value = { claimReminder: vi.fn().mockResolvedValue(false), releaseReminder: vi.fn().mockResolvedValue(undefined) };
+      const res = await remind("INV2-DB-HELD");
+      expect(res.status).toBe(409);
+      expect((await res.json()).alreadySent).toBe(true);
+      expect(db.value.claimReminder).toHaveBeenCalledWith("INV2-DB-HELD", 12 * 60 * 60 * 1000);
+      expect(paypal.getInvoice).not.toHaveBeenCalled();
+    });
+
+    it("releases the database hold when PayPal clearly refused", async () => {
+      db.value = { claimReminder: vi.fn().mockResolvedValue(true), releaseReminder: vi.fn().mockResolvedValue(undefined) };
+      paypal.getInvoice.mockResolvedValue(owed("INV2-DB-PAID", "PAID"));
+      expect((await remind("INV2-DB-PAID")).status).toBe(409);
+      expect(db.value.releaseReminder).toHaveBeenCalledWith("INV2-DB-PAID");
+    });
+
+    it("sends nothing when the hold can't be checked", async () => {
+      db.value = { claimReminder: vi.fn().mockRejectedValue(new Error("db down")), releaseReminder: vi.fn() };
+      expect((await remind("INV2-DB-DOWN")).status).toBe(503);
+      expect(paypal.remindInvoice).not.toHaveBeenCalled();
+    });
   });
 });

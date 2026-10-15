@@ -512,3 +512,44 @@ describe("remindInvoice", () => {
     await expect(client.remindInvoice("INV2-TEST-1")).rejects.toMatchObject({ status: 404 });
   });
 });
+
+describe("verifyWebhook", () => {
+  const signed = {
+    "paypal-auth-algo": "SHA256withRSA",
+    "paypal-cert-url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-1",
+    "paypal-transmission-id": "tx-1",
+    "paypal-transmission-sig": "sig",
+    "paypal-transmission-time": "2026-10-15T09:00:00Z",
+  };
+
+  it("sends PayPal the headers and the event exactly as received", async () => {
+    const { fetchImpl, calls } = fakeFetch((call) =>
+      call.url.endsWith("/v1/oauth2/token") ? tokenResponse() : json({ verification_status: "SUCCESS" }),
+    );
+    const client = createPayPalClient(CONFIG, { fetch: fetchImpl, now: () => 0 });
+    const rawBody = '{"id":"WH-1","amount":1.10}';
+
+    await expect(client.verifyWebhook({ webhookId: "WHID", headers: new Headers(signed), rawBody })).resolves.toBe(true);
+
+    const verify = calls[1];
+    expect(verify.url).toBe(`${API_BASE}/v1/notifications/verify-webhook-signature`);
+    const sent = verify.init.body as string;
+    expect(sent.endsWith(`"webhook_event":${rawBody}}`)).toBe(true);
+    expect(JSON.parse(sent)).toMatchObject({ webhook_id: "WHID", transmission_id: "tx-1", auth_algo: "SHA256withRSA" });
+  });
+
+  it("says no when PayPal can't verify it", async () => {
+    const { fetchImpl } = fakeFetch((call) =>
+      call.url.endsWith("/v1/oauth2/token") ? tokenResponse() : json({ verification_status: "FAILURE" }),
+    );
+    const client = createPayPalClient(CONFIG, { fetch: fetchImpl, now: () => 0 });
+    await expect(client.verifyWebhook({ webhookId: "WHID", headers: new Headers(signed), rawBody: "{}" })).resolves.toBe(false);
+  });
+
+  it("says no without asking PayPal when signature headers are missing", async () => {
+    const { fetchImpl, calls } = fakeFetch(() => tokenResponse());
+    const client = createPayPalClient(CONFIG, { fetch: fetchImpl, now: () => 0 });
+    await expect(client.verifyWebhook({ webhookId: "WHID", headers: new Headers(), rawBody: "{}" })).resolves.toBe(false);
+    expect(calls).toHaveLength(0);
+  });
+});

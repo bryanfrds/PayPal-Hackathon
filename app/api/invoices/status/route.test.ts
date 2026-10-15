@@ -17,6 +17,9 @@ vi.mock("@/lib/paypal", async (importOriginal) => {
   return { ...actual, ...paypal };
 });
 
+const db = vi.hoisted(() => ({ value: null as null | { saveFacts: ReturnType<typeof vi.fn> } }));
+vi.mock("@/lib/payment-db", () => ({ paymentDb: () => db.value }));
+
 import { PayPalError } from "@/lib/paypal";
 import { POST } from "./route";
 
@@ -26,6 +29,7 @@ function post(body: unknown) {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  db.value = null;
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
@@ -90,5 +94,17 @@ describe("POST /api/invoices/status", () => {
     paypal.getInvoice.mockResolvedValue({ id: "INV2-1", status: "SENT" });
     await post({ ids: ["INV2-1", "INV2-1"] });
     expect(paypal.getInvoice).toHaveBeenCalledTimes(1);
+  });
+
+  it("saves each answer to the payments database, and still answers if that fails", async () => {
+    db.value = { saveFacts: vi.fn().mockRejectedValueOnce(new Error("db down")).mockResolvedValue("paid") };
+    paypal.getInvoice.mockImplementation(async (id: string) => {
+      if (id === "INV2-BAD") throw new PayPalError("not found", { status: 404 });
+      return { id, status: "PAID", amount: { currency_code: "MYR", value: "10.00" } };
+    });
+    const res = await post({ ids: ["INV2-A", "INV2-B", "INV2-BAD"] });
+    expect(res.status).toBe(200);
+    expect(db.value.saveFacts).toHaveBeenCalledTimes(2);
+    expect(db.value.saveFacts).toHaveBeenCalledWith("INV2-A", expect.objectContaining({ status: "PAID", totalSen: 1000 }), expect.any(Date), "app");
   });
 });

@@ -21,6 +21,10 @@ vi.mock("@/lib/paypal", async (importOriginal) => {
   return { ...actual, ...paypal };
 });
 
+// No payments database unless a test gives it one.
+const db = vi.hoisted(() => ({ value: null as null | { saveInvoice: ReturnType<typeof vi.fn> } }));
+vi.mock("@/lib/payment-db", () => ({ paymentDb: () => db.value }));
+
 import { PayPalError } from "@/lib/paypal";
 import { POST } from "./route";
 
@@ -39,6 +43,7 @@ const SENT = { id: "INV2-1", status: "SENT", detail: { invoice_number: "0042", m
 
 beforeEach(() => {
   vi.resetAllMocks();
+  db.value = null;
   vi.spyOn(console, "error").mockImplementation(() => {});
   paypal.getInvoice.mockResolvedValue(SENT);
 });
@@ -126,5 +131,37 @@ describe("POST /api/invoices", () => {
     const res = await post(GOOD);
     expect(res.status).toBe(422);
     expect((await res.json()).error).toBe("PayPal didn't accept this invoice. Check the email and amount.");
+  });
+
+  it("records the sent invoice in the payments database", async () => {
+    db.value = { saveInvoice: vi.fn().mockResolvedValue(undefined) };
+    paypal.createDraftInvoice.mockResolvedValue({ id: "INV2-1", status: "SENT" });
+    const res = await post({ ...GOOD, debtIds: ["T-1001", "D-ab12"] });
+    expect(res.status).toBe(200);
+    expect(db.value.saveInvoice).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "INV2-1",
+        ownerEmail: "owner@example.com",
+        number: "0042",
+        customerName: "Mak Cik Siti",
+        slug: "mak-cik-siti",
+        debtIds: ["T-1001", "D-ab12"],
+        amountSen: 4850,
+        payerLink: "https://pay/1",
+      }),
+    );
+  });
+
+  it("still answers sent when the database can't save it", async () => {
+    db.value = { saveInvoice: vi.fn().mockRejectedValue(new Error("db down")) };
+    paypal.createDraftInvoice.mockResolvedValue({ id: "INV2-1", status: "SENT" });
+    const res = await post(GOOD);
+    expect(res.status).toBe(200);
+    expect((await res.json()).id).toBe("INV2-1");
+  });
+
+  it("refuses malformed debt ids", async () => {
+    expect((await post({ ...GOOD, debtIds: ["../x"] })).status).toBe(400);
+    expect((await post({ ...GOOD, debtIds: [1] })).status).toBe(400);
   });
 });

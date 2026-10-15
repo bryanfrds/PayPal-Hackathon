@@ -3,6 +3,7 @@
 // debts that makes paid.
 
 import { NextResponse } from "next/server";
+import { paymentDb } from "@/lib/payment-db";
 import { invoiceFacts, type StatusResult } from "@/lib/payments";
 import { getInvoice, PayPalError, shopCurrency } from "@/lib/paypal";
 import { paypalFailure } from "../errors";
@@ -37,6 +38,7 @@ export async function POST(request: Request) {
   if (!ids) return NextResponse.json({ error: `Send 1 to ${MAX_IDS} invoice ids.` }, { status: 400 });
 
   const results: Record<string, StatusResult> = {};
+  const checkedAt = new Date();
   let fatal: PayPalError | null = null;
   const queue = [...ids];
 
@@ -60,5 +62,20 @@ export async function POST(request: Request) {
     const failure = paypalFailure(fatal);
     return NextResponse.json({ error: failure.message }, { status: failure.status });
   }
+  await saveToDb(results, checkedAt);
   return NextResponse.json({ currency: shopCurrency(), results });
+}
+
+/** Keeps the payments database up to date with what PayPal just said. Never fails the check. */
+async function saveToDb(results: Record<string, StatusResult>, checkedAt: Date) {
+  const db = paymentDb();
+  if (!db) return;
+  const saves = Object.entries(results).flatMap(([id, result]) => {
+    if (!result.ok) return [];
+    const { ok: _ok, ...facts } = result;
+    return [db.saveFacts(id, facts, checkedAt, "app")];
+  });
+  for (const outcome of await Promise.allSettled(saves)) {
+    if (outcome.status === "rejected") console.error("POST /api/invoices/status: couldn't save to the database:", outcome.reason instanceof Error ? outcome.reason.message : outcome.reason);
+  }
 }

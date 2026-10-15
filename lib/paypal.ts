@@ -83,6 +83,15 @@ export type PayPalClient = {
   getInvoice: (invoiceId: string) => Promise<PayPalInvoice>;
   /** Has PayPal email the payer a reminder about the invoice, with its Pay button. */
   remindInvoice: (invoiceId: string) => Promise<void>;
+  /** Asks PayPal whether a webhook delivery really came from PayPal, for our webhook. */
+  verifyWebhook: (delivery: WebhookDelivery) => Promise<boolean>;
+};
+
+/** One webhook delivery as received: PayPal's signature headers and the raw body. */
+export type WebhookDelivery = {
+  webhookId: string;
+  headers: { get(name: string): string | null };
+  rawBody: string;
 };
 
 export const DEFAULT_PAYPAL_API_BASE = "https://api-m.sandbox.paypal.com";
@@ -294,14 +303,14 @@ export function createPayPalClient(config: PayPalConfig, deps: PayPalDeps = {}):
     operation: string,
     method: "GET" | "POST",
     path: string,
-    options: { body?: unknown; idempotent?: boolean; requestId?: string; prefer?: string } = {},
+    options: { body?: unknown; rawBody?: string; idempotent?: boolean; requestId?: string; prefer?: string } = {},
   ): Promise<T | undefined> {
     const token = await getAccessToken();
     const headers: Record<string, string> = {
       Authorization: `Bearer ${token}`,
       Accept: "application/json",
     };
-    if (options.body !== undefined) headers["Content-Type"] = "application/json";
+    if (options.body !== undefined || options.rawBody !== undefined) headers["Content-Type"] = "application/json";
     if (options.prefer) headers.Prefer = options.prefer;
     if (options.idempotent) {
       headers["PayPal-Request-Id"] = options.requestId ?? globalThis.crypto.randomUUID();
@@ -313,7 +322,7 @@ export function createPayPalClient(config: PayPalConfig, deps: PayPalDeps = {}):
       res = await doFetch(url, {
         method,
         headers,
-        body: options.body === undefined ? undefined : JSON.stringify(options.body),
+        body: options.rawBody ?? (options.body === undefined ? undefined : JSON.stringify(options.body)),
       });
     } catch (err) {
       throw new PayPalError(
@@ -411,7 +420,25 @@ export function createPayPalClient(config: PayPalConfig, deps: PayPalDeps = {}):
     });
   }
 
-  return { getAccessToken, createDraftInvoice, sendInvoice, getInvoice, remindInvoice };
+  async function verifyWebhook({ webhookId, headers, rawBody }: WebhookDelivery): Promise<boolean> {
+    const fields = {
+      auth_algo: headers.get("paypal-auth-algo"),
+      cert_url: headers.get("paypal-cert-url"),
+      transmission_id: headers.get("paypal-transmission-id"),
+      transmission_sig: headers.get("paypal-transmission-sig"),
+      transmission_time: headers.get("paypal-transmission-time"),
+      webhook_id: webhookId,
+    };
+    if (Object.values(fields).some((v) => !v)) return false;
+    // The event goes back exactly as received: re-serialising it can change bytes and fail the check.
+    const body = `${JSON.stringify(fields).slice(0, -1)},"webhook_event":${rawBody}}`;
+    const result = await request<{ verification_status?: string }>("verifyWebhook", "POST", "/v1/notifications/verify-webhook-signature", {
+      rawBody: body,
+    });
+    return result?.verification_status === "SUCCESS";
+  }
+
+  return { getAccessToken, createDraftInvoice, sendInvoice, getInvoice, remindInvoice, verifyWebhook };
 }
 
 function isInvoice(value: unknown): value is PayPalInvoice {
@@ -471,4 +498,8 @@ export function getInvoice(invoiceId: string): Promise<PayPalInvoice> {
 
 export function remindInvoice(invoiceId: string): Promise<void> {
   return getDefaultClient().remindInvoice(invoiceId);
+}
+
+export function verifyWebhook(delivery: WebhookDelivery): Promise<boolean> {
+  return getDefaultClient().verifyWebhook(delivery);
 }
