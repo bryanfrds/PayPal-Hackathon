@@ -94,7 +94,8 @@ export default function InsightsScreen() {
     () => (kind === null ? null : initialStateFor(kind)),
     [kind],
   );
-  // Passed as a new theme when the owner switches light/dark; Studio restyles in place.
+  // A light/dark switch remounts Studio (see the key below) so it restyles reliably; Nudge's
+  // chat comes back from nudge-history.ts, as it does after a layout change.
   const mode = useResolvedTheme();
   const theme = useMemo(() => themeFor(manropeFamily(), STUDIO_CANVAS[mode], mode === "dark"), [mode]);
 
@@ -211,7 +212,7 @@ export default function InsightsScreen() {
           )}
         {ready && initialState && (
           <AgStudio
-            key={kind}
+            key={`${kind}-${mode}`}
             data={data}
             mode="view"
             theme={theme}
