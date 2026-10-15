@@ -5585,11 +5585,23 @@ body.nudge-sheet-open {
   height: 17px;
 }
 
-.hg-acts {
-  display: inline-flex;
+/* The laptop grid's last two columns are narrow: Remind / Invoice / View, then the chat button. */
+.ag-cell.hg-next-cell {
+  padding-right: 4px;
+  padding-left: 8px;
+}
+
+.ag-cell.hg-wa-cell {
+  padding-right: 0;
+  padding-left: 0;
+}
+
+.hg-wa {
+  display: flex;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: center;
   height: 100%;
+  line-height: normal;
 }
 
 .wa-tip-wrap {

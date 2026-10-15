@@ -64,18 +64,19 @@ function StatusCell({ data }: CustomCellRendererProps<Row>) {
   return <span className={`badge badge-${data.status}`}>{STATUS_TEXT[data.status]}</span>;
 }
 
-/** The next step for this customer: invoice first if nothing's been sent, then remind once late. */
-function ActionCell({ data, context }: CustomCellRendererProps<Row, unknown, ShareContext>) {
+/** Its own narrow column, so the chat buttons line up whatever the next-step button says. */
+function ShareCell({ data, context }: CustomCellRendererProps<Row, unknown, ShareContext>) {
   if (!data || isTotal(data)) return null;
   return (
-    <span className="hg-acts">
-      <NextStep row={data} />
+    <span className="hg-wa">
       <ShareButton customerName={data.customerName} className="wa-btn-sm" onOpen={(button) => context.onShare(data.slug, button)} />
     </span>
   );
 }
 
-function NextStep({ row: data }: { row: BoardRow }) {
+/** The next step for this customer: invoice first if nothing's been sent, then remind once late. */
+function ActionCell({ data }: CustomCellRendererProps<Row>) {
+  if (!data || isTotal(data)) return null;
   if (!data.invoiced) {
     return (
       <Link href="/collect" className="hg-act" aria-label={`Send ${data.customerName} a PayPal invoice`}>
@@ -97,13 +98,16 @@ function NextStep({ row: data }: { row: BoardRow }) {
   );
 }
 
+// Minimum widths add up to 504px, so the grid fits inside its card (557px wide at a 1280px
+// window, about 512px inside the padding) with no sideways scroll. Anything wider goes to
+// the flexible columns, mostly Customer.
 const COLUMNS: ColDef<Row>[] = [
-  { headerName: "Customer", field: "customerName", flex: 1.8, minWidth: 170, cellRenderer: CustomerCell },
+  { headerName: "Customer", field: "customerName", flex: 1.6, minWidth: 112, cellRenderer: CustomerCell },
   {
     headerName: "Owed",
     field: "owedSen",
-    flex: 0.9,
-    minWidth: 92,
+    flex: 0.8,
+    minWidth: 88,
     type: "rightAligned",
     sort: "desc",
     valueFormatter: (p) => (p.value == null ? "" : formatSen(Number(p.value))),
@@ -113,13 +117,24 @@ const COLUMNS: ColDef<Row>[] = [
     headerName: "Status",
     field: "status",
     flex: 1,
-    minWidth: 130,
+    minWidth: 120,
     cellRenderer: StatusCell,
     comparator: (a, b) => (a ? STATUS_ORDER[a as BoardRow["status"]] : 9) - (b ? STATUS_ORDER[b as BoardRow["status"]] : 9),
   },
-  { headerName: "Days late", field: "daysLate", flex: 0.6, minWidth: 96, headerTooltip: "Days past the bill's due date", type: "rightAligned" },
-  // Named for screen readers; the label is hidden on screen.
-  { headerName: "Next step", headerClass: "hg-hidden-header", colId: "next", width: 156, minWidth: 156, maxWidth: 156, sortable: false, cellRenderer: ActionCell },
+  { headerName: "Late", field: "daysLate", flex: 0.5, minWidth: 56, headerTooltip: "Days past the bill's due date", type: "rightAligned" },
+  // Named for screen readers; the labels are hidden on screen.
+  { headerName: "Next step", headerClass: "hg-hidden-header", colId: "next", width: 84, minWidth: 84, maxWidth: 84, sortable: false, cellClass: "hg-next-cell", cellRenderer: ActionCell },
+  {
+    headerName: "WhatsApp",
+    headerClass: "hg-hidden-header",
+    colId: "share",
+    width: 44,
+    minWidth: 44,
+    maxWidth: 44,
+    sortable: false,
+    cellClass: "hg-wa-cell",
+    cellRenderer: ShareCell,
+  },
 ];
 
 export default function HomeBoardGrid({ rows, onShare }: { rows: BoardRow[]; onShare: ShareContext["onShare"] }) {
