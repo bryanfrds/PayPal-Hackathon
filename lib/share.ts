@@ -62,7 +62,19 @@ function settled(record: InvoiceRecord): boolean {
 }
 
 /**
- * The PayPal pay link for this customer, or undefined when there's none worth sending.
+ * Why a message has no pay link:
+ * - none: nothing of theirs has been invoiced.
+ * - not-on-device: invoiced, but this device has no PayPal link for it (the link is only
+ *   saved when the invoice is sent from this device).
+ * - over-billed: the invoice asks for more than they owe now.
+ * - settled: PayPal shows the invoice as closed (cancelled or refunded) or already paid.
+ */
+export type NoLinkReason = "none" | "not-on-device" | "over-billed" | "settled";
+
+export type PayLinkLookup = { pay: PayLink; reason?: undefined } | { pay?: undefined; reason: NoLinkReason };
+
+/**
+ * The PayPal pay link for this customer, or the reason there isn't one worth sending.
  *
  * Same rule as payPlan and reconcileDebts: if a debt was invoiced more than once, only its
  * newest invoice counts. Invoices PayPal says are closed or paid are skipped, so a cancelled
@@ -71,27 +83,33 @@ function settled(record: InvoiceRecord): boolean {
  * reset of the sample tabs can't attach itself to a fresh debt with the same id. An invoice
  * asking for more than is owed is left out too.
  */
-export function payLinkFor(invoices: InvoiceRecord[], debts: Debt[], slug: string): PayLink | undefined {
+export function payLinkFor(invoices: InvoiceRecord[], debts: Debt[], slug: string): PayLinkLookup {
   const unpaid = debts.filter((d) => d.status !== "paid" && customerSlug(d.customerName) === slug);
-  if (unpaid.length === 0) return undefined;
+  const invoiced = unpaid.filter((d) => d.status !== "unpaid");
+  if (invoiced.length === 0) return { reason: "none" };
   const owedSen = unpaid.reduce((sum, d) => sum + d.amountSen, 0);
 
   const newestFor = new Map<string, InvoiceRecord>();
-  for (const debt of unpaid) {
-    if (debt.status === "unpaid") continue;
+  for (const debt of invoiced) {
     const newest = invoices
       .filter((r) => r.debtIds.includes(debt.id))
       .sort((a, b) => b.sentAt.localeCompare(a.sentAt))[0];
     if (newest) newestFor.set(debt.id, newest);
   }
 
-  const live = [...new Set(newestFor.values())]
+  const records = [...new Set(newestFor.values())];
+  const live = records
     .filter((r) => !settled(r) && isPayPalUrl(r.payerLink))
     .sort((a, b) => b.sentAt.localeCompare(a.sentAt))[0];
-  if (!live?.payerLink || live.amountSen > owedSen) return undefined;
+  if (!live?.payerLink) {
+    // Marked as invoiced with no record here, or an open invoice without a saved link.
+    const missing = invoiced.some((d) => !newestFor.has(d.id)) || records.some((r) => !settled(r));
+    return { reason: missing ? "not-on-device" : "settled" };
+  }
+  if (live.amountSen > owedSen) return { reason: "over-billed" };
 
   const coversAll = unpaid.every((d) => newestFor.get(d.id) === live);
-  return { link: live.payerLink, amountSen: live.amountSen, full: coversAll && live.amountSen === owedSen };
+  return { pay: { link: live.payerLink, amountSen: live.amountSen, full: coversAll && live.amountSen === owedSen } };
 }
 
 /** Names and items go in as typed, with *, _ and ~ turned into spaces, so WhatsApp doesn't make them bold, italic or struck through. */

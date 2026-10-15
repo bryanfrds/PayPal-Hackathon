@@ -171,49 +171,55 @@ describe("payLinkFor", () => {
   it("uses the newest invoice that still covers an unpaid debt", () => {
     const older = invoice({ id: "old", sentAt: "2026-10-01T00:00:00.000Z", payerLink: "https://www.paypal.com/invoice/p/#OLD" });
     const newer = invoice({ id: "new", sentAt: "2026-10-09T00:00:00.000Z" });
-    expect(payLinkFor([older, newer], debts, "kak-lina")).toEqual({ link: LINK, amountSen: 1000, full: true });
+    expect(payLinkFor([older, newer], debts, "kak-lina")).toEqual({ pay: { link: LINK, amountSen: 1000, full: true } });
+    expect(payLinkFor([invoice({ standing: standing("open") })], debts, "kak-lina").pay?.link).toBe(LINK);
   });
 
-  it("skips a cancelled or paid invoice, and doesn't fall back to an older one for the same debt", () => {
+  it("reason none: nothing has been invoiced", () => {
+    expect(payLinkFor([], [debt({ status: "unpaid" })], "kak-lina")).toEqual({ reason: "none" });
+    expect(payLinkFor([], [], "kak-lina")).toEqual({ reason: "none" });
+    // An invoice left over from before a sample reset doesn't match a fresh, not-invoiced debt.
+    expect(payLinkFor([invoice({})], [debt({ id: "d1", status: "unpaid" })], "kak-lina")).toEqual({ reason: "none" });
+    // Another customer's invoice doesn't count.
+    expect(payLinkFor([invoice({ slug: "mr-raj", customerName: "Mr Raj", debtIds: ["x"] })], [debt({ status: "unpaid" })], "kak-lina")).toEqual({
+      reason: "none",
+    });
+  });
+
+  it("reason not-on-device: marked as invoiced, but no usable link here", () => {
+    expect(payLinkFor([], debts, "kak-lina")).toEqual({ reason: "not-on-device" });
+    expect(payLinkFor([invoice({ payerLink: undefined })], debts, "kak-lina")).toEqual({ reason: "not-on-device" });
+    expect(payLinkFor([invoice({ payerLink: "https://evil.example/" })], debts, "kak-lina")).toEqual({ reason: "not-on-device" });
+    // The only invoice covers a paid debt, so d1's invoice isn't here.
+    expect(payLinkFor([invoice({ debtIds: ["d2"] })], debts, "kak-lina")).toEqual({ reason: "not-on-device" });
+  });
+
+  it("reason over-billed: the invoice asks for more than is owed", () => {
+    // d1 is RM 10 owed; the invoice asks RM 25.
+    expect(payLinkFor([invoice({ amountSen: 2500 })], debts, "kak-lina")).toEqual({ reason: "over-billed" });
+  });
+
+  it("reason settled: a cancelled or paid invoice, with no fallback to an older one for the same debt", () => {
     const older = invoice({ id: "old", sentAt: "2026-10-01T00:00:00.000Z", payerLink: "https://www.paypal.com/invoice/p/#OLD" });
     const closed = invoice({ id: "new", sentAt: "2026-10-09T00:00:00.000Z", standing: standing("closed") });
-    expect(payLinkFor([older, closed], debts, "kak-lina")).toBeUndefined();
-    expect(payLinkFor([invoice({ standing: standing("paid") })], debts, "kak-lina")).toBeUndefined();
-    expect(payLinkFor([invoice({ standing: standing("open") })], debts, "kak-lina")?.link).toBe(LINK);
-  });
-
-  it("leaves out an invoice that asks for more than is owed", () => {
-    // d1 is RM 10 owed; the invoice asks RM 25.
-    expect(payLinkFor([invoice({ amountSen: 2500 })], debts, "kak-lina")).toBeUndefined();
-  });
-
-  it("ignores invoices for debts not marked as invoiced (e.g. left over from a sample reset)", () => {
-    const fresh = [debt({ id: "d1", status: "unpaid" })];
-    expect(payLinkFor([invoice({})], fresh, "kak-lina")).toBeUndefined();
-    // Mixed: the invoiced debt gets its link, but it's only part of the tab.
-    const mixed = [debt({ id: "d1" }), debt({ id: "d4", status: "unpaid", amountSen: 500 })];
-    expect(payLinkFor([invoice({ debtIds: ["d1", "d4"], amountSen: 1000 })], mixed, "kak-lina")).toEqual({
-      link: LINK,
-      amountSen: 1000,
-      full: false,
-    });
+    expect(payLinkFor([older, closed], debts, "kak-lina")).toEqual({ reason: "settled" });
+    expect(payLinkFor([invoice({ standing: standing("paid") })], debts, "kak-lina")).toEqual({ reason: "settled" });
   });
 
   it("marks the link partial when the invoice doesn't cover the whole tab", () => {
     const two = [debt({ id: "d1", amountSen: 1000 }), debt({ id: "d3", amountSen: 3000, date: "2026-10-08" })];
     // Covers d1 only: RM 10 of RM 40.
-    expect(payLinkFor([invoice({ debtIds: ["d1"], amountSen: 1000 })], two, "kak-lina")).toEqual({ link: LINK, amountSen: 1000, full: false });
+    expect(payLinkFor([invoice({ debtIds: ["d1"], amountSen: 1000 })], two, "kak-lina").pay).toEqual({ link: LINK, amountSen: 1000, full: false });
     // Covers both, but asks for a different amount than is owed.
-    expect(payLinkFor([invoice({ debtIds: ["d1", "d3"], amountSen: 3500 })], two, "kak-lina")?.full).toBe(false);
+    expect(payLinkFor([invoice({ debtIds: ["d1", "d3"], amountSen: 3500 })], two, "kak-lina").pay?.full).toBe(false);
     // Covers both for exactly what's owed.
-    expect(payLinkFor([invoice({ debtIds: ["d1", "d3"], amountSen: 4000 })], two, "kak-lina")?.full).toBe(true);
-  });
-
-  it("ignores invoices for paid debts, other customers or without a PayPal link", () => {
-    expect(payLinkFor([invoice({ debtIds: ["d2"] })], debts, "kak-lina")).toBeUndefined();
-    expect(payLinkFor([invoice({ slug: "mr-raj", customerName: "Mr Raj", debtIds: ["x"] })], debts, "kak-lina")).toBeUndefined();
-    expect(payLinkFor([invoice({ payerLink: undefined })], debts, "kak-lina")).toBeUndefined();
-    expect(payLinkFor([invoice({ payerLink: "https://evil.example/" })], debts, "kak-lina")).toBeUndefined();
-    expect(payLinkFor([], debts, "kak-lina")).toBeUndefined();
+    expect(payLinkFor([invoice({ debtIds: ["d1", "d3"], amountSen: 4000 })], two, "kak-lina").pay?.full).toBe(true);
+    // One debt invoiced, one not: the link is only part of the tab.
+    const mixed = [debt({ id: "d1" }), debt({ id: "d4", status: "unpaid", amountSen: 500 })];
+    expect(payLinkFor([invoice({ debtIds: ["d1", "d4"], amountSen: 1000 })], mixed, "kak-lina").pay).toEqual({
+      link: LINK,
+      amountSen: 1000,
+      full: false,
+    });
   });
 });
