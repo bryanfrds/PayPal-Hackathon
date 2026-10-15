@@ -6,7 +6,9 @@
 import { NextResponse } from "next/server";
 import { isValidEmail } from "@/lib/collect";
 import { MAX_AMOUNT_SEN, MAX_NAME_LENGTH } from "@/lib/debts";
-import { createDraftInvoice, getInvoice, getPayerLink, PayPalError, sendInvoice } from "@/lib/paypal";
+import { customerSlug } from "@/lib/customer-tab";
+import { paymentDb, within } from "@/lib/payment-db";
+import { createDraftInvoice, getInvoice, getPayerLink, PayPalError, sendInvoice, shopCurrency } from "@/lib/paypal";
 import { paypalFailure } from "./errors";
 import { requireOwner } from "@/lib/auth-server";
 
@@ -18,6 +20,8 @@ type Body = {
   email: string;
   lines: { name: string; amountSen: number }[];
   requestId: string;
+  /** The device's debt ids this invoice covers, for the payments database. */
+  debtIds: string[];
 };
 
 function parseBody(value: unknown): Body | null {
@@ -35,7 +39,35 @@ function parseBody(value: unknown): Body | null {
     if (typeof l.amountSen !== "number" || !Number.isInteger(l.amountSen) || l.amountSen <= 0 || l.amountSen > MAX_AMOUNT_SEN) return null;
     lines.push({ name: l.name.trim(), amountSen: l.amountSen });
   }
-  return { customerName: name, email, lines, requestId };
+  // Optional, so an older screen that doesn't send them still works.
+  const debtIds = Array.isArray(v.debtIds) ? v.debtIds : [];
+  if (debtIds.length > 100 || !debtIds.every((id): id is string => typeof id === "string" && /^[A-Za-z0-9-]{1,64}$/.test(id))) return null;
+  return { customerName: name, email, lines, requestId, debtIds };
+}
+
+/**
+ * Records the sent invoice in the payments database, if there is one. Never fails the send:
+ * the invoice is out either way, and the device keeps its own record.
+ */
+async function saveToDb(ownerEmail: string, body: Body, sent: { id: string; number?: string; payerLink?: string }) {
+  const db = paymentDb();
+  if (!db) return;
+  try {
+    await within(db.saveInvoice({
+      id: sent.id,
+      ownerEmail,
+      number: sent.number,
+      customerName: body.customerName,
+      slug: customerSlug(body.customerName),
+      debtIds: body.debtIds,
+      amountSen: body.lines.reduce((sum, l) => sum + l.amountSen, 0),
+      currency: shopCurrency(),
+      payerLink: sent.payerLink,
+      sentAt: new Date().toISOString(),
+    }));
+  } catch (error) {
+    console.error("POST /api/invoices: sent, but couldn't save to the database:", error instanceof Error ? error.message : error);
+  }
 }
 
 export async function POST(request: Request) {
@@ -78,11 +110,10 @@ export async function POST(request: Request) {
         { status: 409 },
       );
     }
-    return NextResponse.json({
-      id: draft.id,
-      number: current.detail?.invoice_number,
-      payerLink: getPayerLink(current),
-    });
+    const number = current.detail?.invoice_number;
+    const payerLink = getPayerLink(current);
+    await saveToDb(owner.email, body, { id: draft.id, number, payerLink });
+    return NextResponse.json({ id: draft.id, number, payerLink });
   } catch (error) {
     // Messages from lib/paypal.ts are already redacted; this keeps PayPal's debug id for us.
     console.error("POST /api/invoices failed:", error instanceof Error ? error.message : error);
