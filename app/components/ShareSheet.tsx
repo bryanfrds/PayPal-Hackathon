@@ -181,7 +181,12 @@ export default function ShareSheet({
         </figure>
 
         {!message.link && (
-          <p className="share-note">No PayPal invoice yet. Send one from Collect to add a pay link.</p>
+          <p className="share-note">
+            {/* Marked as invoiced, but the link isn't on this device (e.g. sent from another phone, or sample tabs). */}
+            {mine.some((d) => d.status !== "unpaid")
+              ? "The PayPal invoice link isn't saved on this device. Open it from Collect to add it."
+              : "No PayPal invoice yet. Send one from Collect to add a pay link."}
+          </p>
         )}
 
         <p className="share-label" id={`${titleId}-tone`}>
@@ -196,6 +201,7 @@ export default function ShareSheet({
               aria-pressed={tone === t.id}
               onClick={() => pickTone(t.id)}
             >
+              <span aria-hidden="true">{t.emoji} </span>
               {t.label}
               <small>{t.hint}</small>
             </button>
