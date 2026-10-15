@@ -238,6 +238,15 @@ a {
 
 .site-nav li {
   flex: 1;
+  min-width: 0;
+}
+
+/* Phone tabs: one line per label in every language; a label too long for its tab ends in "…". */
+.site-nav a span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .site-nav a {
@@ -2066,14 +2075,25 @@ button.tab-back:focus-visible {
   display: flex;
   gap: 0.4rem;
   margin: 0.9rem 0 0.75rem;
+  /* Last resort for a single word longer than its pill: the row scrolls, never the page. */
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
 }
 
+/* Pills may shrink and wrap their words onto two lines, so long labels in any language fit
+   the row without the page scrolling sideways. */
 .collect-tabs button {
   display: inline-flex;
+  flex: 0 1 auto;
   align-items: center;
+  justify-content: center;
   gap: 0.35rem;
+  min-width: 0;
   min-height: 2.5rem;
-  padding: 0 0.85rem;
+  padding: 0.3rem 0.85rem;
+  line-height: 1.2;
+  text-align: center;
   font: inherit;
   font-weight: 700;
   font-size: 0.85rem;
@@ -2086,6 +2106,7 @@ button.tab-back:focus-visible {
 }
 
 .collect-tabs button b {
+  flex: none;
   display: inline-grid;
   place-items: center;
   min-width: 1.15rem;
@@ -4427,6 +4448,11 @@ body.nudge-sheet-open {
 
   .site-nav li.nav-wide-only {
     display: block;
+  }
+
+  .site-nav a span {
+    overflow: visible;
+    white-space: normal;
   }
 
   .site-nav a {
