@@ -41,11 +41,14 @@ export function useStudioSlot(root: RefObject<HTMLElement | null>, selector: str
   return slot;
 }
 
-/** Makes everything on the page except `keep` (and its ancestors) inert. Returns the undo. */
-export function inertOutside(keep: Element): () => void {
+/**
+ * Makes everything on the page except `keep` (and its ancestors, up to `top`) inert, leaving
+ * live regions alone. Returns the undo, which only touches what this call changed.
+ */
+export function inertOutside(keep: Element, top: Element = document.body): () => void {
   const changed: Element[] = [];
   let node: Element | null = keep;
-  while (node && node !== document.body) {
+  while (node && node !== top) {
     const parent: Element | null = node.parentElement;
     if (!parent) break;
     for (const sibling of Array.from(parent.children)) {

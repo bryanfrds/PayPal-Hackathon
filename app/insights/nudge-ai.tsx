@@ -27,6 +27,7 @@ import { formatSen } from "@/lib/debts";
 import type { NudgeContext } from "@/lib/nudge";
 import { ChatIcon } from "../components/icons";
 import { nudgeHistory } from "./nudge-history";
+import { MAX_DRAFT_CHARS, draftReminderResult, shopSummaryResult, type DraftData } from "./nudge-tools";
 import { studioAiAdapter } from "./studio-ai-adapter";
 
 /** What Nudge's tools read: the same summary the Nudge chat sends, plus each customer's PayPal pay link. */
@@ -50,10 +51,6 @@ export const PROMPT_STARTERS = [
   { label: "Draft a reminder for my most overdue customer", prompt: "Draft a friendly reminder for my most overdue customer." },
 ];
 
-/** Longest reminder Nudge may draft, in characters (same as the Nudge chat). */
-const MAX_DRAFT_CHARS = 500;
-
-export type DraftData = { slug: string; name: string; owedSen: number; daysLate: number; message: string };
 
 function nudgeInstructions(shop: NudgeContext): string {
   return [
@@ -99,10 +96,7 @@ function shopTools(api: AgStudioApi, getShop: () => NudgeShop) {
     name: "shop_summary",
     description: "The shop's current tabs from the owner's device: everyone who still owes, most urgent first, with what they owe, days late, invoice status and reminders sent.",
     params: (s) => s.object({}),
-    execute: (_args, ctx) => {
-      const { context } = getShop();
-      return ctx.success(JSON.stringify(context).replace(/</g, "\\u003c"), { customers: context.customers.length });
-    },
+    execute: (_args, ctx) => shopSummaryResult(getShop().context, ctx),
   });
 
   const draft = api.defineAiTool({
@@ -113,15 +107,7 @@ function shopTools(api: AgStudioApi, getShop: () => NudgeShop) {
         slug: s.string({ description: "The customer's slug from the shop summary" }),
         message: s.string({ description: `The reminder text, without links, under ${MAX_DRAFT_CHARS} characters` }),
       }),
-    execute: ({ slug, message }: { slug: string; message: string }, ctx) => {
-      const customer = getShop().context.customers.find((c) => c.slug === slug);
-      if (!customer) return ctx.error("No customer with that slug in the shop summary. Use a slug from shop_summary.");
-      const text = message.trim();
-      if (!text) return ctx.error("The reminder is empty.");
-      if (text.length > MAX_DRAFT_CHARS) return ctx.error(`Keep the reminder under ${MAX_DRAFT_CHARS} characters.`);
-      const data: DraftData = { slug, name: customer.name, owedSen: customer.owedSen, daysLate: customer.daysLate, message: text };
-      return ctx.success(`Draft ready for ${customer.name} (RM ${formatSen(customer.owedSen)}). Not sent: the owner sends it.`, data);
-    },
+    execute: (args: { slug: string; message: string }, ctx) => draftReminderResult(args, getShop().context, ctx),
   });
 
   return { summary, draft };
