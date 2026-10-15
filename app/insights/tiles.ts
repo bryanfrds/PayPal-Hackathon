@@ -10,6 +10,8 @@ type Layout = Record<WidgetId, Box>;
 export const COLUMNS = 12;
 export const ROW_HEIGHT = 16;
 export const PAGE_PADDING = 8;
+/** Room Studio leaves around each tile (the theme's studioWidgetPadding), in px. */
+export const WIDGET_PADDING = 10;
 /** Widest container that still gets the stacked phone layout, in px. */
 export const PHONE_MAX = 640;
 

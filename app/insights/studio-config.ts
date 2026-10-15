@@ -24,6 +24,7 @@ import {
   COLUMNS,
   PAGE_PADDING,
   ROW_HEIGHT,
+  WIDGET_PADDING,
   widgetLayout,
   type LayoutKind,
   type WidgetId,
@@ -186,7 +187,7 @@ export const themeFor = (fontFamily: string, canvas = "#f3f1ec", dark = false) =
     studioWidgetBackgroundColor: "#ffffff",
     studioWidgetBorderRadius: 20,
     studioWidgetTitleFontWeight: 800,
-    studioWidgetPadding: 10,
+    studioWidgetPadding: WIDGET_PADDING,
     studioWidgetTitleTextColor: "#6f6b64",
     chartPaletteFills1Color: "#141414",
     chartPaletteFills2Color: "#d8d3c8",
@@ -246,9 +247,15 @@ const legend = {
   },
 };
 
+// Every column of the "Every tab" grid gets the same width (Studio applies one width to all).
+// AG Grid pads each cell 16px a side, leaving 70px for "RM 128.00" (about 69px in 14px Manrope).
+// Phone: the grid is 390 - 2x16 page - 2x8 Studio - 2x10 tile = 322px wide at 390px (307px at
+// 375px), so three columns of 102px = 306px fit both. Wide keeps the five 112px columns.
+const TABS_COLUMN_WIDTH: Record<LayoutKind, number> = { phone: 102, wide: 112 };
+
 // Tile titles follow the app's language; Studio reads them once per mount (Insights remounts
 // Studio when the language changes). The tile ids and layout never change.
-const widgetsFor = (t: T) => ({
+const widgetsFor = (t: T, kind: LayoutKind = "wide") => ({
   owed: {
     type: "value",
     dataMapping: { value: [f("owed", "sum")] },
@@ -289,12 +296,19 @@ const widgetsFor = (t: T) => ({
   tabs: {
     type: "grid",
     dataMapping: {
-      // Amounts and days late come before the long item text, so a narrow tile cuts the items, not the money.
-      cols: [f("customer"), f("amount"), f("daysLate"), f("status"), f("item")],
+      // Amounts and days late come before the long item text, so a narrow tile cuts the items, not
+      // the money. A phone has room for three columns only (see TABS_COLUMN_WIDTH), so it drops the last two.
+      cols: kind === "phone"
+        ? [f("customer"), f("amount"), f("daysLate")]
+        : [f("customer"), f("amount"), f("daysLate"), f("status"), f("item")],
     },
     // Studio's auto-size (on unless turned off) came out header-wide and cut amounts off
-    // ("RM 48…"), so every column gets room for its values; the grid scrolls sideways if it must.
-    format: { ...title(t("insights.tile.tabs")), style: { columnAutoSize: false, columnWidth: 112 } },
+    // ("RM 48…"), so every column gets one fixed width (Studio has no per-column width or flex).
+    // Headers come from t() and run long in some languages, so they wrap rather than get cut.
+    format: {
+      ...title(t("insights.tile.tabs")),
+      style: { columnAutoSize: false, columnWidth: TABS_COLUMN_WIDTH[kind], headerRow: { wrapText: true } },
+    },
   },
 }) as const satisfies Record<WidgetId, unknown>;
 
@@ -306,7 +320,7 @@ export function initialStateFor(kind: LayoutKind, t: T = translator()): AgReport
     pages: [
       {
         id: "insights",
-        widgets: widgetsFor(t),
+        widgets: widgetsFor(t, kind),
         widgetLayout: widgetLayout(kind),
         layout: {
           columns: COLUMNS,
