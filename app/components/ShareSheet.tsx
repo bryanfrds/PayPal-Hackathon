@@ -11,20 +11,13 @@ import { createPortal } from "react-dom";
 import { customerSlug, formatDay } from "@/lib/customer-tab";
 import { formatSen, todayLocal } from "@/lib/debts";
 import { lateLabel, owedBoard } from "@/lib/home";
-import { buildShareMessage, payLinkFor, TONES, unpaidItems, whatsappUrl, type NoLinkReason, type Tone } from "@/lib/share";
+import { buildShareMessage, chooseLink, payLinkFor, TONES, unpaidItems, whatsappUrl, type Tone } from "@/lib/share";
 import { useCollect } from "../useCollect";
 import { useDebts } from "../useDebts";
+import { usePrefs } from "../usePrefs";
 import { useShop } from "../useShop";
 import Avatar from "./Avatar";
 import { ChatIcon, CloseIcon, CopyIcon, LinkIcon } from "./icons";
-
-/** Why the message has no pay link, in words that are true for each case. */
-const NO_LINK_NOTE: Record<NoLinkReason, string> = {
-  none: "No PayPal invoice yet. Send one from Collect to add a pay link.",
-  "not-on-device": "This tab's PayPal pay link isn't on this device, so the message has no link.",
-  "over-billed": "The PayPal invoice is for more than they owe now, so the message has no link.",
-  settled: "PayPal shows this invoice as paid or closed, so the message has no link.",
-};
 
 /** WhatsApp's *bold* shown as bold, the way the customer will see it. */
 function withBold(text: string): ReactNode[] {
@@ -44,7 +37,9 @@ export default function ShareSheet({
   const { debts } = useDebts();
   const { invoices } = useCollect();
   const { name: shopName } = useShop();
-  const [tone, setTone] = useState<Tone>("friendly");
+  const { prefs } = usePrefs();
+  // Starts on the owner's default tone from Settings.
+  const [tone, setTone] = useState<Tone>(prefs.defaultTone);
   const [copied, setCopied] = useState<"idle" | "done" | "failed">("idle");
   const sheetRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
@@ -52,7 +47,8 @@ export default function ShareSheet({
 
   const row = useMemo(() => owedBoard(debts, today).find((r) => r.slug === slug), [debts, today, slug]);
   const mine = useMemo(() => debts.filter((d) => d.status !== "paid" && customerSlug(d.customerName) === slug), [debts, slug]);
-  const { pay, reason } = useMemo(() => payLinkFor(invoices, debts, slug), [invoices, debts, slug]);
+  const lookup = useMemo(() => payLinkFor(invoices, debts, slug), [invoices, debts, slug]);
+  const { pay, note } = chooseLink(lookup, prefs.payLink);
   const since = mine.reduce((min, d) => (d.date < min ? d.date : min), mine[0]?.date ?? today);
   const message = row
     ? buildShareMessage({ customerName: row.customerName, shopName, owedSen: row.owedSen, items: unpaidItems(mine), tone, pay })
@@ -181,7 +177,7 @@ export default function ShareSheet({
           </div>
         </figure>
 
-        {!message.link && <p className="share-note">{NO_LINK_NOTE[reason ?? "none"]}</p>}
+        {!message.link && note && <p className="share-note">{note}</p>}
 
         <p className="share-label" id={`${titleId}-tone`}>
           Tone

@@ -125,8 +125,9 @@ export const widgets = createWidgets<BukuRegistry>({
 
 // Soft Premium: warm paper canvas, white rounded tiles, ink accents (see globals.css).
 // Takes the font family next/font gave Manrope, since Studio can't read our CSS variable.
-export const themeFor = (fontFamily: string, canvas = "#f3f1ec") =>
-  studioTheme.withParams({
+// `dark` swaps in the dark palette from globals.css; light values are unchanged.
+export const themeFor = (fontFamily: string, canvas = "#f3f1ec", dark = false) => {
+  const light = studioTheme.withParams({
     fontFamily,
     // Titles, charts and grids read this one, not fontFamily.
     studioCanvasFontFamily: fontFamily,
@@ -164,6 +165,30 @@ export const themeFor = (fontFamily: string, canvas = "#f3f1ec") =>
     studioAiPanelRichTextAccentBackgroundColor: canvas,
     studioAiPanelButtonHoverBackgroundColor: "#efece6",
   });
+  if (!dark) return light;
+  return light.withParams({
+    browserColorScheme: "dark",
+    foregroundColor: "#f2efe9",
+    textColor: "#f2efe9",
+    accentColor: "#f2efe9",
+    backgroundColor: "#1d1d1c",
+    borderColor: "#2c2b29",
+    studioWidgetBackgroundColor: "#1d1d1c",
+    studioWidgetTitleTextColor: "#a39e95",
+    chartPaletteFills1Color: "#f2efe9",
+    chartPaletteFills2Color: "#4a4843",
+    chartPaletteFills3Color: "#ff8a73",
+    chartPaletteFills4Color: "#9db4ff",
+    chartPaletteFills5Color: "#e8c06a",
+    chartPaletteFills6Color: "#7fd19b",
+    studioAiPanelButtonHoverBackgroundColor: "#2c2b29",
+  });
+};
+
+/** The page colour behind Studio on Insights, per theme (globals.css --paper). */
+export const STUDIO_CANVAS = { light: "#f3f1ec", dark: "#121212" } as const;
+/** The tile colour behind Home's chart, per theme (globals.css --card). */
+export const STUDIO_TILE = { light: "#ffffff", dark: "#1d1d1c" } as const;
 
 const f = (
   id: string,

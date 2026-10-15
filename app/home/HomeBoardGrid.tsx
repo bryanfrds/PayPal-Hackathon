@@ -11,7 +11,9 @@ import { tabPath } from "@/lib/customer-tab";
 import { formatSen } from "@/lib/debts";
 import { lateLabel, type BoardRow } from "@/lib/home";
 import Avatar from "../components/Avatar";
+import { DARK_GRID_COLOURS } from "../components/grid-theme";
 import { ShareButton } from "../components/ShareButton";
+import { useResolvedTheme } from "../usePrefs";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -30,8 +32,10 @@ const theme = themeQuartz.withParams({
   cellHorizontalPaddingScale: 0.8,
 });
 
+const darkTheme = theme.withParams({ ...DARK_GRID_COLOURS, headerBackgroundColor: "#232321" });
+
 const STATUS_ORDER: Record<BoardRow["status"], number> = { overdue: 0, sent: 1, unpaid: 2 };
-const BAR: Record<BoardRow["status"], string> = { overdue: "#c23b22", sent: "#2f55c4", unpaid: "#8c6512" };
+const BAR: Record<BoardRow["status"], string> = { overdue: "var(--overdue)", sent: "var(--sent)", unpaid: "var(--unpaid)" };
 
 type ShareContext = { onShare: (slug: string, button: HTMLButtonElement) => void };
 
@@ -149,6 +153,7 @@ const COLUMNS: ColDef<Row>[] = [
 ];
 
 export default function HomeBoardGrid({ rows, onShare }: { rows: BoardRow[]; onShare: ShareContext["onShare"] }) {
+  const dark = useResolvedTheme() === "dark";
   // AG Grid reads `context` once, so it gets a stable function that calls the latest onShare.
   const onShareRef = useRef(onShare);
   useEffect(() => {
@@ -162,7 +167,7 @@ export default function HomeBoardGrid({ rows, onShare }: { rows: BoardRow[]; onS
   return (
     <div className="card home-grid" data-testid="home-grid">
       <AgGridReact<Row>
-        theme={theme}
+        theme={dark ? darkTheme : theme}
         rowData={rows}
         columnDefs={COLUMNS}
         pinnedBottomRowData={total}

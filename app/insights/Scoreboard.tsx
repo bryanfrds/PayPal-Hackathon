@@ -6,6 +6,7 @@ import { formatSen } from "@/lib/debts";
 import { colourIndex, initials } from "@/lib/home";
 import type { ScoreRow } from "@/lib/insights";
 import { fetchScoreRows } from "./scoreboard-data";
+import { palette } from "../components/palette";
 
 // "Who owes you" as a friendly scoreboard, not a collections report: a custom AG Studio widget.
 // It asks Studio's data engine for the owed total per customer, so page filters and
@@ -78,20 +79,18 @@ export default function Scoreboard(props: Props) {
             <span className="score-rank" aria-hidden="true">
               {index + 1}
             </span>
-            <span
-              className="score-avatar"
-              style={{ background: bg, color: fg }}
-              aria-hidden="true"
-            >
+            <span className="score-avatar" {...palette(bg, fg)} aria-hidden="true">
               {initials(row.customer)}
             </span>
             <span className="score-main">
               <span className="score-name">{row.customer}</span>
               <span className="score-track" aria-hidden="true">
                 <span
+                  data-pal=""
                   style={{
+                    ...palette(bg, fg).style,
                     width: `${top > 0 ? Math.max(6, (row.owed / top) * 100) : 0}%`,
-                    background: fg,
+                    background: "var(--pal-fg-now)",
                   }}
                 />
               </span>

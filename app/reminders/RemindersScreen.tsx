@@ -9,6 +9,7 @@ import { buildSchedule, earliestMoveDay, isDay, reminderMessage, type ScheduleIt
 import { isPayPalUrl } from "@/lib/customer-pay";
 import { colourIndex, initials } from "@/lib/home";
 import { ChatIcon } from "../components/icons";
+import { palette } from "../components/palette";
 import { useCollect } from "../useCollect";
 import { useDebts } from "../useDebts";
 import { useReminders } from "../useReminders";
@@ -186,7 +187,7 @@ export default function RemindersScreen() {
         ) : (
           <>
             <ReminderBoard items={items} today={today} wide={wide} earliest={earliest} onMove={onMove} />
-            {wide && <p className="reminder-hint">Drag a black reminder to another day to move it, or pick a new day under Coming up.</p>}
+            {wide && <p className="reminder-hint">Drag a reminder to another day to move it, or pick a new day under Coming up.</p>}
           </>
         )}
       </div>
@@ -200,7 +201,7 @@ export default function RemindersScreen() {
               const text = reminderMessage(item.customer, item.amountSen, payLinks.get(item.slug));
               return (
                 <li key={item.id} className="reminder-row">
-                  <span className="avatar" style={{ background: bg, color: fg }} aria-hidden="true">
+                  <span className="avatar" {...palette(bg, fg)} aria-hidden="true">
                     {initials(item.customer)}
                   </span>
                   <span className="reminder-main">

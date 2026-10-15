@@ -6,7 +6,7 @@ import { useState } from "react";
 import { initials } from "@/lib/home";
 import AccountSheet from "./components/AccountSheet";
 import Logo from "./components/Logo";
-import { SparkIcon } from "./components/icons";
+import { GearIcon, SparkIcon } from "./components/icons";
 import NavLinks, { type NavLink } from "./NavLinks";
 import { useShop } from "./useShop";
 
@@ -33,6 +33,11 @@ export default function SiteHeader({ links }: { links: NavLink[] }) {
           Ask Nudge
         </strong>
         <span>&ldquo;Who should I remind today?&rdquo;</span>
+      </Link>
+      {/* Laptop sidebar only. On phones Settings is reached from the account sheet. */}
+      <Link href="/settings" className="side-settings" aria-current={pathname === "/settings" ? "page" : undefined}>
+        <GearIcon />
+        Settings
       </Link>
       {/* Laptop sidebar only: who's signed in, and Sign out. On phones it's the avatar on Home. */}
       <button type="button" className="side-account" onClick={() => setAccountOpen(true)} aria-label={`Account: ${name}`}>

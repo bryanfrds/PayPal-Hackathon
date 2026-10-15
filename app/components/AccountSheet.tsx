@@ -3,21 +3,18 @@
 // Who's signed in, the shop's name, PayPal status and Sign out. Opened from the shop avatar
 // on Home (phone) or the account button in the laptop sidebar.
 
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { initials } from "@/lib/home";
 import { useShop } from "../useShop";
-import { CheckIcon, CloseIcon } from "./icons";
-
-type Me = { email: string; method: "email" | "paypal" };
+import { useSignOut, type Me } from "../useSignOut";
+import { CheckIcon, ChevronIcon, CloseIcon } from "./icons";
 
 export default function AccountSheet({ onClose }: { onClose: () => void }) {
-  const router = useRouter();
   const { name } = useShop();
   const [me, setMe] = useState<Me | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { signOut, busy, error } = useSignOut();
   const sheetRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -54,20 +51,6 @@ export default function AccountSheet({ onClose }: { onClose: () => void }) {
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
-
-  async function signOut() {
-    setBusy(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/auth/sign-out", { method: "POST" });
-      if (!res.ok) throw new Error();
-      router.replace("/sign-in");
-      router.refresh();
-    } catch {
-      setError("Couldn't sign out just now. Try again.");
-      setBusy(false);
-    }
-  }
 
   // Rendered at the end of <body>, so no sticky or layered part of a page can sit on top.
   return createPortal(
@@ -109,6 +92,10 @@ export default function AccountSheet({ onClose }: { onClose: () => void }) {
             </dd>
           </div>
         </dl>
+        <Link href="/settings" className="acct-settings" onClick={onClose}>
+          Settings
+          <ChevronIcon />
+        </Link>
         {error && (
           <p className="si-error" role="alert">
             {error}

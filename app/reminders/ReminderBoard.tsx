@@ -12,13 +12,25 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Calendar, Scheduler } from "@bryntum/calendar";
 import { formatSen } from "@/lib/debts";
 import { addDays, type ScheduleItem } from "@/lib/reminders";
+import { useResolvedTheme } from "../usePrefs";
 
 type BryntumCalendarModule = typeof import("@bryntum/calendar");
 
 const BASE = "/vendor/bryntum";
-const STYLES = ["calendar.css", "svalbard-light.css", "fontawesome/css/fontawesome.css", "fontawesome/css/solid.css"];
+// "theme" is the light or dark Svalbard sheet, swapped by setBryntumTheme when the app's theme changes.
+const STYLES = ["calendar.css", "theme", "fontawesome/css/fontawesome.css", "fontawesome/css/solid.css"];
+const THEME_SHEET = { light: "svalbard-light.css", dark: "svalbard-dark.css" } as const;
+const THEME_LINK_ID = "bryntum-theme";
+let themeSheet: string = THEME_SHEET.light;
 
 let loading: Promise<BryntumCalendarModule> | null = null;
+
+/** Points Bryntum's theme stylesheet at the light or dark sheet (now, or when it loads). */
+function setBryntumTheme(mode: keyof typeof THEME_SHEET) {
+  themeSheet = THEME_SHEET[mode];
+  const link = document.getElementById(THEME_LINK_ID) as HTMLLinkElement | null;
+  if (link) link.href = `${BASE}/${themeSheet}`;
+}
 
 /** Adds Bryntum's stylesheets and script once, and resolves with its classes. */
 function loadBryntum(): Promise<BryntumCalendarModule> {
@@ -27,7 +39,8 @@ function loadBryntum(): Promise<BryntumCalendarModule> {
     for (const href of STYLES) {
       const link = document.createElement("link");
       link.rel = "stylesheet";
-      link.href = `${BASE}/${href}`;
+      if (href === "theme") link.id = THEME_LINK_ID;
+      link.href = `${BASE}/${href === "theme" ? themeSheet : href}`;
       document.head.appendChild(link);
     }
     const script = document.createElement("script");
@@ -53,6 +66,8 @@ const COLOURS: Record<ScheduleItem["kind"], string> = {
   invoice: "#2f55c4",
   reminder: "#141414",
 };
+// Dark: reminders can't be near-black on a dark board; this grey keeps white text readable.
+const DARK_COLOURS: Record<ScheduleItem["kind"], string> = { ...COLOURS, reminder: "#5c5852" };
 
 /** Local midnight on a YYYY-MM-DD day. */
 function at(day: string): Date {
@@ -66,7 +81,8 @@ export function dayOf(date: Date): string {
   return `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}`;
 }
 
-function toEvents(items: ScheduleItem[]) {
+function toEvents(items: ScheduleItem[], dark: boolean) {
+  const colours = dark ? DARK_COLOURS : COLOURS;
   return items.map((item) => ({
     id: item.id,
     resourceId: item.slug,
@@ -75,7 +91,7 @@ function toEvents(items: ScheduleItem[]) {
     startDate: at(item.day),
     endDate: at(addDays(item.day, 1)),
     allDay: true,
-    eventColor: item.sent ? "#8a8579" : COLOURS[item.kind],
+    eventColor: item.sent ? "#8a8579" : colours[item.kind],
     // Only reminders still to go out can move; due dates, invoices and sent ones are facts.
     draggable: item.kind === "reminder" && !item.sent,
     resizable: false,
@@ -116,7 +132,8 @@ export default function ReminderBoard({ items, today, wide, earliest, onMove }: 
   const onMoveRef = useRef(onMove);
   const earliestRef = useRef(earliest);
   const [failed, setFailed] = useState(false);
-  const events = useMemo(() => toEvents(items), [items]);
+  const mode = useResolvedTheme();
+  const events = useMemo(() => toEvents(items, mode === "dark"), [items, mode]);
   const resources = useMemo(() => toResources(items), [items]);
   // The view is built once per layout and day; data changes go into its stores below.
   const latest = useRef({ events, resources });
@@ -126,6 +143,11 @@ export default function ReminderBoard({ items, today, wide, earliest, onMove }: 
     earliestRef.current = earliest;
     latest.current = { events, resources };
   });
+
+  // Before the first load too, so the right sheet is the one that loads.
+  useEffect(() => {
+    setBryntumTheme(mode);
+  }, [mode]);
 
   useEffect(() => {
     let cancelled = false;

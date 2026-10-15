@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { InvoiceRecord } from "./collect-store";
 import type { Debt } from "./debts";
 import type { InvoiceStanding } from "./payments";
-import { buildShareMessage, itemSummary, payLinkFor, plainName, unpaidItems, whatsappUrl, type ShareInput } from "./share";
+import { buildShareMessage, chooseLink, itemSummary, NO_LINK_NOTE, payLinkFor, plainName, unpaidItems, whatsappUrl, type ShareInput } from "./share";
 
 const LINK = "https://www.sandbox.paypal.com/invoice/p/#INV2-K4LN-ABCD";
 const FULL = { link: LINK, amountSen: 12800, full: true };
@@ -221,5 +221,23 @@ describe("payLinkFor", () => {
       amountSen: 1000,
       full: false,
     });
+  });
+});
+
+describe("chooseLink", () => {
+  const pay = { link: LINK, amountSen: 12800, full: true };
+
+  it("uses the link when there is one and pay links are on", () => {
+    expect(chooseLink({ pay }, true)).toEqual({ pay });
+  });
+
+  it("explains a missing link with its reason", () => {
+    expect(chooseLink({ reason: "none" }, true)).toEqual({ note: NO_LINK_NOTE.none });
+    expect(chooseLink({ reason: "settled" }, true).note).toBe("PayPal shows this invoice as paid or closed, so the message has no link.");
+  });
+
+  it("leaves the link out and says so when pay links are off in Settings", () => {
+    expect(chooseLink({ pay }, false)).toEqual({ note: "Pay links are turned off in Settings, so the message has no link." });
+    expect(chooseLink({ reason: "none" }, false).pay).toBeUndefined();
   });
 });

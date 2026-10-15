@@ -35,7 +35,7 @@ const HomeChart = dynamic(() => import("./home/HomeChart"), {
 const SHOWN_ON_PHONE = 5;
 
 const LATE_TEXT: Record<BoardRow["status"], string> = { overdue: "Overdue", sent: "Invoice sent", unpaid: "Not sent" };
-const BAR_COLOUR: Record<BoardRow["status"], string> = { overdue: "var(--danger, #c23b22)", sent: "#2f55c4", unpaid: "#8c6512" };
+const BAR_COLOUR: Record<BoardRow["status"], string> = { overdue: "var(--overdue)", sent: "var(--sent)", unpaid: "var(--unpaid)" };
 
 function lateLabel(row: BoardRow): string {
   if (row.status === "overdue" && row.daysLate > 0) return `${row.daysLate} ${row.daysLate === 1 ? "day" : "days"} late`;
