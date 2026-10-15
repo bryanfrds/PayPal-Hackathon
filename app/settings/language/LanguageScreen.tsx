@@ -6,7 +6,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useId, useState } from "react";
+import { useId, useRef, useState, type KeyboardEvent } from "react";
 import { filterLanguages, translate, type LanguageInfo } from "@/lib/i18n";
 import { BackIcon, CheckIcon, SearchIcon } from "../../components/icons";
 import { usePrefs } from "../../usePrefs";
@@ -33,7 +33,10 @@ export default function LanguageScreen() {
   const [query, setQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
   const ids = useId();
+  const listRef = useRef<HTMLDivElement>(null);
   const shown = filterLanguages(query);
+  // One radio is in the tab order: the current language, or the first shown if it's filtered out.
+  const focusable = shown.some((l) => l.code === prefs.language) ? prefs.language : shown[0]?.code;
   const groups = [
     { id: "my", title: t("language.inMalaysia"), items: shown.filter((l) => l.group === "my") },
     { id: "more", title: t("language.more"), items: shown.filter((l) => l.group === "more") },
@@ -47,6 +50,22 @@ export default function LanguageScreen() {
     // "Saved" in the language just picked, shown when Settings opens.
     flashSaved(translate(lang.code, "common.saved"));
     router.push("/settings");
+  }
+
+  // Arrow keys move between the languages (Enter or Space picks one), like a radio group.
+  function onKey(e: KeyboardEvent<HTMLDivElement>) {
+    const keys = ["ArrowDown", "ArrowRight", "ArrowUp", "ArrowLeft", "Home", "End"];
+    if (!keys.includes(e.key)) return;
+    const radios = [...(listRef.current?.querySelectorAll<HTMLButtonElement>("[role='radio']") ?? [])];
+    const at = radios.indexOf(document.activeElement as HTMLButtonElement);
+    if (radios.length === 0) return;
+    e.preventDefault();
+    let next = at;
+    if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = radios.length - 1;
+    else if (e.key === "ArrowDown" || e.key === "ArrowRight") next = (at + 1) % radios.length;
+    else next = (at - 1 + radios.length) % radios.length;
+    radios[next]?.focus();
   }
 
   return (
@@ -71,23 +90,30 @@ export default function LanguageScreen() {
         />
       </label>
 
-      <div id={`${ids}-list`}>
-        {groups.length === 0 && (
-          <p className="set-hint" role="status">
-            {t("language.noMatch", { query: query.trim() })}
-          </p>
-        )}
+      {/* Always present, so screen readers announce when nothing matches. */}
+      <p className="set-hint lang-status" role="status">
+        {groups.length === 0 ? t("language.noMatch", { query: query.trim() }) : ""}
+      </p>
+
+      <div id={`${ids}-list`} ref={listRef} role="radiogroup" aria-label={t("language.title")} onKeyDown={onKey}>
         {groups.map((g) => (
           <section key={g.id} aria-labelledby={`${ids}-${g.id}`}>
             <h2 className="set-label" id={`${ids}-${g.id}`}>
               {g.title}
             </h2>
-            <ul className="card lang-list">
+            <ul className="card lang-list" role="presentation">
               {g.items.map((l) => {
                 const on = prefs.language === l.code;
                 return (
-                  <li key={l.code}>
-                    <button type="button" className="lang-item" aria-pressed={on} onClick={() => pick(l)}>
+                  <li key={l.code} role="presentation">
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={on}
+                      tabIndex={l.code === focusable ? 0 : -1}
+                      className="lang-item"
+                      onClick={() => pick(l)}
+                    >
                       <span className="lang-glyph" aria-hidden="true" lang={l.htmlLang}>
                         {GLYPH[l.code]}
                       </span>
