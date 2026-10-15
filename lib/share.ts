@@ -185,3 +185,22 @@ export function buildShareMessage(input: ShareInput): ShareMessage {
 export function whatsappUrl(text: string): string {
   return `https://wa.me/?text=${encodeURIComponent(text)}`;
 }
+
+/** Why the message has no pay link, in words that are true for each case. */
+export const NO_LINK_NOTE: Record<NoLinkReason | "off", string> = {
+  none: "No PayPal invoice yet. Send one from Collect to add a pay link.",
+  "not-on-device": "This tab's PayPal pay link isn't on this device, so the message has no link.",
+  "over-billed": "The PayPal invoice is for more than they owe now, so the message has no link.",
+  settled: "PayPal shows this invoice as paid or closed, so the message has no link.",
+  off: "Pay links are turned off in Settings, so the message has no link.",
+};
+
+/**
+ * The link to put in the message (if any) and the note to show when there isn't one.
+ * `payLinkOn` is the owner's "Add PayPal pay link" setting.
+ */
+export function chooseLink(lookup: PayLinkLookup, payLinkOn: boolean): { pay?: PayLink; note?: string } {
+  if (!payLinkOn) return { note: NO_LINK_NOTE.off };
+  if (lookup.pay) return { pay: lookup.pay };
+  return { note: NO_LINK_NOTE[lookup.reason] };
+}
