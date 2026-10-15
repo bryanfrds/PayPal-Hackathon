@@ -1,0 +1,153 @@
+import { describe, expect, it } from "vitest";
+import type { InvoiceRecord } from "./collect-store";
+import type { Debt } from "./debts";
+import { buildShareMessage, itemSummary, payLinkFor, unpaidItems, whatsappUrl, type ShareInput } from "./share";
+
+const LINK = "https://www.sandbox.paypal.com/invoice/p/#INV2-K4LN-ABCD";
+
+const base: ShareInput = {
+  customerName: "Kak Lina",
+  shopName: "Kedai Ah Seng",
+  owedSen: 12800,
+  items: ["Milo", "gula", "beras", "minyak"],
+  tone: "friendly",
+};
+
+function debt(over: Partial<Debt>): Debt {
+  return {
+    id: "d1",
+    customerName: "Kak Lina",
+    item: "Milo",
+    amountSen: 1000,
+    date: "2026-10-02",
+    status: "unpaid",
+    source: "manual",
+    createdAt: "2026-10-02T08:00:00.000Z",
+    ...over,
+  };
+}
+
+function invoice(over: Partial<InvoiceRecord>): InvoiceRecord {
+  return {
+    id: "INV2-1",
+    customerName: "Kak Lina",
+    slug: "kak-lina",
+    email: "lina@example.com",
+    debtIds: ["d1"],
+    amountSen: 1000,
+    sentAt: "2026-10-05T08:00:00.000Z",
+    payerLink: LINK,
+    ...over,
+  };
+}
+
+describe("itemSummary", () => {
+  it("names up to three items", () => {
+    expect(itemSummary(["Milo"])).toBe("Milo");
+    expect(itemSummary(["Milo", "gula"])).toBe("Milo and gula");
+    expect(itemSummary(["Milo", "gula", "beras"])).toBe("Milo, gula and beras");
+  });
+
+  it("says how many more after three", () => {
+    expect(itemSummary(["Milo", "gula", "beras", "minyak"])).toBe("Milo, gula, beras and 1 more");
+    expect(itemSummary(["a", "b", "c", "d", "e", "f"])).toBe("a, b, c and 3 more");
+  });
+
+  it("skips blanks and is empty when there's nothing", () => {
+    expect(itemSummary([])).toBe("");
+    expect(itemSummary(["  ", ""])).toBe("");
+    expect(itemSummary([" Milo ", ""])).toBe("Milo");
+  });
+});
+
+describe("unpaidItems", () => {
+  it("lists unpaid items oldest first, without blanks, repeats or paid ones", () => {
+    const debts = [
+      debt({ id: "a", item: "gula", date: "2026-10-05" }),
+      debt({ id: "b", item: "Milo", date: "2026-10-01" }),
+      debt({ id: "c", item: "milo", date: "2026-10-06" }),
+      debt({ id: "d", item: "", date: "2026-10-07" }),
+      debt({ id: "e", item: "roti", date: "2026-09-01", status: "paid" }),
+    ];
+    expect(unpaidItems(debts)).toEqual(["Milo", "gula"]);
+  });
+});
+
+describe("buildShareMessage", () => {
+  it("friendly: greets with name and shop, shows the amount and items, ends with thanks", () => {
+    const m = buildShareMessage(base);
+    expect(m.intro).toBe(
+      "Hi Kak Lina, Kedai Ah Seng here 🙂 Just a friendly note: your tab is *RM 128.00* (Milo, gula, beras and 1 more).",
+    );
+    expect(m.text.endsWith("Terima kasih!")).toBe(true);
+  });
+
+  it("each tone has its own wording", () => {
+    const friendly = buildShareMessage({ ...base, tone: "friendly" }).text;
+    const polite = buildShareMessage({ ...base, tone: "polite" }).text;
+    const firm = buildShareMessage({ ...base, tone: "firm" }).text;
+    expect(new Set([friendly, polite, firm]).size).toBe(3);
+    expect(polite).toContain("gentle reminder");
+    expect(firm).toContain("long overdue");
+    for (const text of [friendly, polite, firm]) {
+      expect(text).toContain("Kak Lina");
+      expect(text).toContain("Kedai Ah Seng");
+      expect(text).toContain("RM 128.00");
+      expect(text).toContain("Terima kasih!");
+    }
+  });
+
+  it("adds the PayPal link when there is one", () => {
+    const m = buildShareMessage({ ...base, payLink: LINK });
+    expect(m.link).toBe(LINK);
+    expect(m.payLine).toBeTruthy();
+    expect(m.text).toBe(`${m.intro}\n\n${m.payLine} ${LINK}\n\nTerima kasih!`);
+  });
+
+  it("leaves the link out when there's none, or when it isn't a PayPal page", () => {
+    for (const payLink of [undefined, "", "https://evil.example/pay", "http://www.paypal.com/x", "/tab/kak-lina"]) {
+      const m = buildShareMessage({ ...base, payLink });
+      expect(m.link).toBeUndefined();
+      expect(m.payLine).toBeUndefined();
+      expect(m.text).toBe(`${m.intro}\n\nTerima kasih!`);
+      expect(m.text).not.toContain("http");
+    }
+  });
+
+  it("drops the brackets when no items are written", () => {
+    const m = buildShareMessage({ ...base, items: [] });
+    expect(m.intro).toContain("your tab is *RM 128.00*.");
+    expect(m.intro).not.toContain("(");
+  });
+});
+
+describe("whatsappUrl", () => {
+  it("encodes the text for wa.me, with no phone number", () => {
+    const text = "Hi Kak Lina & co 🙂 *RM 12.50*?\n\nPay: https://www.paypal.com/invoice/p/#INV2-1";
+    const url = whatsappUrl(text);
+    expect(url.startsWith("https://wa.me/?text=")).toBe(true);
+    const encoded = url.slice("https://wa.me/?text=".length);
+    expect(encoded).not.toMatch(/[\s&#?]/);
+    expect(encoded).toContain("%0A%0A");
+    expect(decodeURIComponent(encoded)).toBe(text);
+    expect(new URL(url).searchParams.get("text")).toBe(text);
+  });
+});
+
+describe("payLinkFor", () => {
+  const debts = [debt({ id: "d1" }), debt({ id: "d2", status: "paid" }), debt({ id: "x", customerName: "Mr Raj" })];
+
+  it("uses the newest invoice that still covers an unpaid debt", () => {
+    const older = invoice({ id: "old", sentAt: "2026-10-01T00:00:00.000Z", payerLink: "https://www.paypal.com/invoice/p/#OLD" });
+    const newer = invoice({ id: "new", sentAt: "2026-10-09T00:00:00.000Z" });
+    expect(payLinkFor([older, newer], debts, "kak-lina")).toBe(LINK);
+  });
+
+  it("ignores invoices for paid debts, other customers or without a PayPal link", () => {
+    expect(payLinkFor([invoice({ debtIds: ["d2"] })], debts, "kak-lina")).toBeUndefined();
+    expect(payLinkFor([invoice({ slug: "mr-raj", debtIds: ["x"] })], debts, "kak-lina")).toBeUndefined();
+    expect(payLinkFor([invoice({ payerLink: undefined })], debts, "kak-lina")).toBeUndefined();
+    expect(payLinkFor([invoice({ payerLink: "https://evil.example/" })], debts, "kak-lina")).toBeUndefined();
+    expect(payLinkFor([], debts, "kak-lina")).toBeUndefined();
+  });
+});
