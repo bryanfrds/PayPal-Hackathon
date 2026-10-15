@@ -12,7 +12,9 @@ import {
 } from "ag-grid-community";
 import { formatSen, outstanding, sortDebts, STATUS_ORDER, type Debt, type DebtStatus } from "@/lib/debts";
 import StatusBadge, { STATUS_LABEL } from "../components/StatusBadge";
+import { DARK_GRID_COLOURS } from "../components/grid-theme";
 import { CloseIcon } from "../components/icons";
+import { useResolvedTheme } from "../usePrefs";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -29,6 +31,8 @@ const ledgerTheme = themeQuartz.withParams({
   wrapperBorderRadius: 24,
   rowHoverColor: "#f7f5f1",
 });
+
+const ledgerDarkTheme = ledgerTheme.withParams({ ...DARK_GRID_COLOURS, headerBackgroundColor: "#1d1d1c" });
 
 // Narrow grids hide Item and Date; medium ones hide Date; wide ones show every column.
 // Measured on the grid itself, since the app is a phone-width column even on a laptop.
@@ -164,6 +168,7 @@ function useLayoutMode(ref: React.RefObject<HTMLElement | null>): LayoutMode {
 
 export default function LedgerGrid({ rows, onDelete }: { rows: Debt[]; onDelete: (debt: Debt) => void }) {
   const [quickFilter, setQuickFilter] = useState("");
+  const dark = useResolvedTheme() === "dark";
   const wrapperRef = useRef<HTMLDivElement>(null);
   const layout = useLayoutMode(wrapperRef);
   const sortedRows = useMemo(() => sortDebts(rows), [rows]);
@@ -229,7 +234,7 @@ export default function LedgerGrid({ rows, onDelete }: { rows: Debt[]; onDelete:
           pinnedBottomRowData={pinnedTotals}
           quickFilterText={quickFilter}
           onModelUpdated={onModelUpdated}
-          theme={ledgerTheme}
+          theme={dark ? ledgerDarkTheme : ledgerTheme}
           rowHeight={ROW_HEIGHT}
           headerHeight={HEADER_HEIGHT}
           getRowId={(params) => params.data.id}
