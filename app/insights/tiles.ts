@@ -33,8 +33,7 @@ const WIDE: Layout = {
   board: [0, 7, 6, 19],
   trend: [6, 7, 6, 19],
   late: [0, 26, 4, 16],
-  // Five 96px grid columns fit here beside Nudge's panel once the page is at its full 1180px
-  // (see TABS_COLUMN_WIDTH in studio-config.ts); a narrower laptop window scrolls the grid sideways.
+  // How many grid columns fit depends on the measured width (see tabsGridFor).
   tabs: [4, 26, 8, 16],
 };
 
@@ -67,4 +66,41 @@ export function canvasHeight(kind: LayoutKind): number {
   const layout = kind === "phone" ? PHONE : WIDE;
   const rows = Math.max(...Object.values(layout).map(([, y, , h]) => y + h));
   return rows * ROW_HEIGHT + PAGE_PADDING * 2;
+}
+
+/** Nudge's chat panel width on Insights (the theme's studioAiPanelWidth), in px. */
+export const NUDGE_PANEL_WIDTH = 340;
+
+// The "Every tab" grid. Studio gives every grid column one width (no per-column width or flex).
+// Its cells are padded by Studio's 8px spacing a side, so a 96px column leaves 80px for a value;
+// "RM 1,250.00" is about 69px in Studio's 13px Manrope.
+export const TABS_COLUMN_WIDTH = 96;
+/** Narrowest column still shown; below it the grid scrolls sideways rather than shrink further. */
+export const TABS_MIN_COLUMN_WIDTH = 72;
+/** Room kept for the grid's own vertical scrollbar where the system draws one. */
+export const GRID_SCROLLBAR = 16;
+
+export type TabsGrid = { columns: 3 | 5; columnWidth: number };
+
+/** Width of the "Every tab" tile on a Studio canvas this wide, by Studio's own track sums. */
+export function tabsTileWidth(canvasWidth: number, kind: LayoutKind): number {
+  const track = (canvasWidth - 2 * PAGE_PADDING) / COLUMNS;
+  const [x, , w] = (kind === "phone" ? PHONE : WIDE).tabs;
+  return Math.floor((x + w) * track) - Math.floor(x * track);
+}
+
+/** Room inside the "Every tab" tile for the grid itself. */
+export function tabsGridRoom(canvasWidth: number, kind: LayoutKind): number {
+  return tabsTileWidth(canvasWidth, kind) - 2 * WIDGET_PADDING;
+}
+
+/**
+ * How many columns the "Every tab" grid shows and how wide: all five at 96px when they fit
+ * beside a scrollbar, otherwise customer, amount and days late, narrowed only if 96px won't fit.
+ */
+export function tabsGridFor(canvasWidth: number, kind: LayoutKind): TabsGrid {
+  const room = tabsGridRoom(canvasWidth, kind) - GRID_SCROLLBAR;
+  if (room >= 5 * TABS_COLUMN_WIDTH) return { columns: 5, columnWidth: TABS_COLUMN_WIDTH };
+  const fitted = Math.floor(room / 3);
+  return { columns: 3, columnWidth: Math.max(TABS_MIN_COLUMN_WIDTH, Math.min(TABS_COLUMN_WIDTH, fitted)) };
 }

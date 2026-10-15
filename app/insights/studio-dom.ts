@@ -63,3 +63,39 @@ export function inertOutside(keep: Element, top: Element = document.body): () =>
     for (const el of changed) el.removeAttribute("inert");
   };
 }
+
+/**
+ * The width of the first element matching `selector` under `root`, kept up to date with a
+ * ResizeObserver, or null until it has been seen. Studio builds (and on a remount rebuilds) its
+ * own DOM, so the element is looked for again whenever `root`'s contents change; the last width
+ * is kept while it is being rebuilt.
+ */
+export function useStudioElementWidth(root: RefObject<HTMLElement | null>, selector: string, enabled = true): number | null {
+  const [width, setWidth] = useState<number | null>(null);
+
+  useEffect(() => {
+    const box = root.current;
+    if (!box || !enabled) return;
+    let watched: Element | null = null;
+    const resize = new ResizeObserver(() => {
+      if (watched) setWidth(watched.getBoundingClientRect().width);
+    });
+    const find = () => {
+      const el = box.querySelector(selector);
+      if (!el || el === watched) return;
+      if (watched) resize.unobserve(watched);
+      watched = el;
+      resize.observe(el);
+      setWidth(el.getBoundingClientRect().width);
+    };
+    find();
+    const mutations = new MutationObserver(find);
+    mutations.observe(box, { childList: true, subtree: true });
+    return () => {
+      mutations.disconnect();
+      resize.disconnect();
+    };
+  }, [root, selector, enabled]);
+
+  return width;
+}
