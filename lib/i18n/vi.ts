@@ -415,7 +415,7 @@ export const vi: Dictionary = {
   "reminders.pickLater": "Chọn {day} hoặc sau đó: không ở quá khứ, và sau lời nhắc trước.",
   "reminders.moveFailed": "Không dời được lời nhắc. Thử lại nhé.",
   "reminders.markFailed": "Không đánh dấu đã gửi được. Thử lại nhé.",
-  "reminders.intro": "Lời nhắc nhẹ nhàng cho các khoản đã có hóa đơn PayPal: {first} ngày sau khi đến hạn, rồi cứ mỗi {every}.",
+  "reminders.intro": "Lời nhắc nhẹ nhàng cho các khoản đã có hóa đơn PayPal: {first} ngày sau khi đến hạn, rồi cứ mỗi {every} ngày.",
   "reminders.introOff": "Nhắc nợ đang tắt. Bật lại trong Quy tắc.",
   "reminders.rules": "Quy tắc",
   "reminders.askNudge": "Hỏi Nudge",

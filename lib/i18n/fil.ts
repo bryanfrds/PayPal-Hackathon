@@ -422,7 +422,7 @@ export const fil: Dictionary = {
   "reminders.pickLater": "Pumili ng {day} o mas huli: hindi sa nakaraan, at pagkatapos ng naunang paalala.",
   "reminders.moveFailed": "Hindi mailipat ang paalalang iyon. Subukan ulit.",
   "reminders.markFailed": "Hindi mamarkahang na-send. Subukan ulit.",
-  "reminders.intro": "Magiliw na paalala para sa mga utang na may PayPal invoice: {first} araw pagkatapos ng due date, tapos kada {every}.",
+  "reminders.intro": "Magiliw na paalala para sa mga utang na may PayPal invoice: {first} araw pagkatapos ng due date, tapos kada {every} araw.",
   "reminders.introOff": "Naka-off ang mga paalala. I-on sa Mga patakaran.",
   "reminders.rules": "Mga patakaran",
   "reminders.askNudge": "Tanungin si Nudge",

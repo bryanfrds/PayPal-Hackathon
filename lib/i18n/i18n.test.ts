@@ -96,3 +96,16 @@ describe("languages", () => {
     expect(filterLanguages("klingon")).toEqual([]);
   });
 });
+
+describe("counts in the language's digits", () => {
+  it("writes counts in Bengali digits for Bengali, plain digits elsewhere", () => {
+    expect(translate("bn", "late.days", { count: 12 })).toContain("১২");
+    expect(translate("bn", "late.days", { count: 12 })).not.toContain("12");
+    expect(translate("en", "late.days", { count: 12 })).toBe("12 days late");
+    expect(translate("ms", "late.days", { count: 1234 })).toContain("1234");
+  });
+
+  it("leaves other numbers as passed", () => {
+    expect(translate("bn", "settings.nameTooLong", { max: 40 })).toContain("40");
+  });
+});

@@ -416,7 +416,7 @@ export const id: Dictionary = {
   "reminders.pickLater": "Pilih {day} atau setelahnya: bukan tanggal lewat, dan setelah pengingat sebelumnya.",
   "reminders.moveFailed": "Gagal memindahkan pengingat. Coba lagi.",
   "reminders.markFailed": "Gagal menandai terkirim. Coba lagi.",
-  "reminders.intro": "Pengingat ramah untuk utang yang punya invoice PayPal: {first} hari setelah jatuh tempo, lalu tiap {every}.",
+  "reminders.intro": "Pengingat ramah untuk utang yang punya invoice PayPal: {first} hari setelah jatuh tempo, lalu tiap {every} hari.",
   "reminders.introOff": "Pengingat mati. Nyalakan di Aturan.",
   "reminders.rules": "Aturan",
   "reminders.askNudge": "Tanya Nudge",

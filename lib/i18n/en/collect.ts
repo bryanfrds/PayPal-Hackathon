@@ -126,7 +126,7 @@ export const collect = {
   "reminders.pickLater": "Pick {day} or later: not in the past, and after the reminder before it.",
   "reminders.moveFailed": "Couldn't move that reminder. Try again.",
   "reminders.markFailed": "Couldn't mark it sent. Try again.",
-  "reminders.intro": "Friendly nudges for tabs with a PayPal invoice: {first} days after the bill is due, then every {every}.",
+  "reminders.intro": "Friendly nudges for tabs with a PayPal invoice: {first} days after the bill is due, then every {every} days.",
   "reminders.introOff": "Reminders are off. Turn them on in Rules.",
   "reminders.rules": "Rules",
   "reminders.askNudge": "Ask Nudge",

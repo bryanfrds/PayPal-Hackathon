@@ -36,6 +36,18 @@ function pluralForm(lang: Language, count: number): "one" | "other" {
   return rules.select(count) === "one" ? "one" : "other";
 }
 
+const countFormats = new Map<Language, Intl.NumberFormat>();
+
+/** A count in the language's own digits (Bengali ১২, the rest 12), no thousands separator. */
+function formatCount(lang: Language, n: number): string {
+  let f = countFormats.get(lang);
+  if (!f) {
+    f = new Intl.NumberFormat(languageInfo(lang).locale, { useGrouping: false, maximumFractionDigits: 0 });
+    countFormats.set(lang, f);
+  }
+  return f.format(n);
+}
+
 function lookup(lang: Language, key: string): string | undefined {
   const dict = DICTIONARIES[lang] as Record<string, string | undefined>;
   return dict[key] ?? (en as Record<string, string | undefined>)[key];
@@ -44,7 +56,8 @@ function lookup(lang: Language, key: string): string | undefined {
 /**
  * The text for `key` in `lang`, with {placeholders} filled from `vars`. A plural key picks
  * _one or _other from vars.count. Missing in `lang` → English; missing everywhere → the key.
- * Numbers in vars are shown as given (callers format them).
+ * vars.count is written in the language's digits, so counts match the dates (Bengali uses its
+ * own digits). Every other var is shown as given: amounts stay "RM 12.50", hours stay as passed.
  */
 export function translate(lang: Language, key: TKey, vars?: TVars): string {
   let text = lookup(lang, key);
@@ -53,7 +66,11 @@ export function translate(lang: Language, key: TKey, vars?: TVars): string {
   }
   if (text === undefined) return key;
   if (!vars) return text;
-  return text.replace(/\{(\w+)\}/g, (m, name: string) => (name in vars ? String(vars[name]) : m));
+  return text.replace(/\{(\w+)\}/g, (m, name: string) => {
+    if (!(name in vars)) return m;
+    const v = vars[name];
+    return name === "count" && typeof v === "number" ? formatCount(lang, v) : String(v);
+  });
 }
 
 /** A t() bound to one language. */

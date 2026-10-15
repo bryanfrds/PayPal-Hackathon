@@ -417,7 +417,7 @@ export const ms: Dictionary = {
   "reminders.pickLater": "Pilih {day} atau selepasnya: bukan tarikh lepas, dan selepas peringatan sebelumnya.",
   "reminders.moveFailed": "Tak dapat alih peringatan itu. Cuba lagi.",
   "reminders.markFailed": "Tak dapat tanda sebagai dihantar. Cuba lagi.",
-  "reminders.intro": "Peringatan mesra untuk hutang yang ada invois PayPal: {first} hari selepas tarikh akhir bil, kemudian setiap {every}.",
+  "reminders.intro": "Peringatan mesra untuk hutang yang ada invois PayPal: {first} hari selepas tarikh akhir bil, kemudian setiap {every} hari.",
   "reminders.introOff": "Peringatan dimatikan. Hidupkan dalam Peraturan.",
   "reminders.rules": "Peraturan",
   "reminders.askNudge": "Tanya Nudge",

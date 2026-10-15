@@ -422,7 +422,7 @@ export const bn: Dictionary = {
   "reminders.pickLater": "{day} বা তার পরের দিন বেছে নিন: অতীতে নয়, আর আগের রিমাইন্ডারের পরে।",
   "reminders.moveFailed": "ওই রিমাইন্ডার সরানো গেল না। আবার চেষ্টা করুন।",
   "reminders.markFailed": "পাঠানো হিসেবে চিহ্নিত করা গেল না। আবার চেষ্টা করুন।",
-  "reminders.intro": "PayPal ইনভয়েস থাকা বাকির জন্য বন্ধুত্বপূর্ণ রিমাইন্ডার: বিলের শেষ তারিখের {first} দিন পরে, তারপর প্রতি {every}।",
+  "reminders.intro": "PayPal ইনভয়েস থাকা বাকির জন্য বন্ধুত্বপূর্ণ রিমাইন্ডার: বিলের শেষ তারিখের {first} দিন পরে, তারপর প্রতি {every} দিন অন্তর।",
   "reminders.introOff": "রিমাইন্ডার বন্ধ আছে। নিয়ম-এ গিয়ে চালু করুন।",
   "reminders.rules": "নিয়ম",
   "reminders.askNudge": "Nudge-কে জিজ্ঞেস করুন",

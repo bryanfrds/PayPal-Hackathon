@@ -415,7 +415,7 @@ export const th: Dictionary = {
   "reminders.pickLater": "เลือก {day} หรือหลังจากนั้น: ไม่ใช่วันที่ผ่านมาแล้ว และหลังการเตือนครั้งก่อน",
   "reminders.moveFailed": "ย้ายการเตือนนั้นไม่ได้ ลองอีกครั้ง",
   "reminders.markFailed": "ทำเครื่องหมายว่าส่งแล้วไม่ได้ ลองอีกครั้ง",
-  "reminders.intro": "เตือนแบบเป็นมิตรสำหรับยอดค้างที่มีใบแจ้งหนี้ PayPal: {first} วันหลังบิลครบกำหนด แล้วทุก {every}",
+  "reminders.intro": "เตือนแบบเป็นมิตรสำหรับยอดค้างที่มีใบแจ้งหนี้ PayPal: {first} วันหลังบิลครบกำหนด แล้วทุก {every} วัน",
   "reminders.introOff": "ปิดการเตือนอยู่ เปิดได้ใน กฎ",
   "reminders.rules": "กฎ",
   "reminders.askNudge": "ถาม Nudge",
