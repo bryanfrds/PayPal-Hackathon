@@ -21,7 +21,8 @@ import { customerSlug, tabPath } from "@/lib/customer-tab";
 import { DebtStoreError } from "@/lib/debt-store";
 import { formatSen } from "@/lib/debts";
 import { customerSummaries } from "@/lib/home";
-import type { T } from "@/lib/i18n";
+import type { T, TKey } from "@/lib/i18n";
+import { invoiceView, type InvoiceView } from "@/lib/payments";
 import Avatar from "../components/Avatar";
 import StatusBadge from "../components/StatusBadge";
 import { BackIcon, CheckIcon, ChevronIcon, CloseIcon, MailIcon, PlusIcon, SendIcon } from "../components/icons";
@@ -33,6 +34,16 @@ import { useT } from "../useT";
 
 
 type Phase = "list" | "review" | "send";
+/** Where a sent invoice stands, from the last payment check; nothing while it simply waits. */
+const SENT_VIEW: Record<InvoiceView, TKey | undefined> = {
+  waiting: undefined,
+  processing: "collect.sent.view.processing",
+  paid: "collect.sent.view.paid",
+  cancelled: "collect.sent.view.cancelled",
+  refunded: "collect.sent.view.refunded",
+  check: "collect.sent.view.check",
+};
+
 type Tab = "toSend" | "sent" | "paid";
 
 const rm = (sen: number) => `RM ${formatSen(sen)}`;
@@ -171,6 +182,7 @@ export default function CollectFlow() {
                         {r.number
                           ? t("collect.sent.rowNumber", { number: r.number, day: formatDay(r.sentAt.slice(0, 10), { year: false }) })
                           : t("collect.sent.row", { day: formatDay(r.sentAt.slice(0, 10), { year: false }) })}
+                        {r.standing && SENT_VIEW[invoiceView(r.standing)] && ` · ${t(SENT_VIEW[invoiceView(r.standing)]!)}`}
                       </span>
                     </span>
                     <span className="tab-amt">

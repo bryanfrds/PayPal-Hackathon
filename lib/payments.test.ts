@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { InvoiceRecord } from "./collect-store";
 import type { Debt, DebtStatus } from "./debts";
-import { invoicesToCheck, invoicesToRemind, moneyToSen, noReminderReason, reconcileDebts, settlementOf, type InvoiceStanding, type Settlement } from "./payments";
+import { invoiceView, invoicesToCheck, invoicesToRemind, moneyToSen, noReminderReason, reconcileDebts, settlementOf, standingFrom, type InvoiceStanding, type Settlement } from "./payments";
 
 function debt(id: string, status: DebtStatus): Debt {
   return { id, customerName: "Mr Raj", item: "", amountSen: 500, date: "2026-10-01", status, source: "manual", createdAt: "2026-10-01T00:00:00Z" };
@@ -178,5 +178,53 @@ describe("invoicesToRemind", () => {
     const b = rec("INV-B", ["D3"], standing("open"), "2026-10-05T10:00:00Z");
     const debts = [debt("D1", "sent"), debt("D2", "sent"), debt("D3", "sent")];
     expect(invoicesToRemind(debts, [a, b])).toEqual({ "mr-raj": [b, a] });
+  });
+});
+
+describe("PayPal's newer statuses", () => {
+  it("counts paid-outside-PayPal as paid, refunded-outside as closed, and a shared link as open", () => {
+    const facts = { currency: "MYR", totalSen: 1000, dueSen: 0 };
+    expect(settlementOf({ ...facts, status: "PAID_EXTERNAL" }, 1000, "MYR")).toBe("paid");
+    expect(settlementOf({ ...facts, status: "REFUNDED_EXTERNAL" }, 1000, "MYR")).toBe("closed");
+    expect(settlementOf({ ...facts, status: "SHARED", dueSen: 1000 }, 1000, "MYR")).toBe("open");
+    expect(noReminderReason({ status: "REFUNDED_EXTERNAL" })).toBe("closed");
+  });
+
+  it("never counts paid-outside-PayPal as paid when the total changed or money is still due", () => {
+    expect(settlementOf({ status: "PAID_EXTERNAL", currency: "MYR", totalSen: 800, dueSen: 0 }, 1000, "MYR")).toBe("check");
+    expect(settlementOf({ status: "PAID_EXTERNAL", currency: "MYR", totalSen: 1000, dueSen: 300 }, 1000, "MYR")).toBe("open");
+  });
+
+  it("doesn't remind about a shared-link invoice", () => {
+    expect(noReminderReason({ status: "SHARED", dueSen: 1000 })).toBe("unknown");
+  });
+});
+
+describe("invoiceView", () => {
+  const view = (status: string, settlement: Settlement) => invoiceView({ status, settlement });
+
+  it("shows what the ledger decided, named for the owner", () => {
+    expect(view("PAID", "paid")).toBe("paid");
+    expect(view("SENT", "open")).toBe("waiting");
+    expect(view("PAYMENT_PENDING", "open")).toBe("processing");
+    expect(view("CANCELLED", "closed")).toBe("cancelled");
+    expect(view("AUTO_CANCELLED", "closed")).toBe("cancelled");
+    expect(view("REFUNDED", "closed")).toBe("refunded");
+    expect(view("REFUNDED_EXTERNAL", "closed")).toBe("refunded");
+    // The ledger keeps the debt owed, so the tracker mustn't call it cancelled.
+    expect(view("PARTIALLY_REFUNDED", "check")).toBe("check");
+    // Paid with the wrong total: not shown as paid.
+    expect(view("PAID", "check")).toBe("check");
+  });
+
+});
+
+describe("standingFrom", () => {
+  it("applies the billed amount and currency to PayPal's answer", () => {
+    const at = "2026-10-15T00:00:00Z";
+    expect(standingFrom({ ok: true, status: "PAID", currency: "MYR", totalSen: 1000, dueSen: 0 }, 1000, "MYR", at)).toMatchObject({ settlement: "paid", checkedAt: at });
+    expect(standingFrom({ ok: true, status: "PAID", currency: "MYR", totalSen: 900, dueSen: 0 }, 1000, "MYR", at)).toMatchObject({ settlement: "check" });
+    expect(standingFrom({ ok: false, error: "x" }, 1000, "MYR", at)).toBeUndefined();
+    expect(standingFrom(undefined, 1000, "MYR", at)).toBeUndefined();
   });
 });

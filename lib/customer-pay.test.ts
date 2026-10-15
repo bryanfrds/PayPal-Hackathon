@@ -65,6 +65,10 @@ describe("invoicePayState", () => {
     ["MARKED_AS_PAID", "paid"],
     ["CANCELLED", "closed"],
     ["REFUNDED", "closed"],
+    ["SHARED", "open"],
+    ["PAID_EXTERNAL", "paid"],
+    ["AUTO_CANCELLED", "closed"],
+    ["REFUNDED_EXTERNAL", "closed"],
     [undefined, "unknown"],
     ["SOMETHING_NEW", "unknown"],
   ])("%s → %s", (status, state) => {

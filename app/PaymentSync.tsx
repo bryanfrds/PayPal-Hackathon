@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { createCollectStore } from "@/lib/collect-store";
 import { browserStorage } from "@/lib/debt-store";
-import { invoicesToCheck, reconcileDebts, settlementOf, type InvoiceStanding, type StatusResult } from "@/lib/payments";
+import { invoicesToCheck, reconcileDebts, standingFrom, type InvoiceStanding, type StatusResult } from "@/lib/payments";
 import { useCollect } from "./useCollect";
 import { useDebts } from "./useDebts";
 
@@ -66,10 +66,8 @@ export default function PaymentSync() {
       const { currency, results } = (await res.json()) as { currency: string; results: Record<string, StatusResult> };
       const standings: Record<string, InvoiceStanding> = {};
       for (const record of batch) {
-        const result = results[record.id];
-        if (!result?.ok) continue;
-        const { ok: _ok, ...facts } = result;
-        standings[record.id] = { ...facts, settlement: settlementOf(facts, record.amountSen, currency), checkedAt: now };
+        const standing = standingFrom(results[record.id], record.amountSen, currency, now);
+        if (standing) standings[record.id] = standing;
       }
       if (Object.keys(standings).length > 0) setStandings(standings);
     } catch {

@@ -1,12 +1,15 @@
 "use client";
 
 // One sent invoice, tracked like a parcel: Sent, then Paid. The pay link can be copied or
-// shared on WhatsApp. PayPal's live status is read from /api/invoices/<id>.
+// shared on WhatsApp. PayPal's live answer comes from the same check the ledger uses
+// (/api/invoices/status and lib/payments.ts), so the two never disagree.
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { SHOP_ITEMS } from "@/lib/collect";
 import { isPayPalUrl } from "@/lib/customer-pay";
+import type { TKey } from "@/lib/i18n";
+import { invoiceView, standingFrom, type InvoiceStanding, type InvoiceView, type StatusResult } from "@/lib/payments";
 import { formatSen } from "@/lib/debts";
 import Avatar from "../../components/Avatar";
 import StatusBadge from "../../components/StatusBadge";
@@ -16,12 +19,32 @@ import { useDebts } from "../../useDebts";
 import { useShop } from "../../useShop";
 import { useT } from "../../useT";
 
-type Live = { state: "loading" } | { state: "ok"; status: string; payerLink?: string } | { state: "error"; message?: string; fallback: "invoice.reachFailed" | "invoice.offline" };
+type Live =
+  | { state: "loading" }
+  | { state: "ok"; standing: InvoiceStanding }
+  | { state: "error"; message?: string; fallback: "invoice.reachFailed" | "invoice.offline" };
 
-const PAID = new Set(["PAID", "MARKED_AS_PAID"]);
+// What the owner reads about the invoice, from the same view the ledger and Sent tab use.
+const VIEW_NOTE = {
+  waiting: "invoice.isWaiting",
+  processing: "invoice.isProcessing",
+  paid: "invoice.isPaid",
+  cancelled: "invoice.isCancelled",
+  refunded: "invoice.isRefunded",
+  check: "invoice.isCheck",
+} as const satisfies Record<InvoiceView, TKey>;
+
+const STEP_NOTE = {
+  waiting: "invoice.step.forPayment",
+  processing: "invoice.step.processing",
+  paid: "invoice.step.done",
+  cancelled: "invoice.step.stopped",
+  refunded: "invoice.step.stopped",
+  check: "invoice.step.check",
+} as const satisfies Record<InvoiceView, TKey>;
 
 export default function InvoiceTrack({ id }: { id: string }) {
-  const { invoices, ready } = useCollect();
+  const { invoices, ready, setStandings } = useCollect();
   const { debts } = useDebts();
   const { name: shopName } = useShop();
   const { t, formatDay } = useT();
@@ -30,15 +53,31 @@ export default function InvoiceTrack({ id }: { id: string }) {
   const [copied, setCopied] = useState<"idle" | "done" | "failed">("idle");
 
   const recordId = record?.id;
+  const billedSen = record?.amountSen;
   useEffect(() => {
-    if (!recordId) return;
+    if (!recordId || billedSen === undefined) return;
     let cancelled = false;
-    fetch(`/api/invoices/${encodeURIComponent(recordId)}`)
+    fetch("/api/invoices/status", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ids: [recordId] }),
+    })
       .then(async (res) => {
-        const data = (await res.json().catch(() => ({}))) as { status?: string; payerLink?: string; error?: string };
+        const data = (await res.json().catch(() => ({}))) as { currency?: string; results?: Record<string, StatusResult>; error?: string };
         if (cancelled) return;
-        if (!res.ok || !data.status) setLive({ state: "error", message: data.error, fallback: "invoice.reachFailed" });
-        else setLive({ state: "ok", status: data.status, payerLink: data.payerLink });
+        const result = data.results?.[recordId];
+        const standing = res.ok && data.currency ? standingFrom(result, billedSen, data.currency, new Date().toISOString()) : undefined;
+        if (!standing) {
+          setLive({ state: "error", message: data.error ?? (result && !result.ok ? result.error : undefined), fallback: "invoice.reachFailed" });
+          return;
+        }
+        setLive({ state: "ok", standing });
+        // Saved like the background check's answers, so the ledger catches up straight away.
+        try {
+          setStandings({ [recordId]: standing });
+        } catch {
+          // Not saved on this device; the background check will try again.
+        }
       })
       .catch(() => {
         if (!cancelled) setLive({ state: "error", fallback: "invoice.offline" });
@@ -46,7 +85,7 @@ export default function InvoiceTrack({ id }: { id: string }) {
     return () => {
       cancelled = true;
     };
-  }, [recordId]);
+  }, [recordId, billedSen, setStandings]);
 
   if (!ready) {
     return (
@@ -73,8 +112,12 @@ export default function InvoiceTrack({ id }: { id: string }) {
     );
   }
 
-  const paid = live.state === "ok" && PAID.has(live.status);
-  const payerLink = [live.state === "ok" ? live.payerLink : undefined, record.payerLink].find(isPayPalUrl);
+  // PayPal's answer now, or what the last check on this device found.
+  const standing = live.state === "ok" ? live.standing : record.standing;
+  const view = standing ? invoiceView(standing) : "waiting";
+  const paid = view === "paid";
+  const closed = view === "cancelled" || view === "refunded";
+  const payerLink = isPayPalUrl(record.payerLink) ? record.payerLink : undefined;
   const items = debts.filter((d) => record.debtIds.includes(d.id));
   const sentDay = formatDay(record.sentAt.slice(0, 10));
   const sentDayShort = formatDay(record.sentAt.slice(0, 10), { year: false });
@@ -107,7 +150,8 @@ export default function InvoiceTrack({ id }: { id: string }) {
             <span className="tab-name">{record.customerName}</span>
             <span className="tab-item">{record.email}</span>
           </span>
-          <StatusBadge status={paid ? "paid" : "sent"} />
+          {/* A cancelled invoice's tab is owed again and back on the To send list. */}
+          <StatusBadge status={paid ? "paid" : closed ? "unpaid" : "sent"} />
         </div>
         <p className="track-big">
           <small>RM</small>
@@ -123,12 +167,12 @@ export default function InvoiceTrack({ id }: { id: string }) {
             {t("invoice.step.sent")}
             <small>{sentDayShort}</small>
           </li>
-          <li className={paid ? "done" : "now"}>
+          <li className={paid ? "done" : closed ? undefined : "now"}>
             <span aria-hidden="true">
               <ClockIcon />
             </span>
             {t("invoice.step.waiting")}
-            <small>{paid ? t("invoice.step.done") : t("invoice.step.forPayment")}</small>
+            <small>{t(STEP_NOTE[view])}</small>
           </li>
           <li className={paid ? "done" : undefined}>
             <span aria-hidden="true">
@@ -139,17 +183,12 @@ export default function InvoiceTrack({ id }: { id: string }) {
           </li>
         </ol>
         <p className="tab-note" role="status">
-          {live.state === "loading"
-            ? t("invoice.checking")
-            : live.state === "error"
-              ? t("invoice.errorFallback", { message: live.message ?? t(live.fallback) })
-              : paid
-                ? t("invoice.isPaid")
-                : t("invoice.isWaiting")}
+          {live.state === "loading" ? t("invoice.checking") : live.state === "error" ? `${t("invoice.errorFallback", { message: live.message ?? t(live.fallback) })} ${t(VIEW_NOTE[view])}` : t(VIEW_NOTE[view])}
         </p>
       </section>
 
-      {payerLink && (
+      {/* No pay link to share once PayPal has cancelled or refunded the invoice. */}
+      {payerLink && !closed && (
         <div className="track-actions">
           <button type="button" onClick={copy}>
             <span aria-hidden="true">

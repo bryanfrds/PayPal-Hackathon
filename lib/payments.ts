@@ -28,6 +28,29 @@ export type StatusResult = ({ ok: true } & InvoiceFacts) | { ok: false; error: s
  */
 export type Settlement = "paid" | "open" | "closed" | "check";
 
+/** How an invoice is shown to the owner. Derived from the same standing the ledger uses, so they agree. */
+export type InvoiceView = "waiting" | "processing" | "paid" | "cancelled" | "refunded" | "check";
+
+export function invoiceView(standing: Pick<InvoiceStanding, "status" | "settlement">): InvoiceView {
+  switch (standing.settlement) {
+    case "paid":
+      return "paid";
+    case "closed":
+      return standing.status.includes("REFUND") ? "refunded" : "cancelled";
+    case "check":
+      return "check";
+    case "open":
+      return standing.status === "PAYMENT_PENDING" ? "processing" : "waiting";
+  }
+}
+
+/** What one /api/invoices/status answer means for an invoice we billed, or undefined if PayPal didn't say. */
+export function standingFrom(result: StatusResult | undefined, billedSen: number, currency: string, checkedAt: string): InvoiceStanding | undefined {
+  if (!result?.ok) return undefined;
+  const { ok: _ok, ...facts } = result;
+  return { ...facts, settlement: settlementOf(facts, billedSen, currency), checkedAt };
+}
+
 /** What the device last learned from PayPal about an invoice. */
 export type InvoiceStanding = InvoiceFacts & {
   settlement: Settlement;
@@ -35,9 +58,11 @@ export type InvoiceStanding = InvoiceFacts & {
   checkedAt: string;
 };
 
-const PAID = new Set(["PAID", "MARKED_AS_PAID"]);
-const OPEN = new Set(["DRAFT", "SCHEDULED", "SENT", "UNPAID", "PAYMENT_PENDING", "PARTIALLY_PAID"]);
-const CLOSED = new Set(["CANCELLED", "AUTO_CANCELLED", "REFUNDED", "MARKED_AS_REFUNDED"]);
+// PAID_EXTERNAL and REFUNDED_EXTERNAL: the owner recorded on PayPal that it was paid or refunded
+// some other way (cash, bank transfer). SHARED: sent as a link rather than by PayPal's email.
+const PAID = new Set(["PAID", "MARKED_AS_PAID", "PAID_EXTERNAL"]);
+const OPEN = new Set(["DRAFT", "SCHEDULED", "SENT", "SHARED", "UNPAID", "PAYMENT_PENDING", "PARTIALLY_PAID"]);
+const CLOSED = new Set(["CANCELLED", "AUTO_CANCELLED", "REFUNDED", "MARKED_AS_REFUNDED", "REFUNDED_EXTERNAL"]);
 
 /** A paid invoice can still be refunded, so it's asked about again, but only this often. */
 export const PAID_RECHECK_MS = 60 * 60 * 1000;
@@ -78,11 +103,12 @@ export function settlementOf(facts: InvoiceFacts, billedSen: number, currency: s
 export type NoReminder = "paid" | "closed" | "pending" | "unknown";
 
 // Still owed and waiting on the customer. PAYMENT_PENDING is excluded: their payment is on its way.
+// SHARED is left out: we never make shared-link invoices, and PayPal's remind may not apply to them.
 const REMINDABLE = new Set(["SENT", "UNPAID", "PARTIALLY_PAID"]);
 
 /** Whether PayPal should email this invoice's customer a reminder now. */
 export function noReminderReason(facts: InvoiceFacts): NoReminder | null {
-  if (PAID.has(facts.status) || facts.status === "PAID_EXTERNAL") return "paid";
+  if (PAID.has(facts.status)) return "paid";
   if (CLOSED.has(facts.status)) return "closed";
   if (facts.status === "PAYMENT_PENDING") return "pending";
   if (!REMINDABLE.has(facts.status)) return "unknown";
