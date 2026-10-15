@@ -279,6 +279,13 @@ describe("messages in every language", () => {
     }
   });
 
+  it("only Malay signs off with Terima kasih", () => {
+    expect(buildShareMessage({ ...base, language: "ms" }).closing).toBe("Terima kasih!");
+    for (const language of LANGS.filter((l) => l !== "ms")) {
+      expect(buildShareMessage({ ...base, language }).closing).not.toBe("Terima kasih!");
+    }
+  });
+
   it("names the items with the language's own 'and N more'", () => {
     const t = translator("ms");
     const list = ["a", "b", "c"].join(translate("ms", "msg.items.sep"));
