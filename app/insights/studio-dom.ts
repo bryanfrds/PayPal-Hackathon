@@ -64,37 +64,77 @@ export function inertOutside(keep: Element, top: Element = document.body): () =>
   };
 }
 
+type Observers = {
+  ResizeObserver: typeof ResizeObserver;
+  MutationObserver: typeof MutationObserver;
+  setTimeout: (run: () => void, ms: number) => unknown;
+  clearTimeout: (handle: unknown) => void;
+};
+
 /**
- * The width of the first element matching `selector` under `root`, kept up to date with a
- * ResizeObserver, or null until it has been seen. Studio builds (and on a remount rebuilds) its
- * own DOM, so the element is looked for again whenever `root`'s contents change; the last width
- * is kept while it is being rebuilt.
+ * Reports the width of the first element matching `selector` under `box`: the first width at
+ * once, later ones after `settleMs` without a further change. Studio builds its DOM itself and
+ * rebuilds it on a remount (asynchronously), so only a connected element with a real width is
+ * read: the old element, removed or collapsed mid-rebuild, never reports 0. While the element is
+ * connected, DOM changes are ignored; once it's gone, the next DOM change looks for the new one.
+ * Returns the cleanup.
  */
+export function watchElementWidth(
+  box: ParentNode & Node,
+  selector: string,
+  onWidth: (width: number) => void,
+  settleMs = 150,
+  given?: Observers,
+): () => void {
+  // Tests pass fakes; the browser's own are only looked up here, never during server rendering.
+  const env: Observers = given ?? {
+    ResizeObserver,
+    MutationObserver,
+    setTimeout: (run, ms) => setTimeout(run, ms),
+    clearTimeout: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
+  };
+  let watched: Element | null = null;
+  let reported = false;
+  let timer: unknown;
+  const read = () => {
+    if (!watched?.isConnected) return;
+    const width = watched.getBoundingClientRect().width;
+    if (!(width > 0)) return;
+    env.clearTimeout(timer);
+    if (!reported) {
+      reported = true;
+      onWidth(width);
+      return;
+    }
+    timer = env.setTimeout(() => onWidth(width), settleMs);
+  };
+  const resize = new env.ResizeObserver(read);
+  const find = () => {
+    if (watched?.isConnected) return;
+    if (watched) resize.unobserve(watched);
+    watched = box.querySelector(selector);
+    if (!watched) return;
+    resize.observe(watched);
+    read();
+  };
+  find();
+  const mutations = new env.MutationObserver(find);
+  mutations.observe(box, { childList: true, subtree: true });
+  return () => {
+    mutations.disconnect();
+    resize.disconnect();
+    env.clearTimeout(timer);
+  };
+}
+
+/** watchElementWidth as React state: null until the element has been seen with a width. */
 export function useStudioElementWidth(root: RefObject<HTMLElement | null>, selector: string, enabled = true): number | null {
   const [width, setWidth] = useState<number | null>(null);
 
   useEffect(() => {
     const box = root.current;
     if (!box || !enabled) return;
-    let watched: Element | null = null;
-    const resize = new ResizeObserver(() => {
-      if (watched) setWidth(watched.getBoundingClientRect().width);
-    });
-    const find = () => {
-      const el = box.querySelector(selector);
-      if (!el || el === watched) return;
-      if (watched) resize.unobserve(watched);
-      watched = el;
-      resize.observe(el);
-      setWidth(el.getBoundingClientRect().width);
-    };
-    find();
-    const mutations = new MutationObserver(find);
-    mutations.observe(box, { childList: true, subtree: true });
-    return () => {
-      mutations.disconnect();
-      resize.disconnect();
-    };
+    return watchElementWidth(box, selector, setWidth);
   }, [root, selector, enabled]);
 
   return width;

@@ -75,8 +75,12 @@ export const NUDGE_PANEL_WIDTH = 340;
 // Its cells are padded by Studio's 8px spacing a side, so a 96px column leaves 80px for a value;
 // "RM 1,250.00" is about 69px in Studio's 13px Manrope.
 export const TABS_COLUMN_WIDTH = 96;
-/** Narrowest column still shown; below it the grid scrolls sideways rather than shrink further. */
-export const TABS_MIN_COLUMN_WIDTH = 72;
+/**
+ * Widths the three-column grid may use, widest first. Coarse steps, so dragging a window or
+ * Nudge's divider only changes the grid (and remounts Studio) at a few points. The narrowest,
+ * 85px, still leaves 69px for "RM 1,250.00"; with less room the grid scrolls sideways instead.
+ */
+export const TABS_NARROW_WIDTHS = [TABS_COLUMN_WIDTH, 90, 85] as const;
 /** Room kept for the grid's own vertical scrollbar where the system draws one. */
 export const GRID_SCROLLBAR = 16;
 
@@ -96,11 +100,11 @@ export function tabsGridRoom(canvasWidth: number, kind: LayoutKind): number {
 
 /**
  * How many columns the "Every tab" grid shows and how wide: all five at 96px when they fit
- * beside a scrollbar, otherwise customer, amount and days late, narrowed only if 96px won't fit.
+ * beside a scrollbar, otherwise customer, amount and days late at the widest step that fits.
  */
 export function tabsGridFor(canvasWidth: number, kind: LayoutKind): TabsGrid {
   const room = tabsGridRoom(canvasWidth, kind) - GRID_SCROLLBAR;
   if (room >= 5 * TABS_COLUMN_WIDTH) return { columns: 5, columnWidth: TABS_COLUMN_WIDTH };
-  const fitted = Math.floor(room / 3);
-  return { columns: 3, columnWidth: Math.max(TABS_MIN_COLUMN_WIDTH, Math.min(TABS_COLUMN_WIDTH, fitted)) };
+  const step = TABS_NARROW_WIDTHS.find((width) => 3 * width <= room);
+  return { columns: 3, columnWidth: step ?? TABS_NARROW_WIDTHS[TABS_NARROW_WIDTHS.length - 1] };
 }
