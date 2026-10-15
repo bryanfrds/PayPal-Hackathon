@@ -1,16 +1,17 @@
 "use client";
 
 // "Who owes you" on a laptop: an AG Grid table, sortable, with the next step on each row
-// (Remind, Invoice or View). Same theme as the ledger's grid.
+// (Remind, Invoice or View) and a WhatsApp share button. Same theme as the ledger's grid.
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { AgGridReact, type CustomCellRendererProps } from "ag-grid-react";
 import { AllCommunityModule, ModuleRegistry, themeQuartz, type ColDef } from "ag-grid-community";
 import { tabPath } from "@/lib/customer-tab";
 import { formatSen } from "@/lib/debts";
 import type { BoardRow } from "@/lib/home";
 import Avatar from "../components/Avatar";
+import { ShareButton } from "../components/ShareButton";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -32,6 +33,8 @@ const theme = themeQuartz.withParams({
 const STATUS_TEXT: Record<BoardRow["status"], string> = { overdue: "Overdue", sent: "Invoice sent", unpaid: "Not sent" };
 const STATUS_ORDER: Record<BoardRow["status"], number> = { overdue: 0, sent: 1, unpaid: 2 };
 const BAR: Record<BoardRow["status"], string> = { overdue: "#c23b22", sent: "#2f55c4", unpaid: "#8c6512" };
+
+type ShareContext = { onShare: (slug: string, button: HTMLButtonElement) => void };
 
 type Row = BoardRow | (Partial<BoardRow> & { total: true; count: number });
 
@@ -62,8 +65,17 @@ function StatusCell({ data }: CustomCellRendererProps<Row>) {
 }
 
 /** The next step for this customer: invoice first if nothing's been sent, then remind once late. */
-function ActionCell({ data }: CustomCellRendererProps<Row>) {
+function ActionCell({ data, context }: CustomCellRendererProps<Row, unknown, ShareContext>) {
   if (!data || isTotal(data)) return null;
+  return (
+    <span className="hg-acts">
+      <NextStep row={data} />
+      <ShareButton customerName={data.customerName} className="wa-btn-sm" onOpen={(button) => context.onShare(data.slug, button)} />
+    </span>
+  );
+}
+
+function NextStep({ row: data }: { row: BoardRow }) {
   if (!data.invoiced) {
     return (
       <Link href="/collect" className="hg-act" aria-label={`Send ${data.customerName} a PayPal invoice`}>
@@ -107,10 +119,16 @@ const COLUMNS: ColDef<Row>[] = [
   },
   { headerName: "Days late", field: "daysLate", flex: 0.6, minWidth: 96, headerTooltip: "Days past the bill's due date", type: "rightAligned" },
   // Named for screen readers; the label is hidden on screen.
-  { headerName: "Next step", headerClass: "hg-hidden-header", colId: "next", width: 116, minWidth: 116, maxWidth: 116, sortable: false, cellRenderer: ActionCell },
+  { headerName: "Next step", headerClass: "hg-hidden-header", colId: "next", width: 156, minWidth: 156, maxWidth: 156, sortable: false, cellRenderer: ActionCell },
 ];
 
-export default function HomeBoardGrid({ rows }: { rows: BoardRow[] }) {
+export default function HomeBoardGrid({ rows, onShare }: { rows: BoardRow[]; onShare: ShareContext["onShare"] }) {
+  // AG Grid reads `context` once, so it gets a stable function that calls the latest onShare.
+  const onShareRef = useRef(onShare);
+  useEffect(() => {
+    onShareRef.current = onShare;
+  });
+  const context = useMemo<ShareContext>(() => ({ onShare: (slug, button) => onShareRef.current(slug, button) }), []);
   const total = useMemo<Row[]>(
     () => [{ total: true, count: rows.length, owedSen: rows.reduce((sum, r) => sum + r.owedSen, 0) }],
     [rows],
@@ -124,6 +142,7 @@ export default function HomeBoardGrid({ rows }: { rows: BoardRow[] }) {
         pinnedBottomRowData={total}
         defaultColDef={{ sortable: true, resizable: false, suppressMovable: true }}
         domLayout="autoHeight"
+        context={context}
         getRowId={(p) => (isTotal(p.data) ? "total" : p.data.slug)}
         suppressCellFocus
       />
