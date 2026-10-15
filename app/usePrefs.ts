@@ -5,6 +5,7 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 import { browserStorage } from "@/lib/debt-store";
+import { languageInfo } from "@/lib/i18n/languages";
 import { DEFAULT_PREFS, PREFS_KEY, readPrefs, resolveTheme, writePrefs, type Prefs, type Theme } from "@/lib/preferences";
 
 let cached: Prefs | undefined;
@@ -15,9 +16,11 @@ function snapshot(): Prefs {
   return cached;
 }
 
-/** Puts the theme choice on <html>, where globals.css picks it up. */
+/** Puts the theme choice and language on <html>: globals.css reads data-theme, screen readers read lang. */
 export function applyTheme(prefs: Prefs) {
-  if (typeof document !== "undefined") document.documentElement.setAttribute("data-theme", prefs.theme);
+  if (typeof document === "undefined") return;
+  document.documentElement.setAttribute("data-theme", prefs.theme);
+  document.documentElement.setAttribute("lang", languageInfo(prefs.language).htmlLang);
 }
 
 function changed() {

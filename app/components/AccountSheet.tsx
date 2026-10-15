@@ -9,10 +9,12 @@ import { createPortal } from "react-dom";
 import { initials } from "@/lib/home";
 import { useShop } from "../useShop";
 import { useSignOut, type Me } from "../useSignOut";
+import { useT } from "../useT";
 import { CheckIcon, ChevronIcon, CloseIcon } from "./icons";
 
 export default function AccountSheet({ onClose }: { onClose: () => void }) {
   const { name } = useShop();
+  const { t } = useT();
   const [me, setMe] = useState<Me | null>(null);
   const { signOut, busy, error } = useSignOut();
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -63,7 +65,7 @@ export default function AccountSheet({ onClose }: { onClose: () => void }) {
         aria-labelledby="acct-title"
         onClick={(e) => e.stopPropagation()}
       >
-        <button type="button" className="acct-close" aria-label="Close" onClick={onClose}>
+        <button type="button" className="acct-close" aria-label={t("common.close")} onClick={onClose}>
           <CloseIcon />
         </button>
         <div className="acct-who">
@@ -77,23 +79,23 @@ export default function AccountSheet({ onClose }: { onClose: () => void }) {
         </div>
         <dl className="acct-rows">
           <div>
-            <dt>Shop name</dt>
+            <dt>{t("account.shopName")}</dt>
             <dd>{name}</dd>
           </div>
           <div>
-            <dt>Signed in with</dt>
-            <dd>{me ? (me.method === "paypal" ? "PayPal" : "Email code") : "…"}</dd>
+            <dt>{t("account.signedInWith")}</dt>
+            <dd>{me ? (me.method === "paypal" ? "PayPal" : t("account.emailCode")) : "…"}</dd>
           </div>
           <div>
-            <dt>PayPal invoices</dt>
+            <dt>{t("account.paypalInvoices")}</dt>
             <dd className="acct-ok">
               <CheckIcon />
-              Sandbox
+              {t("account.sandbox")}
             </dd>
           </div>
         </dl>
         <Link href="/settings" className="acct-settings" onClick={onClose}>
-          Settings
+          {t("nav.settings")}
           <ChevronIcon />
         </Link>
         {error && (
@@ -102,7 +104,7 @@ export default function AccountSheet({ onClose }: { onClose: () => void }) {
           </p>
         )}
         <button type="button" className="acct-signout" onClick={signOut} disabled={busy}>
-          {busy ? "Signing out…" : "Sign out"}
+          {busy ? t("account.signingOut") : t("account.signOut")}
         </button>
       </div>
     </div>,

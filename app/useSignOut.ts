@@ -4,9 +4,11 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
+import { useT } from "./useT";
 
 export function useSignOut() {
   const router = useRouter();
+  const { t } = useT();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,10 +21,10 @@ export function useSignOut() {
       router.replace("/sign-in");
       router.refresh();
     } catch {
-      setError("Couldn't sign out just now. Try again.");
+      setError(t("account.signOutFailed"));
       setBusy(false);
     }
-  }, [router]);
+  }, [router, t]);
 
   return { signOut, busy, error };
 }

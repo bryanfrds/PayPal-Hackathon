@@ -5,11 +5,25 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 import { browserStorage } from "@/lib/debt-store";
+import type { T } from "@/lib/i18n";
 
 export const SHOP_KEY = "buku.shop.v1";
 export const SHOP_TYPES = ["Kedai runcit", "Kopitiam", "Mamak", "Pasar stall", "Other"] as const;
 export type ShopType = (typeof SHOP_TYPES)[number];
 export type Shop = { name: string; type: ShopType };
+
+/** Shop types are saved as typed (Malaysian names); only what's shown is translated. */
+const SHOP_TYPE_KEY = {
+  "Kedai runcit": "settings.shopType.kedai",
+  Kopitiam: "settings.shopType.kopitiam",
+  Mamak: "settings.shopType.mamak",
+  "Pasar stall": "settings.shopType.pasar",
+  Other: "settings.shopType.other",
+} as const satisfies Record<ShopType, string>;
+
+export function shopTypeLabel(type: ShopType, t: T): string {
+  return t(SHOP_TYPE_KEY[type]);
+}
 
 /** Shown until the owner names their shop (and in the demo data). */
 export const DEFAULT_SHOP_NAME = "Kedai Ah Seng";

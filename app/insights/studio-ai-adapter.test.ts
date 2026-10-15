@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AgAiEvent, AgLlmRequest } from "ag-studio";
 import { wireLine } from "@/lib/studio-ai-wire";
+import { translate, translator } from "@/lib/i18n";
 import { runTurn } from "./studio-ai-adapter";
 
 const REQUEST: AgLlmRequest = {
@@ -90,5 +91,17 @@ describe("runTurn", () => {
     for await (const _event of handler.stream) break;
     expect(cancelled).toHaveBeenCalled();
     expect((await handler.complete).status).toBe("cancelled");
+  });
+});
+
+describe("runTurn in the owner's language", () => {
+  it("words its own errors in the language it's given", async () => {
+    const t = translator("ms");
+    const busy = async () => new Response("rate limited", { status: 429 });
+    expect((await drain(runTurn(REQUEST, {}, busy as unknown as typeof fetch, t))).response.error?.message).toBe(translate("ms", "nudge.error.busy"));
+    const offline = async () => {
+      throw new TypeError("Failed to fetch");
+    };
+    expect((await drain(runTurn(REQUEST, {}, offline as unknown as typeof fetch, t))).response.error?.message).toBe(translate("ms", "nudge.error.network"));
   });
 });

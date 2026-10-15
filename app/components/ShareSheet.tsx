@@ -8,13 +8,15 @@
 
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { customerSlug, formatDay } from "@/lib/customer-tab";
+import { customerSlug } from "@/lib/customer-tab";
 import { formatSen, todayLocal } from "@/lib/debts";
 import { lateLabel, owedBoard } from "@/lib/home";
+import { languageInfo, LANGUAGES, translate, type Language } from "@/lib/i18n";
 import { buildShareMessage, chooseLink, payLinkFor, TONES, unpaidItems, whatsappUrl, type Tone } from "@/lib/share";
 import { useCollect } from "../useCollect";
 import { useDebts } from "../useDebts";
 import { usePrefs } from "../usePrefs";
+import { useT } from "../useT";
 import { useShop } from "../useShop";
 import Avatar from "./Avatar";
 import { ChatIcon, CloseIcon, CopyIcon, LinkIcon } from "./icons";
@@ -38,8 +40,10 @@ export default function ShareSheet({
   const { invoices } = useCollect();
   const { name: shopName } = useShop();
   const { prefs } = usePrefs();
-  // Starts on the owner's default tone from Settings.
+  const { t, lang, formatDay } = useT();
+  // Starts on the owner's default tone from Settings, and in the app's language.
   const [tone, setTone] = useState<Tone>(prefs.defaultTone);
+  const [msgLang, setMsgLang] = useState<Language>(lang);
   const [copied, setCopied] = useState<"idle" | "done" | "failed">("idle");
   const sheetRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
@@ -48,10 +52,10 @@ export default function ShareSheet({
   const row = useMemo(() => owedBoard(debts, today).find((r) => r.slug === slug), [debts, today, slug]);
   const mine = useMemo(() => debts.filter((d) => d.status !== "paid" && customerSlug(d.customerName) === slug), [debts, slug]);
   const lookup = useMemo(() => payLinkFor(invoices, debts, slug), [invoices, debts, slug]);
-  const { pay, note } = chooseLink(lookup, prefs.payLink);
+  const { pay, note } = chooseLink(lookup, prefs.payLink, t);
   const since = mine.reduce((min, d) => (d.date < min ? d.date : min), mine[0]?.date ?? today);
   const message = row
-    ? buildShareMessage({ customerName: row.customerName, shopName, owedSen: row.owedSen, items: unpaidItems(mine), tone, pay })
+    ? buildShareMessage({ customerName: row.customerName, shopName, owedSen: row.owedSen, items: unpaidItems(mine), tone, pay, language: msgLang })
     : null;
 
   // Focus moves in, stays in, Escape closes, and focus goes back to the opener afterwards.
@@ -69,7 +73,7 @@ export default function ShareSheet({
         return;
       }
       if (e.key !== "Tab" || !sheet) return;
-      const items = [...sheet.querySelectorAll<HTMLElement>("button, a[href]")].filter((el) => !el.hasAttribute("disabled"));
+      const items = [...sheet.querySelectorAll<HTMLElement>("button, a[href], select")].filter((el) => !el.hasAttribute("disabled"));
       const first = items[0];
       const last = items[items.length - 1];
       if (!sheet.contains(document.activeElement)) {
@@ -125,7 +129,7 @@ export default function ShareSheet({
         onClick={(e) => e.stopPropagation()}
       >
         <span className="share-grab" aria-hidden="true" />
-        <button type="button" className="share-close" aria-label="Close" onClick={onClose}>
+        <button type="button" className="share-close" aria-label={t("common.close")} onClick={onClose}>
           <CloseIcon />
         </button>
 
@@ -133,16 +137,16 @@ export default function ShareSheet({
           <Avatar name={row.customerName} />
           <div className="share-who-main">
             <h2 id={titleId}>
-              <span className="visually-hidden">Send on WhatsApp to </span>
+              <span className="visually-hidden">{t("share.title")} </span>
               {row.customerName}
             </h2>
             <p>
-              {mine.length} {mine.length === 1 ? "item" : "items"} since {formatDay(since).replace(/ \d{4}$/, "")}
+              {t("share.items", { count: mine.length, date: formatDay(since, { year: false }) })}
             </p>
           </div>
           <div className="share-owed">
             <b>RM {formatSen(row.owedSen)}</b>
-            <span className={late ? "share-late" : undefined}>{lateLabel(row)}</span>
+            <span className={late ? "share-late" : undefined}>{lateLabel(row, t)}</span>
           </div>
         </div>
 
@@ -151,11 +155,11 @@ export default function ShareSheet({
             <Avatar name={row.customerName} className="avatar share-preview-av" />
             <span>
               {row.customerName}
-              <small>Preview of your message</small>
+              <small>{t("share.preview")}</small>
             </span>
           </figcaption>
           <div className="share-preview-body">
-            <div className="share-bubble">
+            <div className="share-bubble" lang={languageInfo(msgLang).htmlLang}>
               <p>{withBold(message.intro)}</p>
               {message.link && (
                 <p>
@@ -166,7 +170,7 @@ export default function ShareSheet({
                     </span>
                     <span>
                       {/* The invoice's own amount: it can be less than the whole tab. */}
-                      <b>Pay RM {formatSen(message.linkSen ?? 0)} with PayPal</b>
+                      <b>{translate(msgLang, "msg.payCard", { amount: `RM ${formatSen(message.linkSen ?? 0)}` })}</b>
                       <small>{message.link.replace(/^https:\/\//, "")}</small>
                     </span>
                   </span>
@@ -179,37 +183,50 @@ export default function ShareSheet({
 
         {!message.link && note && <p className="share-note">{note}</p>}
 
-        <p className="share-label" id={`${titleId}-tone`}>
-          Tone
-        </p>
+        <div className="share-label-row">
+          <p className="share-label" id={`${titleId}-tone`}>
+            {t("share.tone")}
+          </p>
+          {/* The message can go out in another language than the app's. */}
+          <label className="share-lang">
+            <span className="visually-hidden">{t("share.messageLanguage")}</span>
+            <select value={msgLang} onChange={(e) => { setMsgLang(e.target.value as Language); setCopied("idle"); }}>
+              {LANGUAGES.map((l) => (
+                <option key={l.code} value={l.code}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
         <div className="share-tones" role="group" aria-labelledby={`${titleId}-tone`}>
-          {TONES.map((t) => (
+          {TONES.map((tn) => (
             <button
-              key={t.id}
+              key={tn.id}
               type="button"
               className="share-tone"
-              aria-pressed={tone === t.id}
-              onClick={() => pickTone(t.id)}
+              aria-pressed={tone === tn.id}
+              onClick={() => pickTone(tn.id)}
             >
-              <span aria-hidden="true">{t.emoji} </span>
-              {t.label}
-              <small>{t.hint}</small>
+              <span aria-hidden="true">{tn.emoji} </span>
+              {t(`tone.${tn.id}`)}
+              <small>{t(`tone.${tn.id}.hint`)}</small>
             </button>
           ))}
         </div>
 
         <div className="share-btns">
-          <button type="button" className="share-copy" onClick={copy} aria-label="Copy message">
+          <button type="button" className="share-copy" onClick={copy} aria-label={t("share.copy")}>
             <CopyIcon />
-            {copied !== "idle" && <span>{copied === "done" ? "Copied" : "Couldn't copy"}</span>}
+            {copied !== "idle" && <span>{copied === "done" ? t("share.copied") : t("share.copyFailed")}</span>}
           </button>
           <a className="share-send" href={whatsappUrl(message.text)} target="_blank" rel="noopener noreferrer">
             <ChatIcon />
-            Send on WhatsApp
+            {t("share.send")}
           </a>
         </div>
         <p className="visually-hidden" role="status">
-          {copied === "done" ? "Message copied" : copied === "failed" ? "Couldn't copy the message" : ""}
+          {copied === "done" ? t("share.copiedStatus") : copied === "failed" ? t("share.copyFailedStatus") : ""}
         </p>
       </div>
     </div>,

@@ -23,4 +23,11 @@ for (const file of ["calendar.umd.js", "calendar.css", "svalbard-light.css", "sv
 // The theme's icons: css/ points at ../webfonts/.
 cpSync(join(from, "fontawesome", "css"), join(to, "fontawesome", "css"), { recursive: true });
 cpSync(join(from, "fontawesome", "webfonts"), join(to, "fontawesome", "webfonts"), { recursive: true });
+// Bryntum's own words in the app's languages it ships (ReminderBoard loads the one it needs).
+// Tamil, Filipino and Bengali have no Bryntum locale, so those stay English.
+mkdirSync(join(to, "locales"), { recursive: true });
+for (const name of ["Ms", "ZhCn", "Id", "Th", "Vi"]) {
+  const file = `calendar.locale.${name}.js`;
+  cpSync(join(from, "locales", file), join(to, "locales", file));
+}
 console.log("copy-bryntum: copied to public/vendor/bryntum");

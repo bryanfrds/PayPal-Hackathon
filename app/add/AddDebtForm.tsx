@@ -16,8 +16,21 @@ import {
   type DebtInput,
 } from "@/lib/debts";
 import { useDebts } from "../useDebts";
+import { useT } from "../useT";
+
+/** The page heading and intro, in the owner's language. */
+export function AddDebtIntro() {
+  const { t } = useT();
+  return (
+    <>
+      <h1 className="page-title">{t("add.title")}</h1>
+      <p className="page-intro">{t("add.intro")}</p>
+    </>
+  );
+}
 
 export default function AddDebtForm() {
+  const { t } = useT();
   const router = useRouter();
   const { add, ready } = useDebts();
   // The page is built ahead of time, so "today" must come from the owner's browser after
@@ -56,7 +69,7 @@ export default function AddDebtForm() {
     setSaveError(null);
     const now = todayLocal();
     setToday(now);
-    const result = validateDebtInput(input, now);
+    const result = validateDebtInput(input, now, t);
     if (!result.ok) {
       setErrors(result.errors);
       setFocusRequest((n) => n + 1);
@@ -68,7 +81,7 @@ export default function AddDebtForm() {
       add(debt);
     } catch (error) {
       // The form keeps everything typed, so the owner can just try again.
-      setSaveError(error instanceof DebtStoreError ? error.message : "Couldn't save. Try again.");
+      setSaveError(error instanceof DebtStoreError ? error.message : t("add.saveFailed"));
       setSaving(false);
       return;
     }
@@ -82,9 +95,7 @@ export default function AddDebtForm() {
     <form className="card form" onSubmit={onSubmit} noValidate>
       {Object.values(errors).some(Boolean) && (
         <p className="visually-hidden" role="alert">
-          {Object.values(errors).filter(Boolean).length === 1
-            ? "1 field needs fixing."
-            : `${Object.values(errors).filter(Boolean).length} fields need fixing.`}
+          {t("add.fieldsNeedFixing", { count: Object.values(errors).filter(Boolean).length })}
         </p>
       )}
 
@@ -95,14 +106,14 @@ export default function AddDebtForm() {
       )}
 
       <div className="field">
-        <label htmlFor="debt-customerName">Customer name</label>
+        <label htmlFor="debt-customerName">{t("add.customerName")}</label>
         <input
           id="debt-customerName"
           name="customerName"
           autoComplete="off"
           autoCapitalize="words"
           maxLength={MAX_NAME_LENGTH + 20}
-          placeholder="e.g. Ah Seng"
+          placeholder={t("add.namePlaceholder")}
           value={input.customerName}
           onChange={(e) => set("customerName", e.target.value)}
           aria-invalid={Boolean(errors.customerName)}
@@ -117,14 +128,14 @@ export default function AddDebtForm() {
 
       <div className="field">
         <label htmlFor="debt-item">
-          What they took <span className="optional">(optional)</span>
+          {t("add.item")} <span className="optional">{t("add.optional")}</span>
         </label>
         <input
           id="debt-item"
           name="item"
           autoComplete="off"
           maxLength={MAX_ITEM_LENGTH + 20}
-          placeholder="e.g. Milo 1kg, gula 1kg"
+          placeholder={t("add.itemPlaceholder")}
           value={input.item}
           onChange={(e) => set("item", e.target.value)}
           aria-invalid={Boolean(errors.item)}
@@ -139,7 +150,7 @@ export default function AddDebtForm() {
 
       <div className="field-row">
         <div className="field">
-          <label htmlFor="debt-amount">Amount (RM)</label>
+          <label htmlFor="debt-amount">{t("add.amount")}</label>
           <input
             id="debt-amount"
             name="amount"
@@ -159,7 +170,7 @@ export default function AddDebtForm() {
         </div>
 
         <div className="field">
-          <label htmlFor="debt-date">Date</label>
+          <label htmlFor="debt-date">{t("add.date")}</label>
           <input
             id="debt-date"
             name="date"
@@ -180,10 +191,10 @@ export default function AddDebtForm() {
 
       <div className="form-actions">
         <button type="submit" className="button button-primary" disabled={!ready || !today || saving}>
-          {saving ? "Saving…" : "Save debt"}
+          {saving ? t("add.saving") : t("add.save")}
         </button>
         <Link href="/ledger" className="button">
-          Cancel
+          {t("common.cancel")}
         </Link>
       </div>
     </form>

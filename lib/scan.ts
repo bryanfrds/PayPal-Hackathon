@@ -5,6 +5,7 @@
 // and demoed. Extraction only makes drafts: nothing is saved until the owner checks it.
 
 import { createManualDebt, validateDebtInput, type Debt, type DebtErrors } from "./debts";
+import { translator, type T } from "./i18n";
 
 export type ScanMode = "notebook" | "receipt";
 
@@ -31,7 +32,7 @@ function line(key: string, customerName: string, item: string, amount: string, d
  * Stand-in for Person 1's extraction. A notebook page reads as several customers' lines;
  * a receipt reads as one purchase with no customer name (the owner picks one).
  */
-export function sampleRead(mode: ScanMode, today: string): ScanLine[] {
+export function sampleRead(mode: ScanMode, today: string, t: T = translator()): ScanLine[] {
   if (mode === "receipt") {
     return [line("r1", "", "Milo 1kg, gula 1kg, telur 10 biji", "24.70", today)];
   }
@@ -40,7 +41,7 @@ export function sampleRead(mode: ScanMode, today: string): ScanLine[] {
     line("n2", "Pak Ali (Bengkel)", "Rokok", "36.00", today),
     line("n3", "Ah Seng", "Susu, Milo", "39.90", today),
     line("n4", "Kak Lina", "Telur, gula", "22.40", today),
-    line("n5", "Encik Hafiz", "Roti x3", "13.50", today, "Check amount: 13.50 or 18.50?"),
+    line("n5", "Encik Hafiz", "Roti x3", "13.50", today, t("scan.unsureAmount", { a: "13.50", b: "18.50" })),
     line("n6", "Uncle Tan", "Sabun", "17.80", today),
     line("n7", "Mr. Raj", "Kopi O", "5.00", today),
     line("n8", "Abang Joe", "Milo 1kg", "12.50", today),
@@ -91,12 +92,13 @@ export function linesToDebts(
   lines: ScanLine[],
   today: string,
   opts: { newId: () => string; now: Date },
+  t: T = translator(),
 ): ToDebts {
   const debts: Debt[] = [];
   const problems: LineCheck[] = [];
   for (const l of lines) {
     if (!l.include) continue;
-    const result = validateDebtInput({ customerName: l.customerName, item: l.item, amount: l.amount, date: l.date }, today);
+    const result = validateDebtInput({ customerName: l.customerName, item: l.item, amount: l.amount, date: l.date }, today, t);
     if (!result.ok) {
       problems.push({ key: l.key, errors: result.errors });
       continue;

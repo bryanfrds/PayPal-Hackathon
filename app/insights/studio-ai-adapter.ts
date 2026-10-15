@@ -3,26 +3,27 @@
 // Errors come back as a failed turn with a plain message, which Studio shows in the chat panel.
 
 import type { AgAiEvent, AgLlmAdapter, AgLlmExecuteTurnOptions, AgLlmRequest, AgLlmResponse, AgLlmResponseHandler } from "ag-studio";
+import { translator, type T, type TKey } from "@/lib/i18n";
 import { failedResponse, readWireLines } from "@/lib/studio-ai-wire";
 
-const STATUS_TEXT: Record<number, string> = {
-  401: "You've been signed out. Sign in again to use Nudge.",
-  413: "This conversation is too long for Nudge. Start a new chat and try again.",
-  429: "Nudge is getting a lot of questions. Wait a moment and try again.",
-  503: "Nudge isn't connected yet, so it can't answer here. The rest of Insights still works.",
+const STATUS_KEY: Record<number, TKey> = {
+  401: "nudge.error.signedOut",
+  413: "nudge.error.tooLong",
+  429: "nudge.error.busy",
+  503: "nudge.error.notConnected",
 };
 
-/** The server's plain-English error, else one for the status. */
-async function errorFor(res: Response): Promise<string> {
+/** The server's plain-English error, else one for the status in the owner's language. */
+async function errorFor(res: Response, t: T): Promise<string> {
   // Not connected: the server's message is for whoever deploys the app, not the owner.
-  if (res.status === 503) return STATUS_TEXT[503];
+  if (res.status === 503) return t(STATUS_KEY[503]);
   try {
     const body = (await res.json()) as { error?: unknown };
     if (typeof body.error === "string" && body.error) return body.error;
   } catch {
     // not JSON
   }
-  return STATUS_TEXT[res.status] ?? "Nudge couldn't answer just now. Try again in a moment.";
+  return STATUS_KEY[res.status] ? t(STATUS_KEY[res.status]) : t("nudge.error.generic");
 }
 
 function isAbort(error: unknown): boolean {
@@ -30,7 +31,12 @@ function isAbort(error: unknown): boolean {
 }
 
 /** One turn: events as they stream, and the finished turn once the stream ends. */
-export function runTurn(request: AgLlmRequest, options: AgLlmExecuteTurnOptions = {}, fetchImpl: typeof fetch = fetch): AgLlmResponseHandler {
+export function runTurn(
+  request: AgLlmRequest,
+  options: AgLlmExecuteTurnOptions = {},
+  fetchImpl: typeof fetch = fetch,
+  t: T = translator(),
+): AgLlmResponseHandler {
   let settle: (response: AgLlmResponse) => void = () => {};
   const complete = new Promise<AgLlmResponse>((resolve) => {
     settle = resolve;
@@ -54,7 +60,7 @@ export function runTurn(request: AgLlmRequest, options: AgLlmExecuteTurnOptions 
         signal: options.signal,
       });
       if (!res.ok || !res.body) {
-        finished = failedResponse(`http_${res.status}`, await errorFor(res));
+        finished = failedResponse(`http_${res.status}`, await errorFor(res, t));
         return;
       }
       body = res.body;
@@ -62,15 +68,15 @@ export function runTurn(request: AgLlmRequest, options: AgLlmExecuteTurnOptions 
         if ("event" in line) yield line.event;
         else finished = line.response;
       }
-      finished ??= failedResponse("no_response", "Nudge stopped part-way. Try again in a moment.");
+      finished ??= failedResponse("no_response", t("nudge.error.partWay"));
     } catch (error) {
       finished = options.signal?.aborted || isAbort(error)
-        ? failedResponse("cancelled", "Stopped.", "cancelled")
-        : failedResponse("network", "Nudge couldn't be reached. Check your connection and try again.");
+        ? failedResponse("cancelled", t("nudge.error.stopped"), "cancelled")
+        : failedResponse("network", t("nudge.error.network"));
     } finally {
       // Studio stopped reading part-way (the owner pressed stop): let go of the connection.
       body?.cancel().catch(() => {});
-      settle(finished ?? failedResponse("cancelled", "Stopped.", "cancelled"));
+      settle(finished ?? failedResponse("cancelled", t("nudge.error.stopped"), "cancelled"));
     }
   }
 
@@ -79,6 +85,9 @@ export function runTurn(request: AgLlmRequest, options: AgLlmExecuteTurnOptions 
   return { stream: { [Symbol.asyncIterator]: () => stream }, complete };
 }
 
-export const studioAiAdapter: AgLlmAdapter = {
-  executeTurn: (request, options) => runTurn(request, options),
-};
+/** The adapter for Studio, with error words in the owner's language. */
+export function studioAiAdapterFor(t: T = translator()): AgLlmAdapter {
+  return { executeTurn: (request, options) => runTurn(request, options, fetch, t) };
+}
+
+export const studioAiAdapter: AgLlmAdapter = studioAiAdapterFor();

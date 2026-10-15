@@ -8,6 +8,7 @@
 import type { InvoiceRecord } from "./collect-store";
 import { customerSlug, dueDateFor } from "./customer-tab";
 import { todayLocal, type Debt } from "./debts";
+import { translator, type T, type TKey } from "./i18n";
 
 export type ReminderRules = {
   /** Off: no reminders are planned at all. */
@@ -65,11 +66,12 @@ export type ScheduleItem = {
   label: string;
 };
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const ORDINALS = ["1st", "2nd", "3rd"];
+const ORDINALS: TKey[] = ["reminders.ordinal.1", "reminders.ordinal.2", "reminders.ordinal.3"];
 
-export function ordinal(n: number): string {
-  return ORDINALS[n - 1] ?? `${n}th`;
+/** 1 → "1st", 4 → "4th" (in the language of `t`). */
+export function ordinal(n: number, t: T = translator()): string {
+  const key = ORDINALS[n - 1];
+  return key ? t(key) : t("reminders.ordinal.n", { n });
 }
 
 /** "2026-10-13" plus 3 days → "2026-10-16". */
@@ -114,9 +116,9 @@ function isChased(debt: Debt): boolean {
   return debt.status === "sent" || debt.status === "overdue";
 }
 
-function monthName(month: string): string {
+function monthName(month: string, t: T): string {
   const m = Number(month.slice(5, 7));
-  return MONTHS[m - 1] ?? month;
+  return m >= 1 && m <= 12 ? t(`reminders.month.${m}` as TKey) : month;
 }
 
 /**
@@ -124,7 +126,7 @@ function monthName(month: string): string {
  * and the reminders the rules plan after that. `moves` maps a reminder id to the day the
  * owner dragged it to; `sent` maps it to the day they sent it. A reminder that should have gone
  * out but hasn't is due today, and the ones after it count from there. Sorted by day, then
- * hour, then name.
+ * hour, then name. Labels are in the language of `t` (English by default).
  */
 export function buildSchedule(
   debts: Debt[],
@@ -133,6 +135,7 @@ export function buildSchedule(
   moves: Record<string, string>,
   today: string,
   sent: Record<string, string> = {},
+  t: T = translator(),
 ): ScheduleItem[] {
   const items: ScheduleItem[] = [];
   const bySlug = new Map<string, Debt[]>();
@@ -160,7 +163,7 @@ export function buildSchedule(
       dueNow: false,
       moved: false,
       sent: false,
-      label: `${monthName(oldestMonth)} bill due`,
+      label: t("reminders.label.due", { month: monthName(oldestMonth, t) }),
     });
 
     const latest = invoices
@@ -181,7 +184,7 @@ export function buildSchedule(
         dueNow: false,
         moved: false,
         sent: false,
-        label: latest.number ? `Invoice ${latest.number}` : "Invoice sent",
+        label: latest.number ? t("reminders.label.invoiceNumber", { number: latest.number }) : t("reminders.label.invoiceSent"),
       });
     }
 
@@ -225,7 +228,7 @@ export function buildSchedule(
         dueNow: !wasSent && day <= today,
         moved: !wasSent && moveOk && move !== planned,
         sent: wasSent,
-        label: wasSent ? `${ordinal(n)} reminder sent` : `${ordinal(n)} reminder`,
+        label: t(wasSent ? "reminders.label.reminderSent" : "reminders.label.reminder", { ordinal: ordinal(n, t) }),
       });
     }
   }
@@ -234,10 +237,11 @@ export function buildSchedule(
 }
 
 /** The friendly note that goes with a reminder. Plain text: callers must not treat it as HTML. */
-export function reminderMessage(customer: string, amountSen: number, payLink?: string): string {
-  const rm = (amountSen / 100).toFixed(2);
-  const pay = payLink ? ` You can pay on PayPal here whenever it suits: ${payLink}` : " You can pay on PayPal from the link in your invoice email.";
-  return `Hi ${customer}! Just a friendly reminder about RM ${rm} on your tab.${pay} Thank you!`;
+export function reminderMessage(customer: string, amountSen: number, payLink?: string, t: T = translator()): string {
+  const amount = (amountSen / 100).toFixed(2);
+  return payLink
+    ? t("reminders.message.link", { name: customer, amount, link: payLink })
+    : t("reminders.message.noLink", { name: customer, amount });
 }
 
 /** True for a complete, real YYYY-MM-DD day (not "0052-02-10" or "52026-02-10"). */

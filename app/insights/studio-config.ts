@@ -16,7 +16,9 @@ import {
   type AgRegistry,
   type AgWidgetDefinition,
 } from "ag-studio-react";
-import { monthLabel, type InsightRow } from "@/lib/insights";
+import { STATUS_LABEL, type DebtStatus } from "@/lib/debts";
+import { languageInfo, translator, type Language, type T, type TKey } from "@/lib/i18n";
+import { monthLabel, type InsightRow, type LateBucket } from "@/lib/insights";
 import Scoreboard, { type ScoreboardWidget } from "./Scoreboard";
 import {
   COLUMNS,
@@ -37,52 +39,82 @@ const ringgit = new Intl.NumberFormat("en-MY", {
   currency: "MYR",
 });
 
-const TABS_FIELDS: AgFieldDefinition<BukuRegistry>[] = [
-  { id: "customer", name: "Customer", format: "textFormat" },
-  { id: "item", name: "Item", format: "textFormat" },
+// The rows keep lib/insights' English values (filters and Studio's agents work on those); the
+// words shown for them follow the app's language.
+const LATE_KEYS: Record<LateBucket, TKey> = {
+  "Not due yet": "insights.late.notDue",
+  "1–30 days late": "insights.late.upTo30",
+  "31+ days late": "insights.late.over30",
+  Paid: "status.paid",
+};
+const STATUS_KEYS = new Map<string, TKey>(
+  (Object.entries(STATUS_LABEL) as [DebtStatus, string][]).map(([status, label]) => [label, `status.${status}`]),
+);
+const shownAs = (keys: { get(value: string): TKey | undefined }, t: T) => () => (value: unknown) => {
+  if (value == null) return "";
+  const key = keys.get(String(value));
+  return key ? t(key) : String(value);
+};
+const lateKeys = { get: (value: string) => LATE_KEYS[value as LateBucket] };
+
+/** "2026-08" → "Aug 2026" in English, the short local form elsewhere. */
+function monthShown(lang: Language, monthKey: string): string {
+  if (lang === "en") return monthLabel(monthKey);
+  const [y, m] = monthKey.split("-").map(Number);
+  if (!y || !m) return monthKey;
+  return new Intl.DateTimeFormat(languageInfo(lang).locale, { month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(Date.UTC(y, m - 1, 1)));
+}
+
+// Field names are shown as column headers, legends and axis titles, so they follow the app's
+// language; the ids (what saved tiles and Studio's agents refer to) never change.
+const tabsFields = (t: T, lang: Language): AgFieldDefinition<BukuRegistry>[] => [
+  { id: "customer", name: t("insights.field.customer"), format: "textFormat" },
+  { id: "item", name: t("insights.field.item"), format: "textFormat" },
   // Stored as "2026-08" so months sort in order; shown as "Aug 2026".
   {
     id: "month",
-    name: "Month",
+    name: t("insights.field.month"),
     format: "textFormat",
     createValueFormatter: () => (value) =>
-      value == null ? "" : monthLabel(String(value)),
+      value == null ? "" : monthShown(lang, String(value)),
   },
-  { id: "status", name: "Status", format: "textFormat" },
-  { id: "lateBucket", name: "How late", format: "textFormat" },
+  { id: "status", name: t("insights.field.status"), format: "textFormat", createValueFormatter: shownAs(STATUS_KEYS, t) },
+  { id: "lateBucket", name: t("insights.field.lateBucket"), format: "textFormat", createValueFormatter: shownAs(lateKeys, t) },
   {
     id: "amount",
-    name: "Amount",
+    name: t("insights.field.amount"),
     format: "currencyFormat",
     formatOptions: { format: ringgit },
   },
   {
     id: "owed",
-    name: "Still owed",
+    name: t("insights.field.owed"),
     format: "currencyFormat",
     formatOptions: { format: ringgit },
   },
   {
     id: "collected",
-    name: "Collected",
+    name: t("insights.field.collected"),
     format: "currencyFormat",
     formatOptions: { format: ringgit },
   },
-  { id: "daysLate", name: "Days late", format: "integerFormat" },
-  { id: "overdue", name: "Overdue tabs", format: "integerFormat" },
+  { id: "daysLate", name: t("insights.field.daysLate"), format: "integerFormat" },
+  { id: "overdue", name: t("insights.field.overdue"), format: "integerFormat" },
 ];
 
 export function dataFor(
   rows: InsightRow[],
+  t: T = translator(),
+  lang: Language = "en",
 ): AgDataSourcesDefinition<BukuRegistry> {
   return {
-    sources: [{ id: "tabs", name: "Tabs", data: rows, fields: TABS_FIELDS }],
+    sources: [{ id: "tabs", name: t("insights.source.tabs"), data: rows, fields: tabsFields(t, lang) }],
   };
 }
 
-const SCOREBOARD: ScoreboardDefinition = {
+const scoreboardFor = (t: T): ScoreboardDefinition => ({
   id: "scoreboard",
-  label: "Who owes you",
+  label: t("insights.scoreboard.label"),
   icon: "leaderboard",
   dataMapping: {
     customer: {
@@ -101,8 +133,8 @@ const SCOREBOARD: ScoreboardDefinition = {
   form: (params) =>
     params.createDefaults({
       dataMappingItems: [
-        { key: "customer", label: "Customer" },
-        { key: "owed", label: "Amount owed" },
+        { key: "customer", label: t("insights.scoreboard.customer") },
+        { key: "owed", label: t("insights.scoreboard.owed") },
       ],
     }),
   comp: Scoreboard,
@@ -113,15 +145,19 @@ const SCOREBOARD: ScoreboardDefinition = {
   },
   defaultSize: { width: 360, height: 300 },
   minSize: { width: 240, height: 160 },
-};
+});
 
 // Cast: createWidgets' params type is a conditional type that TypeScript can't resolve for a
 // registry declared as an interface; the definition above is typed as ScoreboardDefinition.
-export const widgets = createWidgets<BukuRegistry>({
-  additionalTypes: [SCOREBOARD],
-  // Studio's own widgets plus ours. Studio's AI agents can only add widgets listed here.
-  menu: [..._WIDGET_MENU, { label: "555 Buku", widgetIds: ["scoreboard"] }],
-} as never);
+/** Studio's widgets plus our scoreboard, labelled in `t`'s language (Studio remounts on a language change). */
+export const widgetRegistry = (t: T = translator()) =>
+  createWidgets<BukuRegistry>({
+    additionalTypes: [scoreboardFor(t)],
+    // Studio's own widgets plus ours. Studio's AI agents can only add widgets listed here.
+    menu: [..._WIDGET_MENU, { label: "555 Buku", widgetIds: ["scoreboard"] }],
+  } as never);
+
+export const widgets = widgetRegistry();
 
 // Soft Premium: warm paper canvas, white rounded tiles, ink accents (see globals.css).
 // Takes the font family next/font gave Manrope, since Studio can't read our CSS variable.
@@ -210,26 +246,28 @@ const legend = {
   },
 };
 
-const WIDGETS = {
+// Tile titles follow the app's language; Studio reads them once per mount (Insights remounts
+// Studio when the language changes). The tile ids and layout never change.
+const widgetsFor = (t: T) => ({
   owed: {
     type: "value",
     dataMapping: { value: [f("owed", "sum")] },
-    format: kpi("Still owed to you"),
+    format: kpi(t("insights.tile.owed")),
   },
   collected: {
     type: "value",
     dataMapping: { value: [f("collected", "sum")] },
-    format: kpi("Collected"),
+    format: kpi(t("insights.tile.collected")),
   },
   overdue: {
     type: "value",
     dataMapping: { value: [f("overdue", "sum")] },
-    format: kpi("Overdue tabs"),
+    format: kpi(t("insights.tile.overdue")),
   },
   board: {
     type: "scoreboard",
     dataMapping: { customer: [f("customer")], owed: [f("owed", "sum")] },
-    format: title("Who owes you"),
+    format: title(t("insights.tile.board")),
   },
   trend: {
     type: "column-chart-grouped",
@@ -238,7 +276,7 @@ const WIDGETS = {
       valueKey: [f("collected", "sum"), f("owed", "sum")],
     },
     sort: [{ field: f("month"), direction: "asc" }],
-    format: { ...title("Owed vs collected"), ...legend },
+    format: { ...title(t("insights.tile.trend")), ...legend },
   },
   late: {
     type: "bar-chart-grouped",
@@ -246,7 +284,7 @@ const WIDGETS = {
       categoryKey: [f("lateBucket")],
       valueKey: [f("owed", "sum")],
     },
-    format: title("How late are the tabs"),
+    format: title(t("insights.tile.late")),
   },
   tabs: {
     type: "grid",
@@ -256,11 +294,11 @@ const WIDGETS = {
     },
     // Studio's auto-size (on unless turned off) came out header-wide and cut amounts off
     // ("RM 48…"), so every column gets room for its values; the grid scrolls sideways if it must.
-    format: { ...title("Every tab"), style: { columnAutoSize: false, columnWidth: 112 } },
+    format: { ...title(t("insights.tile.tabs")), style: { columnAutoSize: false, columnWidth: 112 } },
   },
-} as const satisfies Record<WidgetId, unknown>;
+}) as const satisfies Record<WidgetId, unknown>;
 
-export function initialStateFor(kind: LayoutKind): AgReportState<BukuRegistry> {
+export function initialStateFor(kind: LayoutKind, t: T = translator()): AgReportState<BukuRegistry> {
   // Cast: AgReportState's widget union is keyed by the registry's widget ids and can't check
   // our "scoreboard" widget state. The shapes were checked against AG Studio's .d.ts files.
   return {
@@ -268,7 +306,7 @@ export function initialStateFor(kind: LayoutKind): AgReportState<BukuRegistry> {
     pages: [
       {
         id: "insights",
-        widgets: WIDGETS,
+        widgets: widgetsFor(t),
         widgetLayout: widgetLayout(kind),
         layout: {
           columns: COLUMNS,
@@ -285,14 +323,15 @@ export function initialStateFor(kind: LayoutKind): AgReportState<BukuRegistry> {
 export const HOME_CHART_ROWS = 13;
 
 /** Home's chart tile: just the owed-vs-collected chart from Insights, filling the tile. */
-export function homeChartState(): AgReportState<BukuRegistry> {
+export function homeChartState(t: T = translator()): AgReportState<BukuRegistry> {
+  const trend = widgetsFor(t).trend;
   // Cast: see initialStateFor.
   return {
     selectedPageId: "home",
     pages: [
       {
         id: "home",
-        widgets: { trend: { ...WIDGETS.trend, format: { ...WIDGETS.trend.format, title: { enabled: false } } } },
+        widgets: { trend: { ...trend, format: { ...trend.format, title: { enabled: false } } } },
         widgetLayout: { trend: { xTrack: 0, yTrack: 0, xSpan: COLUMNS, ySpan: HOME_CHART_ROWS } },
         layout: { columns: COLUMNS, minWidth: 200, rowHeight: ROW_HEIGHT, pagePadding: 0 },
       },

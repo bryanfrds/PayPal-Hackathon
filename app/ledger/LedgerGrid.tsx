@@ -11,10 +11,12 @@ import {
   type ModelUpdatedEvent,
 } from "ag-grid-community";
 import { formatSen, outstanding, sortDebts, STATUS_ORDER, type Debt, type DebtStatus } from "@/lib/debts";
-import StatusBadge, { STATUS_LABEL } from "../components/StatusBadge";
+import type { T } from "@/lib/i18n";
+import StatusBadge from "../components/StatusBadge";
 import { DARK_GRID_COLOURS } from "../components/grid-theme";
 import { CloseIcon } from "../components/icons";
 import { useResolvedTheme } from "../usePrefs";
+import { useT } from "../useT";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -59,7 +61,7 @@ function StatusCell(props: CustomCellRendererProps<LedgerRow>) {
   );
 }
 
-type DeleteContext = { onDelete: (debt: Debt) => void };
+type DeleteContext = { onDelete: (debt: Debt) => void; t: T };
 
 function DeleteButton(props: CustomCellRendererProps<LedgerRow, unknown, DeleteContext>) {
   const debt = props.data;
@@ -69,8 +71,8 @@ function DeleteButton(props: CustomCellRendererProps<LedgerRow, unknown, DeleteC
     <button
       type="button"
       className="row-delete"
-      aria-label={`Delete ${debt.customerName}'s tab of RM ${formatSen(debt.amountSen)}`}
-      title="Delete"
+      aria-label={props.context.t("ledger.deleteRow", { name: debt.customerName, amount: formatSen(debt.amountSen) })}
+      title={props.context.t("ledger.delete")}
       onClick={() => props.context.onDelete(debt)}
     >
       <CloseIcon className="icon row-delete-icon" />
@@ -80,14 +82,15 @@ function DeleteButton(props: CustomCellRendererProps<LedgerRow, unknown, DeleteC
 
 // Minimum widths are set so the visible columns fit: phone columns total about
 // 320px with the delete button (fits a 360px phone), tablet about 550px (fits a 700px screen).
-function buildColumnDefs(mode: LayoutMode): ColDef<LedgerRow>[] {
+function buildColumnDefs(mode: LayoutMode, t: T): ColDef<LedgerRow>[] {
   const phone = mode === "phone";
+  const label = (status: DebtStatus) => t(`status.${status}`);
   return [
-    { field: "customerName", headerName: "Name", flex: 1.2, minWidth: phone ? 100 : 120 },
-    { field: "item", headerName: "Item", flex: 2, minWidth: 150, hide: phone },
+    { field: "customerName", headerName: t("ledger.colName"), flex: 1.2, minWidth: phone ? 100 : 120 },
+    { field: "item", headerName: t("ledger.colItem"), flex: 2, minWidth: 150, hide: phone },
     {
       field: "amountSen",
-      headerName: mode === "desktop" ? "Amount (RM)" : "RM",
+      headerName: mode === "desktop" ? t("ledger.colAmount") : "RM",
       flex: 1,
       minWidth: phone ? 80 : 130,
       type: "rightAligned",
@@ -95,19 +98,19 @@ function buildColumnDefs(mode: LayoutMode): ColDef<LedgerRow>[] {
       suppressHeaderFilterButton: true,
       valueFormatter: (p) => (p.value == null ? "" : formatSen(Number(p.value))),
     },
-    { field: "date", headerName: "Date", flex: 1, minWidth: 110, hide: mode !== "desktop" },
+    { field: "date", headerName: t("ledger.colDate"), flex: 1, minWidth: 110, hide: mode !== "desktop" },
     {
       field: "status",
-      headerName: "Status",
+      headerName: t("ledger.colStatus"),
       flex: 1,
       minWidth: phone ? 112 : 120,
       cellRenderer: StatusCell,
       // Search and filter by the words on the badge ("Invoice sent"), not the stored value ("sent").
-      getQuickFilterText: (p) => (p.value ? STATUS_LABEL[p.value as DebtStatus] : ""),
-      filterValueGetter: (p) => (p.data?.status ? STATUS_LABEL[p.data.status] : ""),
+      getQuickFilterText: (p) => (p.value ? label(p.value as DebtStatus) : ""),
+      filterValueGetter: (p) => (p.data?.status ? label(p.data.status) : ""),
       // Header sort goes by urgency (overdue → invoice sent → not sent → paid), not A–Z.
       comparator: (a, b) => (a ? STATUS_ORDER[a as DebtStatus] : 9) - (b ? STATUS_ORDER[b as DebtStatus] : 9),
-      valueFormatter: (p) => (p.value ? STATUS_LABEL[p.value as DebtStatus] : ""),
+      valueFormatter: (p) => (p.value ? label(p.value as DebtStatus) : ""),
     },
     {
       colId: "delete",
@@ -167,6 +170,7 @@ function useLayoutMode(ref: React.RefObject<HTMLElement | null>): LayoutMode {
 }
 
 export default function LedgerGrid({ rows, onDelete }: { rows: Debt[]; onDelete: (debt: Debt) => void }) {
+  const { t, lang } = useT();
   const [quickFilter, setQuickFilter] = useState("");
   const dark = useResolvedTheme() === "dark";
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -178,8 +182,27 @@ export default function LedgerGrid({ rows, onDelete }: { rows: Debt[]; onDelete:
   useEffect(() => {
     onDeleteRef.current = onDelete;
   });
-  const gridContext = useMemo<DeleteContext>(() => ({ onDelete: (debt) => onDeleteRef.current(debt) }), []);
-  const columnDefs = useMemo(() => buildColumnDefs(layout), [layout]);
+  // The grid is remounted when the language changes (key={lang}), so t is current here.
+  const gridContext = useMemo<DeleteContext>(() => ({ onDelete: (debt) => onDeleteRef.current(debt), t }), [t]);
+  const columnDefs = useMemo(() => buildColumnDefs(layout, t), [layout, t]);
+  // AG Grid's own words that actually show: the text filter popup and the empty overlay.
+  const localeText = useMemo<Record<string, string>>(
+    () => ({
+      noRowsToShow: t("ledger.grid.noRows"),
+      filterOoo: t("ledger.grid.filter"),
+      contains: t("ledger.grid.contains"),
+      notContains: t("ledger.grid.notContains"),
+      equals: t("ledger.grid.equals"),
+      notEqual: t("ledger.grid.notEqual"),
+      startsWith: t("ledger.grid.startsWith"),
+      endsWith: t("ledger.grid.endsWith"),
+      blank: t("ledger.grid.blank"),
+      notBlank: t("ledger.grid.notBlank"),
+      andCondition: t("ledger.grid.and"),
+      orCondition: t("ledger.grid.or"),
+    }),
+    [t],
+  );
 
   // Starts from all rows, then follows the quick filter once the grid reports its model.
   const [view, setView] = useState<LedgerView>(() => summariseRows(rows));
@@ -201,12 +224,12 @@ export default function LedgerGrid({ rows, onDelete }: { rows: Debt[]; onDelete:
     () => [
       {
         id: "OUTSTANDING",
-        customerName: "Still owed",
-        item: `${view.outstandingCount} ${view.outstandingCount === 1 ? "tab" : "tabs"}, paid excluded`,
+        customerName: t("ledger.stillOwed"),
+        item: t("ledger.outstandingTabs", { count: view.outstandingCount }),
         amountSen: view.outstandingTotal,
       },
     ],
-    [view],
+    [view, t],
   );
 
   // Header + visible rows + the pinned total row, plus the 1px borders.
@@ -216,18 +239,20 @@ export default function LedgerGrid({ rows, onDelete }: { rows: Debt[]; onDelete:
     <div className="ledger" ref={wrapperRef}>
       <div className="ledger-toolbar">
         <label className="visually-hidden" htmlFor="ledger-search">
-          Search the ledger
+          {t("ledger.search")}
         </label>
         <input
           id="ledger-search"
           type="search"
-          placeholder="Search name, item, status…"
+          placeholder={t("ledger.searchPlaceholder")}
           value={quickFilter}
           onChange={(event) => setQuickFilter(event.target.value)}
         />
       </div>
       <div className="ledger-grid" data-testid="ledger-grid" style={{ height: gridHeight }}>
         <AgGridReact<LedgerRow>
+          key={lang}
+          localeText={localeText}
           rowData={sortedRows}
           columnDefs={columnDefs}
           defaultColDef={{ sortable: true, filter: true, resizable: true }}

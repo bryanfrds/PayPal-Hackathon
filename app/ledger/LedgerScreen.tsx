@@ -4,12 +4,13 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { DebtStoreError } from "@/lib/debt-store";
-import { formatSen, STATUS_LABEL, type Debt, type DebtStatus } from "@/lib/debts";
+import { formatSen, type Debt, type DebtStatus } from "@/lib/debts";
 import StatusBadge from "../components/StatusBadge";
 import { SendIcon } from "../components/icons";
 import { useDebts } from "../useDebts";
 import { useCollect } from "../useCollect";
 import { useIsWide } from "../useIsWide";
+import { useT } from "../useT";
 import { collectGroups } from "@/lib/collect";
 import { LEDGER_FILTERS, filterByStatus, ledgerTotals, type LedgerFilter } from "@/lib/ledger";
 import LedgerGrid from "./LedgerGrid";
@@ -23,7 +24,14 @@ function describe(debt: Debt) {
   return `${debt.customerName} · RM ${formatSen(debt.amountSen)}`;
 }
 
+/** The page's loading line, in the owner's language (used as the Suspense fallback). */
+export function LedgerLoading() {
+  const { t } = useT();
+  return <p className="card loading">{t("ledger.loading")}</p>;
+}
+
 export default function LedgerScreen() {
+  const { t } = useT();
   const { debts, ready, persistent, unreadable, add, remove, reset, clear } = useDebts();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -50,7 +58,7 @@ export default function LedgerScreen() {
     try {
       action();
     } catch (error) {
-      const message = error instanceof DebtStoreError ? error.message : "Something went wrong. Try again.";
+      const message = error instanceof DebtStoreError ? error.message : t("common.tryAgain");
       setNotice({ kind: "error", message });
       return false;
     }
@@ -76,26 +84,23 @@ export default function LedgerScreen() {
     <div className="ledger-page">
       <div className="page-head">
         <div>
-          <h1 className="page-title">Ledger</h1>
-          <p className="page-intro">Who still owes you, overdue first.</p>
+          <h1 className="page-title">{t("ledger.title")}</h1>
+          <p className="page-intro">{t("ledger.intro")}</p>
         </div>
         <Link href="/add" className="button button-primary">
-          + Add debt
+          {t("ledger.addDebt")}
         </Link>
       </div>
 
       {ready && unreadable && (
         <div className="notice notice-error" role="alert">
-          <p className="notice-text">
-            Your saved tabs couldn&apos;t be read on this device. They&apos;re left as they are until you choose
-            what to do.
-          </p>
+          <p className="notice-text">{t("ledger.unreadable")}</p>
           <div className="notice-actions">
             <button type="button" className="button" onClick={() => run(reset)}>
-              Start over with sample tabs
+              {t("ledger.startOverSample")}
             </button>
             <button type="button" className="button" onClick={() => run(clear)}>
-              Start empty
+              {t("ledger.startEmpty")}
             </button>
           </div>
         </div>
@@ -103,31 +108,30 @@ export default function LedgerScreen() {
 
       {ready && !persistent && (
         <p className="notice notice-warning" role="status">
-          This browser isn&apos;t saving data (private mode or storage blocked). Entries disappear when you close
-          the page.
+          {t("ledger.notSaving")}
         </p>
       )}
 
       {added && (
         <p className="notice notice-success" role="status">
-          Added {describe(added)}.{" "}
+          {t("ledger.added", { debt: describe(added) })}{" "}
           <button type="button" className="link-button" onClick={() => undoAdd(added)}>
-            Undo
+            {t("ledger.undo")}
           </button>
         </p>
       )}
 
       {scanned > 0 && (
         <p className="notice notice-success" role="status">
-          Added {scanned} {scanned === 1 ? "debt" : "debts"} from your scan.
+          {t("ledger.scanned", { count: scanned })}
         </p>
       )}
 
       {notice?.kind === "deleted" && (
         <p className="notice" role="status">
-          Deleted {describe(notice.debt)}.{" "}
+          {t("ledger.deleted", { debt: describe(notice.debt) })}{" "}
           <button type="button" className="link-button" onClick={() => undoDelete(notice.debt)}>
-            Undo
+            {t("ledger.undo")}
           </button>
         </p>
       )}
@@ -140,34 +144,34 @@ export default function LedgerScreen() {
 
       {!ready ? (
         <p className="card loading" aria-busy="true">
-          Loading your ledger…
+          {t("ledger.loading")}
         </p>
       ) : unreadable ? null : debts.length === 0 ? (
         <div className="card empty-state">
-          <h2>No tabs yet</h2>
-          <p>Add the first debt from your buku 555, or load the sample tabs to try things out.</p>
+          <h2>{t("ledger.emptyTitle")}</h2>
+          <p>{t("ledger.emptyBody")}</p>
           <div className="empty-actions">
             <Link href="/add" className="button button-primary">
-              + Add debt
+              {t("ledger.addDebt")}
             </Link>
             <button type="button" className="button" onClick={() => run(reset)}>
-              Load sample tabs
+              {t("ledger.loadSample")}
             </button>
           </div>
         </div>
       ) : (
         <>
-          <div className="ledger-chips ledger-wide-only" role="group" aria-label="Show tabs by status">
+          <div className="ledger-chips ledger-wide-only" role="group" aria-label={t("ledger.filterGroup")}>
             {LEDGER_FILTERS.map((f) => (
               <button key={f} type="button" aria-pressed={filter === f} onClick={() => setFilter(f)}>
-                {f === "all" ? "All" : STATUS_LABEL[f]} <b>{counts[f]}</b>
+                {f === "all" ? t("ledger.filterAll") : t(`status.${f}`)} <b>{counts[f]}</b>
               </button>
             ))}
           </div>
           <div className="ledger-cols">
             <LedgerGrid rows={shown} onDelete={onDelete} />
-            <aside className="card ledger-summary ledger-wide-only" aria-label="Totals by status">
-              <p className="ledger-summary-k">Still owed</p>
+            <aside className="card ledger-summary ledger-wide-only" aria-label={t("ledger.totalsLabel")}>
+              <p className="ledger-summary-k">{t("ledger.stillOwed")}</p>
               <p className="ledger-summary-v">RM {formatSen(owedSen)}</p>
               <ul>
                 {(["overdue", "sent", "unpaid", "paid"] as DebtStatus[]).map((st) => (
@@ -180,7 +184,7 @@ export default function LedgerScreen() {
               {toInvoice > 0 && (
                 <Link href="/collect" className="button ledger-summary-go">
                   <SendIcon />
-                  {toInvoice === 1 ? "Invoice 1 customer" : `Invoice ${toInvoice} customers`}
+                  {t("ledger.invoiceCustomers", { count: toInvoice })}
                 </Link>
               )}
             </aside>
