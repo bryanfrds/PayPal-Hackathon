@@ -6,13 +6,15 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { formatDay, tabPath } from "@/lib/customer-tab";
 import { formatSen, todayLocal } from "@/lib/debts";
 import { greeting, homeOverview, initials, monthTotals, owedBoard, type BoardRow } from "@/lib/home";
 import { buildSchedule } from "@/lib/reminders";
 import AccountSheet from "./components/AccountSheet";
 import Avatar from "./components/Avatar";
+import { ShareButton, ShareTip, useShareTip } from "./components/ShareButton";
+import ShareSheet from "./components/ShareSheet";
 import { BellIcon, ChartIcon, CheckIcon, ChevronIcon, PlusIcon, ReceiptIcon, ScanIcon, SendIcon, SparkIcon } from "./components/icons";
 import { useCollect } from "./useCollect";
 import { useDebts } from "./useDebts";
@@ -40,11 +42,11 @@ function lateLabel(row: BoardRow): string {
   return LATE_TEXT[row.status];
 }
 
-function BoardList({ rows }: { rows: BoardRow[] }) {
+function BoardList({ rows, onShare }: { rows: BoardRow[]; onShare: (slug: string, button: HTMLButtonElement) => void }) {
   return (
     <ul className="card home-board">
       {rows.map((row) => (
-        <li key={row.slug}>
+        <li key={row.slug} className="home-board-item">
           {/* Opens the customer's own tab page, the one the shop sends them a link to. */}
           <Link href={tabPath(row.slug)} className="home-board-row">
             <Avatar name={row.customerName} />
@@ -59,6 +61,8 @@ function BoardList({ rows }: { rows: BoardRow[] }) {
               <span className={`badge badge-${row.status}`}>{lateLabel(row)}</span>
             </span>
           </Link>
+          {/* A sibling of the link, so the row still opens the tab and this only opens the share sheet. */}
+          <ShareButton customerName={row.customerName} onOpen={(button) => onShare(row.slug, button)} />
         </li>
       ))}
     </ul>
@@ -72,6 +76,16 @@ export default function Dashboard() {
   const wide = useIsWide();
   const { name: shopName } = useShop();
   const [accountOpen, setAccountOpen] = useState(false);
+  // Who the WhatsApp sheet is for, and the button that opened it (focus goes back there).
+  const [share, setShare] = useState<{ slug: string; opener: HTMLElement } | null>(null);
+  const [showTip, dismissTip] = useShareTip();
+  const openShare = useCallback(
+    (slug: string, opener: HTMLButtonElement) => {
+      setShare({ slug, opener });
+      dismissTip();
+    },
+    [dismissTip],
+  );
   const today = todayLocal();
 
   const schedule = useMemo(() => buildSchedule(debts, invoices, rules, moves, today, sent), [debts, invoices, rules, moves, today, sent]);
@@ -227,10 +241,15 @@ export default function Dashboard() {
                 + Add debt
               </Link>
             </div>
-          ) : wide ? (
-            <HomeBoardGrid rows={board} />
           ) : (
-            <BoardList rows={board.slice(0, SHOWN_ON_PHONE)} />
+            <>
+              {showTip && <ShareTip onDismiss={dismissTip} />}
+              {wide ? (
+                <HomeBoardGrid rows={board} onShare={openShare} />
+              ) : (
+                <BoardList rows={board.slice(0, SHOWN_ON_PHONE)} onShare={openShare} />
+              )}
+            </>
           )}
         </div>
 
@@ -340,6 +359,7 @@ export default function Dashboard() {
 
       <p className="powered">Invoices and payments by PayPal</p>
       {accountOpen && <AccountSheet onClose={() => setAccountOpen(false)} />}
+      {share && <ShareSheet slug={share.slug} returnFocusTo={share.opener} onClose={() => setShare(null)} />}
     </div>
   );
 }
