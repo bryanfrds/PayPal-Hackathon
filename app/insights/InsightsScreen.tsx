@@ -15,7 +15,7 @@ import { useDebts } from "../useDebts";
 import { useIsWide } from "../useIsWide";
 import { useReminders } from "../useReminders";
 import { useShop } from "../useShop";
-import { canvasHeight, layoutKind } from "./tiles";
+import { canvasHeight, layoutKind, studioCanvasWidth, tabsGridFor } from "./tiles";
 import { AgStudio, FILL, VIEW_PANELS, manropeFamily } from "./studio-loader";
 import {
   dataFor,
@@ -26,7 +26,7 @@ import {
 } from "./studio-config";
 import { NUDGE_PANELS, NudgeRoster, nudgeLocaleText } from "./NudgePanel";
 import { nudgeHarness, nudgeToolDisplay, type NudgeShop } from "./nudge-ai";
-import { inertOutside, useStudioSlot } from "./studio-dom";
+import { inertOutside, useStudioElementWidth, useStudioSlot } from "./studio-dom";
 import { useResolvedTheme } from "../usePrefs";
 import { useT } from "../useT";
 
@@ -62,7 +62,12 @@ export default function InsightsScreen() {
     update();
     const observer = new ResizeObserver(update);
     observer.observe(el);
-    return () => observer.disconnect();
+    // A hidden tab gets no resize events, so read again when it's shown.
+    document.addEventListener("visibilitychange", update);
+    return () => {
+      observer.disconnect();
+      document.removeEventListener("visibilitychange", update);
+    };
   }, []);
 
   useLayoutEffect(() => {
@@ -87,22 +92,41 @@ export default function InsightsScreen() {
   const today = todayLocal();
   // New rows reach Studio through the `data` prop without a remount (Studio takes changes to
   // inline data), so Nudge's chat and any tiles it added survive a ledger edit or PaymentSync.
-  // Only crossing between the phone and wide layouts remounts it (via key), since the starting
-  // layout is read once; the chat then comes back from nudge-history.ts.
+  // Only crossing between the phone and wide layouts, or a change in the grid sizing below,
+  // remounts it (via key), since the starting layout is read once; the chat then comes back
+  // from nudge-history.ts.
   const data = useMemo(
     () => dataFor(toInsightRows(debts, today), t, lang),
     [debts, today, t, lang],
   );
-  // Tile titles are read once per mount, so a language change remounts Studio (see the key).
+  // How many columns the "Every tab" grid shows, and how wide, comes from the width of Studio's
+  // canvas: our box less Nudge's docked panel on a laptop (on a phone Nudge opens over the page),
+  // lowered by Studio's own measurement if that's narrower. See studioCanvasWidth.
+  const measuredCanvas = useStudioElementWidth(boxRef, ".ag-studio-layout-measurement-container", ready);
+  const canvasWidth = width === null ? null : studioCanvasWidth(width, isWide, measuredCanvas);
+  const tabs = kind === null || canvasWidth === null ? null : tabsGridFor(canvasWidth, kind);
+  const tabsColumns = tabs?.columns;
+  const tabsColumnWidth = tabs?.columnWidth;
+  const tabsCellPadding = tabs?.cellPadding;
+  // Tile titles and the grid's columns are read once per mount, so a language change or a new
+  // column count or width remounts Studio (see the key).
   const initialState = useMemo(
-    () => (kind === null ? null : initialStateFor(kind, t)),
-    [kind, t],
+    () =>
+      kind === null || tabsColumns === undefined || tabsColumnWidth === undefined || tabsCellPadding === undefined
+        ? null
+        : initialStateFor(kind, { columns: tabsColumns, columnWidth: tabsColumnWidth, cellPadding: tabsCellPadding }, t),
+    [kind, tabsColumns, tabsColumnWidth, tabsCellPadding, t],
   );
   const localeText = useMemo(() => nudgeLocaleText(t), [t]);
   // A light/dark switch remounts Studio (see the key below) so it restyles reliably; Nudge's
   // chat comes back from nudge-history.ts, as it does after a layout change.
   const mode = useResolvedTheme();
-  const theme = useMemo(() => themeFor(manropeFamily(), STUDIO_CANVAS[mode], mode === "dark"), [mode]);
+  // The grid's cell padding is a theme setting; it changes only with the column width, which
+  // remounts Studio anyway (see the key).
+  const theme = useMemo(
+    () => themeFor(manropeFamily(), STUDIO_CANVAS[mode], mode === "dark", tabsCellPadding),
+    [mode, tabsCellPadding],
+  );
 
   // What Nudge's tools read: built the same way as the Nudge chat's summary (app/nudge).
   const shop = useMemo<NudgeShop>(() => {
@@ -218,7 +242,7 @@ export default function InsightsScreen() {
           )}
         {ready && initialState && (
           <AgStudio
-            key={`${kind}-${mode}-${lang}`}
+            key={`${kind}-${tabsColumns}x${tabsColumnWidth}p${tabsCellPadding}-${mode}-${lang}`}
             data={data}
             mode="view"
             theme={theme}

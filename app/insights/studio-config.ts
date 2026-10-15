@@ -23,9 +23,14 @@ import Scoreboard, { type ScoreboardWidget } from "./Scoreboard";
 import {
   COLUMNS,
   PAGE_PADDING,
+  GRID_CELL_PADDING,
+  NUDGE_PANEL_WIDTH,
   ROW_HEIGHT,
+  TABS_COLUMN_WIDTH,
+  WIDGET_PADDING,
   widgetLayout,
   type LayoutKind,
+  type TabsGrid,
   type WidgetId,
 } from "./tiles";
 type ScoreboardDefinition = AgWidgetDefinition<"scoreboard", ScoreboardWidget>;
@@ -162,9 +167,12 @@ export const widgets = widgetRegistry();
 // Soft Premium: warm paper canvas, white rounded tiles, ink accents (see globals.css).
 // Takes the font family next/font gave Manrope, since Studio can't read our CSS variable.
 // `dark` swaps in the dark palette from globals.css; light values are unchanged.
-export const themeFor = (fontFamily: string, canvas = "#f3f1ec", dark = false) => {
+// `gridCellPadding` (px a side) trims the padding of grid cells and headers. Studio only has it
+// as a theme setting, so it applies to every grid on the page; Insights passes tabsGridFor's.
+export const themeFor = (fontFamily: string, canvas = "#f3f1ec", dark = false, gridCellPadding = GRID_CELL_PADDING) => {
   const light = studioTheme.withParams({
     fontFamily,
+    gridCellHorizontalPadding: gridCellPadding,
     // Titles, charts and grids read this one, not fontFamily.
     studioCanvasFontFamily: fontFamily,
     // Studio defaults to at least 600px wide, wider than a phone: the page then zooms out sideways.
@@ -186,7 +194,7 @@ export const themeFor = (fontFamily: string, canvas = "#f3f1ec", dark = false) =
     studioWidgetBackgroundColor: "#ffffff",
     studioWidgetBorderRadius: 20,
     studioWidgetTitleFontWeight: 800,
-    studioWidgetPadding: 10,
+    studioWidgetPadding: WIDGET_PADDING,
     studioWidgetTitleTextColor: "#6f6b64",
     chartPaletteFills1Color: "#141414",
     chartPaletteFills2Color: "#d8d3c8",
@@ -195,7 +203,7 @@ export const themeFor = (fontFamily: string, canvas = "#f3f1ec", dark = false) =
     chartPaletteFills5Color: "#8c6512",
     chartPaletteFills6Color: "#2b7a46",
     // Nudge's chat panel on Insights.
-    studioAiPanelWidth: 340,
+    studioAiPanelWidth: NUDGE_PANEL_WIDTH,
     // Not studioAiPanelInputMessageBackgroundColor: Studio paints error replies with it too, so
     // the owner's ink bubbles are set in globals.css instead.
     studioAiPanelRichTextAccentBackgroundColor: canvas,
@@ -248,7 +256,7 @@ const legend = {
 
 // Tile titles follow the app's language; Studio reads them once per mount (Insights remounts
 // Studio when the language changes). The tile ids and layout never change.
-const widgetsFor = (t: T) => ({
+const widgetsFor = (t: T, tabs: TabsGrid) => ({
   owed: {
     type: "value",
     dataMapping: { value: [f("owed", "sum")] },
@@ -289,16 +297,25 @@ const widgetsFor = (t: T) => ({
   tabs: {
     type: "grid",
     dataMapping: {
-      // Amounts and days late come before the long item text, so a narrow tile cuts the items, not the money.
-      cols: [f("customer"), f("amount"), f("daysLate"), f("status"), f("item")],
+      // Amounts and days late come first. Where all five columns don't fit (tabsGridFor in
+      // tiles.ts, from the measured canvas width) the grid drops status and item.
+      cols: tabs.columns === 5
+        ? [f("customer"), f("amount"), f("daysLate"), f("status"), f("item")]
+        : [f("customer"), f("amount"), f("daysLate")],
     },
     // Studio's auto-size (on unless turned off) came out header-wide and cut amounts off
-    // ("RM 48…"), so every column gets room for its values; the grid scrolls sideways if it must.
-    format: { ...title(t("insights.tile.tabs")), style: { columnAutoSize: false, columnWidth: 112 } },
+    // ("RM 48…"), so every column gets one fixed width (Studio has no per-column width or flex).
+    // The width and column count are picked to fit the tile; see tabsGridFor.
+    // Headers come from t() and run long in some languages, so they wrap rather than get cut.
+    format: {
+      ...title(t("insights.tile.tabs")),
+      style: { columnAutoSize: false, columnWidth: tabs.columnWidth, headerRow: { wrapText: true } },
+    },
   },
 }) as const satisfies Record<WidgetId, unknown>;
 
-export function initialStateFor(kind: LayoutKind, t: T = translator()): AgReportState<BukuRegistry> {
+/** Insights' starting dashboard; `tabs` sizes the "Every tab" grid for the tile it gets. */
+export function initialStateFor(kind: LayoutKind, tabs: TabsGrid, t: T = translator()): AgReportState<BukuRegistry> {
   // Cast: AgReportState's widget union is keyed by the registry's widget ids and can't check
   // our "scoreboard" widget state. The shapes were checked against AG Studio's .d.ts files.
   return {
@@ -306,7 +323,7 @@ export function initialStateFor(kind: LayoutKind, t: T = translator()): AgReport
     pages: [
       {
         id: "insights",
-        widgets: widgetsFor(t),
+        widgets: widgetsFor(t, tabs),
         widgetLayout: widgetLayout(kind),
         layout: {
           columns: COLUMNS,
@@ -324,7 +341,8 @@ export const HOME_CHART_ROWS = 13;
 
 /** Home's chart tile: just the owed-vs-collected chart from Insights, filling the tile. */
 export function homeChartState(t: T = translator()): AgReportState<BukuRegistry> {
-  const trend = widgetsFor(t).trend;
+  // Only the trend chart is used here, so the grid's sizing doesn't matter.
+  const trend = widgetsFor(t, { columns: 5, columnWidth: TABS_COLUMN_WIDTH, cellPadding: GRID_CELL_PADDING }).trend;
   // Cast: see initialStateFor.
   return {
     selectedPageId: "home",
