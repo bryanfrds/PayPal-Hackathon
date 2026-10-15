@@ -4,7 +4,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { PAYPAL_STATE_COOKIE, SESSION_COOKIE, isAllowedOwner, makeSession, normaliseEmail, readPayPalState, safeNext } from "@/lib/auth";
 import { SESSION_COOKIE_OPTIONS, authSecret, cookieOptions, siteOrigin } from "@/lib/auth-server";
-import { emailFromCode } from "@/lib/paypal-login";
+import { emailFromCode, PayPalUnverifiedEmailError } from "@/lib/paypal-login";
 
 export async function GET(req: NextRequest) {
   const origin = siteOrigin(req);
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
     res.cookies.set(SESSION_COOKIE, await makeSession(email, "paypal", secret), SESSION_COOKIE_OPTIONS);
     res.cookies.set(PAYPAL_STATE_COOKIE, "", cookieOptions(0));
     return res;
-  } catch {
-    return fail("paypal");
+  } catch (error) {
+    return fail(error instanceof PayPalUnverifiedEmailError ? "paypal-unverified" : "paypal");
   }
 }
