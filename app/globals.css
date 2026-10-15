@@ -5586,6 +5586,16 @@ body.nudge-sheet-open {
 }
 
 /* The laptop grid's last two columns are narrow: Remind / Invoice / View, then the chat button. */
+/* Slimmer inner padding where the last pixels count: after the name, and around the status badge. */
+.ag-cell.hg-who-cell {
+  padding-right: 6px;
+}
+
+.ag-cell.hg-status-cell {
+  padding-right: 6px;
+  padding-left: 8px;
+}
+
 .ag-cell.hg-next-cell {
   padding-right: 4px;
   padding-left: 8px;

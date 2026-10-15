@@ -9,7 +9,7 @@ import { AgGridReact, type CustomCellRendererProps } from "ag-grid-react";
 import { AllCommunityModule, ModuleRegistry, themeQuartz, type ColDef } from "ag-grid-community";
 import { tabPath } from "@/lib/customer-tab";
 import { formatSen } from "@/lib/debts";
-import type { BoardRow } from "@/lib/home";
+import { lateLabel, type BoardRow } from "@/lib/home";
 import Avatar from "../components/Avatar";
 import { ShareButton } from "../components/ShareButton";
 
@@ -30,7 +30,6 @@ const theme = themeQuartz.withParams({
   cellHorizontalPaddingScale: 0.8,
 });
 
-const STATUS_TEXT: Record<BoardRow["status"], string> = { overdue: "Overdue", sent: "Invoice sent", unpaid: "Not sent" };
 const STATUS_ORDER: Record<BoardRow["status"], number> = { overdue: 0, sent: 1, unpaid: 2 };
 const BAR: Record<BoardRow["status"], string> = { overdue: "#c23b22", sent: "#2f55c4", unpaid: "#8c6512" };
 
@@ -49,7 +48,9 @@ function CustomerCell({ data }: CustomCellRendererProps<Row>) {
     <Link href={tabPath(data.slug)} className="hg-who">
       <Avatar name={data.customerName} />
       <span className="hg-who-main">
-        <span className="hg-who-name">{data.customerName}</span>
+        <span className="hg-who-name" title={data.customerName}>
+          {data.customerName}
+        </span>
         {/* Bar: their balance against the biggest one, like the Insights scoreboard. */}
         <span className="hg-bar" aria-hidden="true">
           <b style={{ width: `${data.sharePct}%`, background: BAR[data.status] }} />
@@ -61,7 +62,8 @@ function CustomerCell({ data }: CustomCellRendererProps<Row>) {
 
 function StatusCell({ data }: CustomCellRendererProps<Row>) {
   if (!data || isTotal(data)) return null;
-  return <span className={`badge badge-${data.status}`}>{STATUS_TEXT[data.status]}</span>;
+  // Days late folded into the badge, like the phone list: "5 days late", "Invoice sent", "Not sent".
+  return <span className={`badge badge-${data.status}`}>{lateLabel(data)}</span>;
 }
 
 /** Its own narrow column, so the chat buttons line up whatever the next-step button says. */
@@ -98,12 +100,12 @@ function ActionCell({ data }: CustomCellRendererProps<Row>) {
   );
 }
 
-// Minimum widths add up to 504px, so the grid fits inside its card (557px wide at a 1280px
-// window, about 512px inside the padding) with no sideways scroll. Anything wider goes to
-// the flexible columns, mostly Customer. The days-late header says just "Late" (tooltip has
-// the rest): "Days late" needs about 95px and there's no room for it at 1280.
+// At a 1280px window the card is 557px, about 512px inside its padding. Minimum widths add up
+// to 510px (Customer 168 + Owed 88 + Status 118 + Next step 92 + chat 44), so there's no
+// sideways scroll, and Customer keeps about 110px for the name after its padding and avatar.
+// Anything wider goes to the flexible columns, mostly Customer.
 const COLUMNS: ColDef<Row>[] = [
-  { headerName: "Customer", field: "customerName", flex: 1.6, minWidth: 104, cellRenderer: CustomerCell },
+  { headerName: "Customer", field: "customerName", flex: 1.8, minWidth: 168, cellClass: "hg-who-cell", cellRenderer: CustomerCell },
   {
     headerName: "Owed",
     field: "owedSen",
@@ -118,11 +120,19 @@ const COLUMNS: ColDef<Row>[] = [
     headerName: "Status",
     field: "status",
     flex: 1,
-    minWidth: 120,
+    minWidth: 118,
+    cellClass: "hg-status-cell",
+    headerTooltip: "Days past the bill's due date, or where the invoice stands",
     cellRenderer: StatusCell,
-    comparator: (a, b) => (a ? STATUS_ORDER[a as BoardRow["status"]] : 9) - (b ? STATUS_ORDER[b as BoardRow["status"]] : 9),
+    getQuickFilterText: (p) => (p.data && !isTotal(p.data) ? lateLabel(p.data) : ""),
+    // Most days late first, then overdue, invoice sent, not sent.
+    comparator: (_a, _b, nodeA, nodeB) => {
+      const a = nodeA.data;
+      const b = nodeB.data;
+      if (!a || isTotal(a) || !b || isTotal(b)) return 0;
+      return b.daysLate - a.daysLate || STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
+    },
   },
-  { headerName: "Late", field: "daysLate", flex: 0.5, minWidth: 56, headerTooltip: "Days past the bill's due date", type: "rightAligned" },
   // Named for screen readers; the labels are hidden on screen.
   { headerName: "Next step", headerClass: "hg-hidden-header", colId: "next", width: 92, minWidth: 92, maxWidth: 92, sortable: false, cellClass: "hg-next-cell", cellRenderer: ActionCell },
   {

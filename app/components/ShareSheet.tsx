@@ -10,7 +10,7 @@ import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "rea
 import { createPortal } from "react-dom";
 import { customerSlug, formatDay } from "@/lib/customer-tab";
 import { formatSen, todayLocal } from "@/lib/debts";
-import { owedBoard, type BoardRow } from "@/lib/home";
+import { lateLabel, owedBoard } from "@/lib/home";
 import { buildShareMessage, payLinkFor, TONES, unpaidItems, whatsappUrl, type NoLinkReason, type Tone } from "@/lib/share";
 import { useCollect } from "../useCollect";
 import { useDebts } from "../useDebts";
@@ -23,15 +23,8 @@ const NO_LINK_NOTE: Record<NoLinkReason, string> = {
   none: "No PayPal invoice yet. Send one from Collect to add a pay link.",
   "not-on-device": "This tab's PayPal pay link isn't on this device, so the message has no link.",
   "over-billed": "The PayPal invoice is for more than they owe now, so the message has no link.",
-  settled: "PayPal shows this invoice as closed, so the message has no link.",
+  settled: "PayPal shows this invoice as paid or closed, so the message has no link.",
 };
-
-const LATE_TEXT: Record<BoardRow["status"], string> = { overdue: "Overdue", sent: "Invoice sent", unpaid: "Not sent" };
-
-function lateLabel(row: BoardRow): string {
-  if (row.status === "overdue" && row.daysLate > 0) return `${row.daysLate} ${row.daysLate === 1 ? "day" : "days"} late`;
-  return LATE_TEXT[row.status];
-}
 
 /** WhatsApp's *bold* shown as bold, the way the customer will see it. */
 function withBold(text: string): ReactNode[] {
