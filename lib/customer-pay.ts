@@ -50,6 +50,7 @@ export type InvoicePayState = "open" | "processing" | "paid" | "closed" | "unkno
 export function invoicePayState(status: string | undefined): InvoicePayState {
   switch (status) {
     case "SENT":
+    case "SHARED":
     case "UNPAID":
     case "PARTIALLY_PAID":
       return "open";
@@ -57,8 +58,11 @@ export function invoicePayState(status: string | undefined): InvoicePayState {
       return "processing";
     case "PAID":
     case "MARKED_AS_PAID":
+    case "PAID_EXTERNAL":
       return "paid";
     case "CANCELLED":
+    case "AUTO_CANCELLED":
+    case "REFUNDED_EXTERNAL":
     case "REFUNDED":
     case "PARTIALLY_REFUNDED":
     case "MARKED_AS_REFUNDED":

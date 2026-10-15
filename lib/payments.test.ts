@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { InvoiceRecord } from "./collect-store";
 import type { Debt, DebtStatus } from "./debts";
-import { invoicesToCheck, invoicesToRemind, moneyToSen, noReminderReason, reconcileDebts, settlementOf, type InvoiceStanding, type Settlement } from "./payments";
+import { invoicesToCheck, invoicesToRemind, moneyToSen, noReminderReason, reconcileDebts, settlementLabel, settlementOf, type InvoiceStanding, type Settlement } from "./payments";
 
 function debt(id: string, status: DebtStatus): Debt {
   return { id, customerName: "Mr Raj", item: "", amountSen: 500, date: "2026-10-01", status, source: "manual", createdAt: "2026-10-01T00:00:00Z" };
@@ -178,5 +178,23 @@ describe("invoicesToRemind", () => {
     const b = rec("INV-B", ["D3"], standing("open"), "2026-10-05T10:00:00Z");
     const debts = [debt("D1", "sent"), debt("D2", "sent"), debt("D3", "sent")];
     expect(invoicesToRemind(debts, [a, b])).toEqual({ "mr-raj": [b, a] });
+  });
+});
+
+describe("PayPal's newer statuses", () => {
+  it("counts paid-outside-PayPal as paid, refunded-outside as closed, and a shared link as open", () => {
+    const facts = { currency: "MYR", totalSen: 1000, dueSen: 0 };
+    expect(settlementOf({ ...facts, status: "PAID_EXTERNAL" }, 1000, "MYR")).toBe("paid");
+    expect(settlementOf({ ...facts, status: "REFUNDED_EXTERNAL" }, 1000, "MYR")).toBe("closed");
+    expect(settlementOf({ ...facts, status: "SHARED", dueSen: 1000 }, 1000, "MYR")).toBe("open");
+    expect(noReminderReason({ status: "SHARED", dueSen: 1000 })).toBeNull();
+    expect(noReminderReason({ status: "REFUNDED_EXTERNAL" })).toBe("closed");
+  });
+
+  it("labels an invoice that's done or needs a look", () => {
+    expect(settlementLabel("paid")).toBe("Paid");
+    expect(settlementLabel("closed")).toBe("Cancelled");
+    expect(settlementLabel("check")).toBe("Check on PayPal");
+    expect(settlementLabel("open")).toBeUndefined();
   });
 });

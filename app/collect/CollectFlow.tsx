@@ -20,6 +20,7 @@ import { customerSlug, formatDay, tabPath } from "@/lib/customer-tab";
 import { DebtStoreError } from "@/lib/debt-store";
 import { formatSen } from "@/lib/debts";
 import { customerSummaries } from "@/lib/home";
+import { settlementLabel } from "@/lib/payments";
 import Avatar from "../components/Avatar";
 import StatusBadge from "../components/StatusBadge";
 import { BackIcon, CheckIcon, ChevronIcon, CloseIcon, MailIcon, PlusIcon, SendIcon } from "../components/icons";
@@ -165,6 +166,7 @@ export default function CollectFlow() {
                       <span className="tab-name">{r.customerName}</span>
                       <span className="tab-item">
                         {r.number ? `Invoice ${r.number} · ` : ""}sent {formatDay(r.sentAt.slice(0, 10)).replace(/ \d{4}$/, "")}
+                        {r.standing && settlementLabel(r.standing.settlement) && ` · ${settlementLabel(r.standing.settlement)}`}
                       </span>
                     </span>
                     <span className="tab-amt">

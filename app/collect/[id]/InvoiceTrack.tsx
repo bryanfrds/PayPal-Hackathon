@@ -5,7 +5,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { isPayPalUrl } from "@/lib/customer-pay";
+import { invoicePayState, isPayPalUrl } from "@/lib/customer-pay";
 import { formatDay } from "@/lib/customer-tab";
 import { formatSen } from "@/lib/debts";
 import Avatar from "../../components/Avatar";
@@ -16,8 +16,6 @@ import { useDebts } from "../../useDebts";
 import { useShop } from "../../useShop";
 
 type Live = { state: "loading" } | { state: "ok"; status: string; payerLink?: string } | { state: "error"; message: string };
-
-const PAID = new Set(["PAID", "MARKED_AS_PAID"]);
 
 export default function InvoiceTrack({ id }: { id: string }) {
   const { invoices, ready } = useCollect();
@@ -71,7 +69,9 @@ export default function InvoiceTrack({ id }: { id: string }) {
     );
   }
 
-  const paid = live.state === "ok" && PAID.has(live.status);
+  const state = live.state === "ok" ? invoicePayState(live.status) : undefined;
+  const paid = state === "paid";
+  const closed = state === "closed";
   const payerLink = [live.state === "ok" ? live.payerLink : undefined, record.payerLink].find(isPayPalUrl);
   const items = debts.filter((d) => record.debtIds.includes(d.id));
   const sentDay = formatDay(record.sentAt.slice(0, 10));
@@ -104,7 +104,8 @@ export default function InvoiceTrack({ id }: { id: string }) {
             <span className="tab-name">{record.customerName}</span>
             <span className="tab-item">{record.email}</span>
           </span>
-          <StatusBadge status={paid ? "paid" : "sent"} />
+          {/* A cancelled invoice's tab is owed again and back on the To send list. */}
+          <StatusBadge status={paid ? "paid" : closed ? "unpaid" : "sent"} />
         </div>
         <p className="track-big">
           <small>RM</small>
@@ -120,12 +121,12 @@ export default function InvoiceTrack({ id }: { id: string }) {
             Sent
             <small>{sentDay.replace(/ \d{4}$/, "")}</small>
           </li>
-          <li className={paid ? "done" : "now"}>
+          <li className={paid ? "done" : closed ? undefined : "now"}>
             <span aria-hidden="true">
               <ClockIcon />
             </span>
             Waiting
-            <small>{paid ? "Done" : "For payment"}</small>
+            <small>{paid ? "Done" : closed ? "Stopped" : state === "processing" ? "Processing" : "For payment"}</small>
           </li>
           <li className={paid ? "done" : undefined}>
             <span aria-hidden="true">
@@ -142,11 +143,18 @@ export default function InvoiceTrack({ id }: { id: string }) {
               ? `${live.message} Showing what this device knows.`
               : paid
                 ? "PayPal says this invoice is paid."
-                : "PayPal says it's waiting for payment."}
+                : closed
+                  ? "PayPal says this invoice was cancelled or refunded. Its tab is owed again; send a new invoice from Collect."
+                  : state === "processing"
+                    ? "PayPal is processing the customer's payment."
+                    : state === "open"
+                      ? "PayPal says it's waiting for payment."
+                      : `PayPal says this invoice is ${live.status.toLowerCase().replaceAll("_", " ")}. Check it on PayPal.`}
         </p>
       </section>
 
-      {payerLink && (
+      {/* No pay link to share once PayPal has cancelled or refunded the invoice. */}
+      {payerLink && !closed && (
         <div className="track-actions">
           <button type="button" onClick={copy}>
             <span aria-hidden="true">

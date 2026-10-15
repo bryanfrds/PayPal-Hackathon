@@ -28,6 +28,14 @@ export type StatusResult = ({ ok: true } & InvoiceFacts) | { ok: false; error: s
  */
 export type Settlement = "paid" | "open" | "closed" | "check";
 
+/** A short word for where an invoice stands, or undefined while it's simply waiting for payment. */
+export function settlementLabel(settlement: Settlement | undefined): string | undefined {
+  if (settlement === "paid") return "Paid";
+  if (settlement === "closed") return "Cancelled";
+  if (settlement === "check") return "Check on PayPal";
+  return undefined;
+}
+
 /** What the device last learned from PayPal about an invoice. */
 export type InvoiceStanding = InvoiceFacts & {
   settlement: Settlement;
@@ -35,9 +43,11 @@ export type InvoiceStanding = InvoiceFacts & {
   checkedAt: string;
 };
 
-const PAID = new Set(["PAID", "MARKED_AS_PAID"]);
-const OPEN = new Set(["DRAFT", "SCHEDULED", "SENT", "UNPAID", "PAYMENT_PENDING", "PARTIALLY_PAID"]);
-const CLOSED = new Set(["CANCELLED", "AUTO_CANCELLED", "REFUNDED", "MARKED_AS_REFUNDED"]);
+// PAID_EXTERNAL and REFUNDED_EXTERNAL: the owner recorded on PayPal that it was paid or refunded
+// some other way (cash, bank transfer). SHARED: sent as a link rather than by PayPal's email.
+const PAID = new Set(["PAID", "MARKED_AS_PAID", "PAID_EXTERNAL"]);
+const OPEN = new Set(["DRAFT", "SCHEDULED", "SENT", "SHARED", "UNPAID", "PAYMENT_PENDING", "PARTIALLY_PAID"]);
+const CLOSED = new Set(["CANCELLED", "AUTO_CANCELLED", "REFUNDED", "MARKED_AS_REFUNDED", "REFUNDED_EXTERNAL"]);
 
 /** A paid invoice can still be refunded, so it's asked about again, but only this often. */
 export const PAID_RECHECK_MS = 60 * 60 * 1000;
@@ -78,11 +88,11 @@ export function settlementOf(facts: InvoiceFacts, billedSen: number, currency: s
 export type NoReminder = "paid" | "closed" | "pending" | "unknown";
 
 // Still owed and waiting on the customer. PAYMENT_PENDING is excluded: their payment is on its way.
-const REMINDABLE = new Set(["SENT", "UNPAID", "PARTIALLY_PAID"]);
+const REMINDABLE = new Set(["SENT", "SHARED", "UNPAID", "PARTIALLY_PAID"]);
 
 /** Whether PayPal should email this invoice's customer a reminder now. */
 export function noReminderReason(facts: InvoiceFacts): NoReminder | null {
-  if (PAID.has(facts.status) || facts.status === "PAID_EXTERNAL") return "paid";
+  if (PAID.has(facts.status)) return "paid";
   if (CLOSED.has(facts.status)) return "closed";
   if (facts.status === "PAYMENT_PENDING") return "pending";
   if (!REMINDABLE.has(facts.status)) return "unknown";
