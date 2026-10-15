@@ -1,6 +1,7 @@
 // Numbers and labels for the home dashboard. Pure functions so they can be tested in Node.
 
 import { customerSlug, daysBetween, dueDateFor } from "./customer-tab";
+import { translator, type T } from "./i18n";
 import type { ScheduleItem } from "./reminders";
 import { outstanding, type Debt } from "./debts";
 
@@ -112,12 +113,10 @@ export type BoardRow = {
   sharePct: number;
 };
 
-const BOARD_STATUS_TEXT: Record<BoardRow["status"], string> = { overdue: "Overdue", sent: "Invoice sent", unpaid: "Not sent" };
-
 /** The badge on a board row: "5 days late" once past due, otherwise Overdue / Invoice sent / Not sent. */
-export function lateLabel(row: Pick<BoardRow, "status" | "daysLate">): string {
-  if (row.status === "overdue" && row.daysLate > 0) return `${row.daysLate} ${row.daysLate === 1 ? "day" : "days"} late`;
-  return BOARD_STATUS_TEXT[row.status];
+export function lateLabel(row: Pick<BoardRow, "status" | "daysLate">, t: T = translator()): string {
+  if (row.status === "overdue" && row.daysLate > 0) return t("late.days", { count: row.daysLate });
+  return t(`status.${row.status}`);
 }
 
 /** Who owes, biggest balance first, with days late and a bar length. */

@@ -15,6 +15,7 @@ import { buildShareMessage, chooseLink, payLinkFor, TONES, unpaidItems, whatsapp
 import { useCollect } from "../useCollect";
 import { useDebts } from "../useDebts";
 import { usePrefs } from "../usePrefs";
+import { useT } from "../useT";
 import { useShop } from "../useShop";
 import Avatar from "./Avatar";
 import { ChatIcon, CloseIcon, CopyIcon, LinkIcon } from "./icons";
@@ -38,6 +39,7 @@ export default function ShareSheet({
   const { invoices } = useCollect();
   const { name: shopName } = useShop();
   const { prefs } = usePrefs();
+  const { t } = useT();
   // Starts on the owner's default tone from Settings.
   const [tone, setTone] = useState<Tone>(prefs.defaultTone);
   const [copied, setCopied] = useState<"idle" | "done" | "failed">("idle");
@@ -142,7 +144,7 @@ export default function ShareSheet({
           </div>
           <div className="share-owed">
             <b>RM {formatSen(row.owedSen)}</b>
-            <span className={late ? "share-late" : undefined}>{lateLabel(row)}</span>
+            <span className={late ? "share-late" : undefined}>{lateLabel(row, t)}</span>
           </div>
         </div>
 
