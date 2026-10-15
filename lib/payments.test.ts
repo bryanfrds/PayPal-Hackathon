@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { InvoiceRecord } from "./collect-store";
 import type { Debt, DebtStatus } from "./debts";
-import { invoicesToCheck, moneyToSen, reconcileDebts, settlementOf, type InvoiceStanding, type Settlement } from "./payments";
+import { invoicesToCheck, invoicesToRemind, moneyToSen, noReminderReason, reconcileDebts, settlementOf, type InvoiceStanding, type Settlement } from "./payments";
 
 function debt(id: string, status: DebtStatus): Debt {
   return { id, customerName: "Mr Raj", item: "", amountSen: 500, date: "2026-10-01", status, source: "manual", createdAt: "2026-10-01T00:00:00Z" };
@@ -126,5 +126,48 @@ describe("invoicesToCheck", () => {
   it("moves invoices that just failed to the back, so they don't hold up the rest", () => {
     const records = [rec("A", ["D1"]), rec("B", ["D2"]), rec("C", ["D3"])];
     expect(invoicesToCheck(records, 2, now, { A: "2026-10-14T11:00:00Z", B: "2026-10-14T11:00:00Z" }).map((r) => r.id)).toEqual(["C", "A"]);
+  });
+});
+
+describe("noReminderReason", () => {
+  it("allows a reminder only for money still owed and waiting on the customer", () => {
+    expect(noReminderReason({ status: "SENT", dueSen: 1000 })).toBeNull();
+    expect(noReminderReason({ status: "UNPAID" })).toBeNull();
+    expect(noReminderReason({ status: "PARTIALLY_PAID", dueSen: 400 })).toBeNull();
+    expect(noReminderReason({ status: "SENT", dueSen: 0 })).toBe("paid");
+    expect(noReminderReason({ status: "PAID" })).toBe("paid");
+    expect(noReminderReason({ status: "CANCELLED" })).toBe("closed");
+    expect(noReminderReason({ status: "PAYMENT_PENDING" })).toBe("pending");
+    expect(noReminderReason({ status: "PARTIALLY_REFUNDED" })).toBe("unknown");
+  });
+});
+
+describe("invoicesToRemind", () => {
+  it("picks the customer's open invoice for a debt that's out", () => {
+    const open = rec("INV-1", ["D1"], standing("open"));
+    expect(invoicesToRemind([debt("D1", "sent")], [open])).toEqual({ "mr-raj": open });
+  });
+
+  it("counts an invoice PayPal hasn't been asked about yet", () => {
+    const fresh = rec("INV-1", ["D1"]);
+    expect(invoicesToRemind([debt("D1", "sent")], [fresh])).toEqual({ "mr-raj": fresh });
+  });
+
+  it.each(["paid", "closed", "check"] as Settlement[])("skips a %s invoice", (settlement) => {
+    expect(invoicesToRemind([debt("D1", "sent")], [rec("INV-1", ["D1"], standing(settlement))])).toEqual({});
+  });
+
+  it("skips debts that are paid or not invoiced", () => {
+    const open = rec("INV-1", ["D1"], standing("open"));
+    expect(invoicesToRemind([debt("D1", "paid")], [open])).toEqual({});
+    expect(invoicesToRemind([debt("D1", "unpaid")], [open])).toEqual({});
+  });
+
+  it("only counts a debt's newest invoice, so a cancelled-and-resent tab reminds about the new one", () => {
+    const old = rec("INV-OLD", ["D1"], standing("open"), "2026-10-01T10:00:00Z");
+    const resent = rec("INV-NEW", ["D1"], standing("open"), "2026-10-10T10:00:00Z");
+    expect(invoicesToRemind([debt("D1", "sent")], [old, resent])).toEqual({ "mr-raj": resent });
+    const paidNew = rec("INV-NEW", ["D1"], standing("paid"), "2026-10-10T10:00:00Z");
+    expect(invoicesToRemind([debt("D1", "sent")], [old, paidNew])).toEqual({});
   });
 });

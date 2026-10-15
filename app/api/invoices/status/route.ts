@@ -3,8 +3,8 @@
 // debts that makes paid.
 
 import { NextResponse } from "next/server";
-import { moneyToSen, type InvoiceFacts, type StatusResult } from "@/lib/payments";
-import { getInvoice, PayPalError, shopCurrency, type PayPalInvoice } from "@/lib/paypal";
+import { invoiceFacts, type StatusResult } from "@/lib/payments";
+import { getInvoice, PayPalError, shopCurrency } from "@/lib/paypal";
 import { paypalFailure } from "../errors";
 import { requireOwner } from "@/lib/auth-server";
 
@@ -20,16 +20,6 @@ function parseIds(value: unknown): string[] | null {
   if (!Array.isArray(ids) || ids.length === 0 || ids.length > MAX_IDS) return null;
   if (!ids.every((id): id is string => typeof id === "string" && ID.test(id))) return null;
   return [...new Set(ids)];
-}
-
-function factsOf(invoice: PayPalInvoice): InvoiceFacts {
-  return {
-    status: invoice.status ?? "UNKNOWN",
-    currency: invoice.amount?.currency_code ?? invoice.detail?.currency_code,
-    totalSen: moneyToSen(invoice.amount?.value),
-    paidSen: moneyToSen(invoice.payments?.paid_amount?.value),
-    dueSen: moneyToSen(invoice.due_amount?.value),
-  };
 }
 
 export async function POST(request: Request) {
@@ -53,7 +43,7 @@ export async function POST(request: Request) {
   async function worker() {
     for (let id = queue.shift(); id !== undefined && !fatal; id = queue.shift()) {
       try {
-        results[id] = { ok: true, ...factsOf(await getInvoice(id)) };
+        results[id] = { ok: true, ...invoiceFacts(await getInvoice(id)) };
       } catch (error) {
         console.error("POST /api/invoices/status failed for one invoice:", error instanceof Error ? error.message : error);
         const paypal = error instanceof PayPalError ? error : null;

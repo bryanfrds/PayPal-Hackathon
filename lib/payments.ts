@@ -6,6 +6,7 @@
 
 import type { InvoiceRecord } from "./collect-store";
 import type { Debt } from "./debts";
+import type { PayPalInvoice } from "./paypal";
 
 /** What PayPal reported about one invoice, amounts in whole sen (cents for USD). */
 export type InvoiceFacts = {
@@ -48,6 +49,17 @@ export function moneyToSen(value: string | undefined): number | undefined {
   return Number(whole) * 100 + Number(frac.padEnd(2, "0"));
 }
 
+/** The facts that matter about a PayPal invoice, amounts in sen. */
+export function invoiceFacts(invoice: PayPalInvoice): InvoiceFacts {
+  return {
+    status: invoice.status ?? "UNKNOWN",
+    currency: invoice.amount?.currency_code ?? invoice.detail?.currency_code,
+    totalSen: moneyToSen(invoice.amount?.value),
+    paidSen: moneyToSen(invoice.payments?.paid_amount?.value),
+    dueSen: moneyToSen(invoice.due_amount?.value),
+  };
+}
+
 /** Classifies an invoice against the amount and currency we billed it in. */
 export function settlementOf(facts: InvoiceFacts, billedSen: number, currency: string): Settlement {
   if (PAID.has(facts.status)) {
@@ -60,6 +72,22 @@ export function settlementOf(facts: InvoiceFacts, billedSen: number, currency: s
   if (OPEN.has(facts.status)) return "open";
   if (CLOSED.has(facts.status)) return "closed";
   return "check";
+}
+
+/** Why an invoice can't be reminded about, or null when it can. */
+export type NoReminder = "paid" | "closed" | "pending" | "unknown";
+
+// Still owed and waiting on the customer. PAYMENT_PENDING is excluded: their payment is on its way.
+const REMINDABLE = new Set(["SENT", "UNPAID", "PARTIALLY_PAID"]);
+
+/** Whether PayPal should email this invoice's customer a reminder now. */
+export function noReminderReason(facts: InvoiceFacts): NoReminder | null {
+  if (PAID.has(facts.status) || facts.status === "PAID_EXTERNAL") return "paid";
+  if (CLOSED.has(facts.status)) return "closed";
+  if (facts.status === "PAYMENT_PENDING") return "pending";
+  if (!REMINDABLE.has(facts.status)) return "unknown";
+  if (facts.dueSen === 0) return "paid";
+  return null;
 }
 
 /**
@@ -122,4 +150,29 @@ export function reconcileDebts(debts: Debt[], records: InvoiceRecord[]): DebtCha
     }
   }
   return changes;
+}
+
+/**
+ * The invoice to have PayPal remind each customer about, by customer slug: for debts still
+ * out on an invoice, the newest invoice that holds one of them and isn't known to be paid,
+ * cancelled or in doubt. Same rule as reconcileDebts: only a debt's newest invoice counts.
+ */
+export function invoicesToRemind(debts: Debt[], records: InvoiceRecord[]): Record<string, InvoiceRecord> {
+  const newest = new Map<string, InvoiceRecord>();
+  for (const record of records) {
+    for (const id of record.debtIds) {
+      const current = newest.get(id);
+      if (!current || record.sentAt > current.sentAt) newest.set(id, record);
+    }
+  }
+  const out: Record<string, InvoiceRecord> = {};
+  for (const debt of debts) {
+    if (debt.status !== "sent" && debt.status !== "overdue") continue;
+    const record = newest.get(debt.id);
+    const settlement = record?.standing?.settlement;
+    if (!record || (settlement !== undefined && settlement !== "open")) continue;
+    const current = out[record.slug];
+    if (!current || record.sentAt > current.sentAt) out[record.slug] = record;
+  }
+  return out;
 }
