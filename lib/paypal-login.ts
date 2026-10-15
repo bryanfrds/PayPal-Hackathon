@@ -35,6 +35,25 @@ export function authorizeUrl(state: string, redirectUri: string): string {
 
 type Fetch = typeof fetch;
 
+type UserInfo = {
+  email?: string;
+  email_verified?: boolean | string;
+  emails?: { value?: string; primary?: boolean | string; confirmed?: boolean | string }[];
+};
+
+// PayPal documents these as booleans, but some report them as "true".
+const isTrue = (value: unknown) => value === true || value === "true";
+
+/**
+ * The account's email, only when PayPal says it's verified: an unverified one could be anyone's
+ * address, including an owner's. Missing proof counts as unverified.
+ */
+export function verifiedEmail(info: UserInfo): string | undefined {
+  if (info.email && isTrue(info.email_verified)) return info.email;
+  const confirmed = (info.emails ?? []).filter((e) => e.value && isTrue(e.confirmed));
+  return (confirmed.find((e) => isTrue(e.primary)) ?? confirmed[0])?.value;
+}
+
 /** Swaps the one-time code from the callback for the owner's PayPal email. */
 export async function emailFromCode(code: string, redirectUri: string, fetchImpl: Fetch = fetch): Promise<string> {
   const { apiBase, clientId, clientSecret } = readPayPalConfigFromEnv();
@@ -53,10 +72,11 @@ export async function emailFromCode(code: string, redirectUri: string, fetchImpl
     headers: { Authorization: `Bearer ${token.access_token}` },
   });
   if (!infoRes.ok) throw new PayPalLoginError(`PayPal didn't share the account's details (${infoRes.status}).`);
-  const info = (await infoRes.json()) as { email?: string; email_verified?: boolean; emails?: { value?: string; primary?: boolean }[] };
-  // Only an email PayPal has verified: an unverified one could be anyone's address.
-  if (info.email_verified === false) throw new PayPalLoginError("This PayPal account's email isn't verified yet.");
-  const email = info.email ?? info.emails?.find((e) => e.primary)?.value ?? info.emails?.[0]?.value;
-  if (!email) throw new PayPalLoginError("PayPal didn't share an email for this account. Tick the email scope for the app.");
+  const info = (await infoRes.json()) as UserInfo;
+  const email = verifiedEmail(info);
+  if (!email) {
+    if (info.email || info.emails?.length) throw new PayPalLoginError("This PayPal account's email isn't verified yet.");
+    throw new PayPalLoginError("PayPal didn't share an email for this account. Tick the email scope for the app.");
+  }
   return email;
 }
