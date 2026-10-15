@@ -3313,6 +3313,21 @@ body.nudge-sheet-open {
   }
 }
 
+/* Studio widgets in view mode (Insights and the Home chart). A tap selects the widget, and
+   Studio marks hover and selection with a square 1px line in the accent colour round the whole
+   tile, outside the rounded card: a hard black box (light box in dark mode). Nothing can be
+   edited in view mode, so drop it. Edit mode keeps Studio's own lines. */
+.ag-studio-layout-widget:not(.ag-studio-layout-widget-editing) {
+  box-shadow: none;
+}
+
+/* Keyboard users still get a ring, on the rounded card. Studio only adds -focus after a key
+   press (its keyboard-mode check), so a tap never shows it. */
+.ag-studio-layout-widget-focus:not(.ag-studio-layout-widget-editing) > .ag-studio-layout-widget-container {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .scoreboard {
   list-style: none;
   margin: 0;
