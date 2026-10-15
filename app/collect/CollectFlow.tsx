@@ -16,10 +16,11 @@ import {
   type PendingSend,
 } from "@/lib/collect";
 import { CollectStoreError } from "@/lib/collect-store";
-import { customerSlug, formatDay, tabPath } from "@/lib/customer-tab";
+import { customerSlug, tabPath } from "@/lib/customer-tab";
 import { DebtStoreError } from "@/lib/debt-store";
 import { formatSen } from "@/lib/debts";
 import { customerSummaries } from "@/lib/home";
+import type { T } from "@/lib/i18n";
 import Avatar from "../components/Avatar";
 import StatusBadge from "../components/StatusBadge";
 import { BackIcon, CheckIcon, ChevronIcon, CloseIcon, MailIcon, PlusIcon, SendIcon } from "../components/icons";
@@ -27,6 +28,7 @@ import { useCollect } from "../useCollect";
 import { useIsWide } from "../useIsWide";
 import { useShop } from "../useShop";
 import { useDebts } from "../useDebts";
+import { useT } from "../useT";
 
 
 type Phase = "list" | "review" | "send";
@@ -37,6 +39,7 @@ const rm = (sen: number) => `RM ${formatSen(sen)}`;
 export default function CollectFlow() {
   const { debts, ready } = useDebts();
   const { emails, invoices, pending } = useCollect();
+  const { t, formatDay } = useT();
   const [phase, setPhase] = useState<Phase>("list");
   const [tab, setTab] = useState<Tab>("toSend");
   // Customers switched off; everyone with an email is on by default.
@@ -89,14 +92,14 @@ export default function CollectFlow() {
   return (
     <div className={`collect collect-home${showPane ? " collect-wide" : ""}`}>
       <div className="collect-top">
-        <h1>Collect</h1>
+        <h1>{t("collect.title")}</h1>
       </div>
 
       <div className="collect-cols">
       <div className="collect-left">
 
       <section className="collect-hero" aria-labelledby="collect-hero-label">
-        <p id="collect-hero-label">Ready to collect</p>
+        <p id="collect-hero-label">{t("collect.heroLabel")}</p>
         <p className="collect-hero-big">
           <small>RM</small>
           {ready ? formatSen(total) : "—"}
@@ -106,27 +109,27 @@ export default function CollectFlow() {
             {groups.slice(0, 4).map((g) => (
               <Avatar key={g.slug} name={g.customerName} />
             ))}
-            <span>{groups.length === 1 ? "1 customer" : `${groups.length} customers`} not invoiced yet</span>
+            <span>{t("collect.notInvoiced", { count: groups.length })}</span>
           </div>
         )}
       </section>
 
-      <div className="collect-tabs" role="tablist" aria-label="Invoices">
-        <TabButton id="toSend" tab={tab} onTab={setTab} label="To send" count={groups.length} />
-        <TabButton id="sent" tab={tab} onTab={setTab} label="Sent" count={invoices.length + olderSent.length} />
-        <TabButton id="paid" tab={tab} onTab={setTab} label="Paid" count={paidCustomers.length} />
+      <div className="collect-tabs" role="tablist" aria-label={t("collect.tabsLabel")}>
+        <TabButton id="toSend" tab={tab} onTab={setTab} label={t("collect.tab.toSend")} count={groups.length} />
+        <TabButton id="sent" tab={tab} onTab={setTab} label={t("collect.tab.sent")} count={invoices.length + olderSent.length} />
+        <TabButton id="paid" tab={tab} onTab={setTab} label={t("collect.tab.paid")} count={paidCustomers.length} />
       </div>
 
       <div role="tabpanel" id={`collect-panel-${tab}`} aria-labelledby={`collect-tab-${tab}`}>
         {!ready ? (
           <p className="card loading" aria-busy="true">
-            Loading…
+            {t("common.loading")}
           </p>
         ) : tab === "toSend" ? (
           groups.length === 0 ? (
             <div className="card empty-state">
-              <h2>Nothing to invoice</h2>
-              <p>Every tab already has an invoice. New tabs show up here.</p>
+              <h2>{t("collect.empty.title")}</h2>
+              <p>{t("collect.empty.body")}</p>
             </div>
           ) : (
             <ul className="collect-list">
@@ -153,7 +156,7 @@ export default function CollectFlow() {
         ) : tab === "sent" ? (
           invoices.length + olderSent.length === 0 ? (
             <div className="card empty-state">
-              <p>No invoices sent yet.</p>
+              <p>{t("collect.sent.empty")}</p>
             </div>
           ) : (
             <ul className="collect-list">
@@ -164,7 +167,9 @@ export default function CollectFlow() {
                     <span className="tab-who">
                       <span className="tab-name">{r.customerName}</span>
                       <span className="tab-item">
-                        {r.number ? `Invoice ${r.number} · ` : ""}sent {formatDay(r.sentAt.slice(0, 10)).replace(/ \d{4}$/, "")}
+                        {r.number
+                          ? t("collect.sent.rowNumber", { number: r.number, day: formatDay(r.sentAt.slice(0, 10), { year: false }) })
+                          : t("collect.sent.row", { day: formatDay(r.sentAt.slice(0, 10), { year: false }) })}
                       </span>
                     </span>
                     <span className="tab-amt">
@@ -180,7 +185,7 @@ export default function CollectFlow() {
                     <Avatar name={c.customerName} />
                     <span className="tab-who">
                       <span className="tab-name">{c.customerName}</span>
-                      <span className="tab-item">Sent before this app</span>
+                      <span className="tab-item">{t("collect.sent.before")}</span>
                     </span>
                     <span className="tab-amt">
                       {rm(c.owedSen)}
@@ -193,7 +198,7 @@ export default function CollectFlow() {
           )
         ) : paidCustomers.length === 0 ? (
           <div className="card empty-state">
-            <p>No payments yet.</p>
+            <p>{t("collect.paid.empty")}</p>
           </div>
         ) : (
           <ul className="collect-list">
@@ -204,7 +209,7 @@ export default function CollectFlow() {
                   <span className="tab-who">
                     <span className="tab-name">{c.customerName}</span>
                     <span className="tab-item">
-                      {c.count} {c.count === 1 ? "tab" : "tabs"} paid
+                      {t("collect.paid.tabs", { count: c.count })}
                     </span>
                   </span>
                   <span className="tab-amt">
@@ -221,16 +226,16 @@ export default function CollectFlow() {
       </div>
 
       {showPane && preview && previewGroup && (
-        <aside className="collect-pane" aria-label="Invoice preview">
+        <aside className="collect-pane" aria-label={t("collect.pane.label")}>
           {/* Announced when Preview switches whose invoice is shown. */}
           <p className="visually-hidden" aria-live="polite">
-            Showing {previewGroup.customerName}'s invoice{preview.willSend ? "" : ", not being sent"}
+            {t(preview.willSend ? "collect.pane.showing" : "collect.pane.showingOff", { name: previewGroup.customerName })}
           </p>
           {!preview.willSend && (
             <p className="collect-pane-off" role="note">
               {preview.reason === "noEmail"
-                ? `Not being sent: add ${previewGroup.customerName}'s email first.`
-                : `Not being sent: ${previewGroup.customerName} is switched off.`}
+                ? t("collect.pane.offNoEmail", { name: previewGroup.customerName })
+                : t("collect.pane.offSwitched", { name: previewGroup.customerName })}
             </p>
           )}
           {/* Focusable so a long invoice can be scrolled with the keyboard. */}
@@ -238,14 +243,14 @@ export default function CollectFlow() {
             className={`collect-pane-paper${preview.willSend ? "" : " collect-pane-paper-off"}`}
             tabIndex={0}
             role="region"
-            aria-label={`${previewGroup.customerName}'s invoice`}
+            aria-label={t("collect.pane.paper", { name: previewGroup.customerName })}
           >
-            <Paper group={previewGroup} label={`Preview of ${previewGroup.customerName}'s invoice`} />
+            <Paper group={previewGroup} label={t("collect.pane.paperLabel", { name: previewGroup.customerName })} />
           </div>
           <div className="card collect-sendbox">
             <p className="collect-sendbox-total">
               <b>{rm(chosenTotal)}</b>
-              <span>{chosen.length === 1 ? "1 invoice" : `${chosen.length} invoices`} · nothing is charged</span>
+              <span>{t("collect.invoicesNoCharge", { count: chosen.length })}</span>
             </p>
             <button
               type="button"
@@ -257,11 +262,11 @@ export default function CollectFlow() {
               }}
             >
               <SendIcon />
-              {chosen.length === 1 ? "Send 1 PayPal invoice" : `Send ${chosen.length} PayPal invoices`}
+              {t("collect.sendButton", { count: chosen.length })}
             </button>
             <p className="collect-sendbox-note">
-              Each customer gets their own invoice by email.
-              {groups.some((g) => !g.email) ? " Customers without an email are left out until you add one." : ""}
+              {t("collect.sendNote")}
+              {groups.some((g) => !g.email) ? ` ${t("collect.sendNoteNoEmail")}` : ""}
             </p>
           </div>
         </aside>
@@ -271,11 +276,11 @@ export default function CollectFlow() {
       {tab === "toSend" && ready && groups.length > 0 && !showPane && (
         <div className="collect-bar">
           <p>
-            <small>{chosen.length === 1 ? "1 invoice" : `${chosen.length} invoices`}</small>
+            <small>{t("collect.invoices", { count: chosen.length })}</small>
             <b>{rm(chosenTotal)}</b>
           </p>
           <button type="button" disabled={chosen.length === 0} onClick={() => setPhase("review")}>
-            Review
+            {t("collect.review")}
             <ChevronIcon />
           </button>
         </div>
@@ -355,6 +360,7 @@ function CustomerCard({
   previewing?: boolean;
   onPreview?: () => void;
 }) {
+  const { t } = useT();
   const missing = !group.email;
   return (
     <li className={`card collect-card${missing ? " collect-card-missing" : ""}${previewing ? " collect-card-previewing" : ""}`}>
@@ -363,14 +369,14 @@ function CustomerCard({
         <span className="tab-name">{group.customerName}</span>
         <StatusBadge status={group.status} />
         {group.pending ? (
-          <span className="collect-pending">Last send didn&apos;t finish · {group.email}</span>
+          <span className="collect-pending">{t("collect.card.pending", { email: group.email ?? "" })}</span>
         ) : missing ? (
           <button type="button" className="collect-add-email" onClick={onAddEmail}>
             <PlusIcon />
-            Add email
+            {t("collect.card.addEmail")}
           </button>
         ) : (
-          <button type="button" className="collect-email" onClick={onAddEmail} aria-label={`Change ${group.customerName}'s email, ${group.email}`}>
+          <button type="button" className="collect-email" onClick={onAddEmail} aria-label={t("collect.card.changeEmail", { name: group.customerName, email: group.email ?? "" })}>
             {group.email}
           </button>
         )}
@@ -381,10 +387,10 @@ function CustomerCard({
           type="button"
           className="collect-preview-btn"
           aria-pressed={previewing}
-          aria-label={`Preview ${group.customerName}'s invoice`}
+          aria-label={t("collect.card.previewLabel", { name: group.customerName })}
           onClick={onPreview}
         >
-          Preview
+          {t("collect.card.preview")}
         </button>
       )}
       <button
@@ -393,7 +399,7 @@ function CustomerCard({
         className="collect-switch"
         aria-checked={on}
         disabled={missing}
-        aria-label={missing ? `Add an email to invoice ${group.customerName}` : `Invoice ${group.customerName}, ${rm(group.totalSen)}`}
+        aria-label={missing ? t("collect.card.switchNoEmail", { name: group.customerName }) : t("collect.card.switch", { name: group.customerName, amount: rm(group.totalSen) })}
         onClick={() => onToggle(!on)}
       />
     </li>
@@ -402,6 +408,7 @@ function CustomerCard({
 
 function EmailSheet({ group, onClose, onSaved }: { group: CollectGroup; onClose: () => void; onSaved: (slug: string) => void }) {
   const { setEmail } = useCollect();
+  const { t } = useT();
   const [value, setValue] = useState(group.email ?? "");
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -436,14 +443,14 @@ function EmailSheet({ group, onClose, onSaved }: { group: CollectGroup; onClose:
 
   function save() {
     if (!isValidEmail(value)) {
-      setError("That doesn't look like an email. Check for the @ and the ending.");
+      setError(t("collect.email.invalid"));
       inputRef.current?.focus();
       return;
     }
     try {
       setEmail(group.slug, value);
     } catch (e) {
-      setError(e instanceof CollectStoreError ? e.message : "Couldn't save. Try again.");
+      setError(e instanceof CollectStoreError ? e.message : t("collect.saveFailed"));
       return;
     }
     onSaved(group.slug);
@@ -453,13 +460,13 @@ function EmailSheet({ group, onClose, onSaved }: { group: CollectGroup; onClose:
     <div className="sheet-layer">
       <div className="sheet-dim" onClick={onClose} aria-hidden="true" />
       <div className="sheet" role="dialog" aria-modal="true" aria-labelledby="email-sheet-title" ref={sheetRef}>
-        <button type="button" className="sheet-close" aria-label="Close" onClick={onClose}>
+        <button type="button" className="sheet-close" aria-label={t("common.close")} onClick={onClose}>
           <CloseIcon />
         </button>
         <div className="sheet-who">
           <Avatar name={group.customerName} className="avatar avatar-lg" />
-          <h2 id="email-sheet-title">{group.customerName}&apos;s email</h2>
-          <p>PayPal sends the invoice here, with a Pay button.</p>
+          <h2 id="email-sheet-title">{t("collect.email.title", { name: group.customerName })}</h2>
+          <p>{t("collect.email.intro")}</p>
         </div>
         <form
           onSubmit={(e) => {
@@ -468,7 +475,7 @@ function EmailSheet({ group, onClose, onSaved }: { group: CollectGroup; onClose:
           }}
         >
           <label className="visually-hidden" htmlFor="email-sheet-input">
-            Email
+            {t("collect.email.label")}
           </label>
           <div className={`sheet-input${error ? " sheet-input-error" : ""}`}>
             <MailIcon />
@@ -478,7 +485,7 @@ function EmailSheet({ group, onClose, onSaved }: { group: CollectGroup; onClose:
               type="email"
               inputMode="email"
               autoComplete="email"
-              placeholder="name@gmail.com"
+              placeholder={t("collect.email.placeholder")}
               value={value}
               aria-invalid={Boolean(error) || undefined}
               aria-describedby={error ? "email-sheet-error" : undefined}
@@ -493,7 +500,7 @@ function EmailSheet({ group, onClose, onSaved }: { group: CollectGroup; onClose:
               {error}
             </p>
           )}
-          <div className="sheet-chips" aria-label="Common endings">
+          <div className="sheet-chips" aria-label={t("collect.email.endings")}>
             {EMAIL_DOMAINS.map((domain) => (
               <button
                 key={domain}
@@ -509,10 +516,10 @@ function EmailSheet({ group, onClose, onSaved }: { group: CollectGroup; onClose:
             ))}
           </div>
           <button type="submit" className="button button-primary tab-pay">
-            Save and include
+            {t("collect.email.save")}
           </button>
         </form>
-        <p className="tab-note">Saved on this device for next time.</p>
+        <p className="tab-note">{t("collect.email.note")}</p>
       </div>
     </div>
   );
@@ -522,24 +529,25 @@ function EmailSheet({ group, onClose, onSaved }: { group: CollectGroup; onClose:
 /** One invoice, drawn like the paper the customer gets. Used by Review (phone) and the side pane (laptop). */
 function Paper({ group: g, label }: { group: CollectGroup; label: string }) {
   const { name: shopName } = useShop();
+  const { t, formatDay } = useT();
   return (
     <article className="paper" aria-label={label}>
       <div className="paper-head">
         <p className="paper-from">
           {shopName}
-          <small>Invoice via PayPal</small>
+          <small>{t("invoice.via")}</small>
         </p>
-        <span className="paper-tag">INVOICE</span>
+        <span className="paper-tag">{t("invoice.tag")}</span>
       </div>
       <p className="paper-to">
-        Bill to<b>{g.customerName}</b>
-        {g.email ?? "No email yet"}
+        {t("invoice.billTo")}<b>{g.customerName}</b>
+        {g.email ?? t("invoice.noEmail")}
       </p>
       <ul className="paper-lines">
         {g.debts.map((d) => (
           <li key={d.id}>
             <span>
-              {d.item || "Shop items"}
+              {d.item || t("invoice.shopItems")}
               <small>{formatDay(d.date)}</small>
             </span>
             <span>{formatSen(d.amountSen)}</span>
@@ -547,10 +555,10 @@ function Paper({ group: g, label }: { group: CollectGroup; label: string }) {
         ))}
       </ul>
       <p className="paper-total">
-        <span>Total (MYR)</span>
+        <span>{t("invoice.total")}</span>
         <b>{rm(g.totalSen)}</b>
       </p>
-      <p className="paper-pay">The customer gets PayPal&apos;s Pay button here: PayPal or card.</p>
+      <p className="paper-pay">{t("invoice.payNote")}</p>
       <div className="paper-perf" aria-hidden="true" />
     </article>
   );
@@ -559,6 +567,7 @@ function Paper({ group: g, label }: { group: CollectGroup; label: string }) {
 /* Review: one paper-style preview per invoice, swipe between them */
 
 function Review({ groups, onBack, onSend }: { groups: CollectGroup[]; onBack: () => void; onSend: () => void }) {
+  const { t } = useT();
   const [index, setIndex] = useState(0);
   const railRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
@@ -575,11 +584,11 @@ function Review({ groups, onBack, onSend }: { groups: CollectGroup[]; onBack: ()
   return (
     <div className="collect">
       <div className="tab-top">
-        <button type="button" className="tab-back" aria-label="Back" onClick={onBack}>
+        <button type="button" className="tab-back" aria-label={t("common.back")} onClick={onBack}>
           <BackIcon />
         </button>
         <h1 ref={titleRef} tabIndex={-1}>
-          Review {groups.length === 1 ? "1 invoice" : `${groups.length} invoices`}
+          {t("collect.review.title", { count: groups.length })}
         </h1>
         <span className="tab-back" aria-hidden="true" />
       </div>
@@ -597,7 +606,7 @@ function Review({ groups, onBack, onSend }: { groups: CollectGroup[]; onBack: ()
         }}
       >
         {groups.map((g, i) => (
-          <Paper key={g.slug} group={g} label={`Invoice ${i + 1} of ${groups.length}, ${g.customerName}`} />
+          <Paper key={g.slug} group={g} label={t("collect.review.paperLabel", { n: i + 1, total: groups.length, name: g.customerName })} />
         ))}
       </div>
 
@@ -622,12 +631,12 @@ function Review({ groups, onBack, onSend }: { groups: CollectGroup[]; onBack: ()
 
       <div className="collect-bar">
         <p>
-          <small>{groups.length === 1 ? "1 invoice" : `${groups.length} invoices`} · nothing is charged</small>
+          <small>{t("collect.invoicesNoCharge", { count: groups.length })}</small>
           <b>{rm(total)}</b>
         </p>
         <button type="button" onClick={onSend}>
           <SendIcon />
-          Send all
+          {t("collect.review.sendAll")}
         </button>
       </div>
     </div>
@@ -643,24 +652,25 @@ type Result =
   | { state: "saveFailed"; saved: Saved; request: PendingSend }
   | { state: "failed"; message: string };
 
-function resultText(r: Result): string {
+function resultText(r: Result, t: T): string {
   switch (r.state) {
     case "waiting":
-      return "Waiting";
+      return t("collect.send.waiting");
     case "sending":
-      return "Sending…";
+      return t("collect.send.sending");
     case "failed":
       return r.message;
     case "sent":
-      return `Sent${r.number ? ` · Invoice ${r.number}` : ""}`;
+      return r.number ? t("collect.send.sentNumber", { number: r.number }) : t("collect.send.sent");
     case "saveFailed":
-      return "Sent on PayPal, but this device couldn't save it.";
+      return t("collect.send.saveFailed");
   }
 }
 
 function Send({ groups, onDone }: { groups: CollectGroup[]; onDone: () => void }) {
   const { updateMany } = useDebts();
   const { invoices, addInvoice, setPending, clearPending } = useCollect();
+  const { t } = useT();
   // Invoices already sent for each customer's tabs, fixed when the batch starts. A retry
   // then rebuilds exactly the same request id, even if another tab saved an invoice since.
   const [previous] = useState<Record<string, string[]>>(() =>
@@ -715,12 +725,13 @@ function Send({ groups, onDone }: { groups: CollectGroup[]; onDone: () => void }
 
   async function attempt(g: CollectGroup) {
     setResults((prev) => ({ ...prev, [g.slug]: { state: "sending" } }));
+    // Not translated: the PayPal request (and its retry ID) must not change with the app language.
     const request = sendRequest(g, new Date(), previous[g.slug]);
     try {
       // Saved first, so if the answer is lost the retry sends exactly this again.
       setPending(request);
     } catch {
-      setResults((prev) => ({ ...prev, [g.slug]: { state: "failed", message: "This device couldn't save. Try again." } }));
+      setResults((prev) => ({ ...prev, [g.slug]: { state: "failed", message: t("collect.send.deviceFailed") } }));
       return;
     }
     let response: Response;
@@ -731,7 +742,7 @@ function Send({ groups, onDone }: { groups: CollectGroup[]; onDone: () => void }
         body: JSON.stringify({ customerName: request.customerName, email: request.email, lines: request.lines, requestId: request.requestId }),
       });
     } catch {
-      setResults((prev) => ({ ...prev, [g.slug]: { state: "failed", message: "No internet connection. Try again." } }));
+      setResults((prev) => ({ ...prev, [g.slug]: { state: "failed", message: t("collect.send.offline") } }));
       return;
     }
     const data = (await response.json().catch(() => ({}))) as { id?: string; number?: string; payerLink?: string; error?: string };
@@ -745,7 +756,7 @@ function Send({ groups, onDone }: { groups: CollectGroup[]; onDone: () => void }
           // Harmless: the retry would resend the same request.
         }
       }
-      setResults((prev) => ({ ...prev, [g.slug]: { state: "failed", message: data.error ?? "PayPal didn't answer. Try again." } }));
+      setResults((prev) => ({ ...prev, [g.slug]: { state: "failed", message: data.error ?? t("collect.send.noAnswer") } }));
       return;
     }
     saveSent(g, { id: data.id, number: data.number, payerLink: data.payerLink }, request);
@@ -781,7 +792,7 @@ function Send({ groups, onDone }: { groups: CollectGroup[]; onDone: () => void }
 
   return (
     <div className="collect">
-      <div className="send-ring" role="progressbar" aria-label="Invoices sent" aria-valuemin={0} aria-valuemax={groups.length} aria-valuenow={sent.length}>
+      <div className="send-ring" role="progressbar" aria-label={t("collect.send.progress")} aria-valuemin={0} aria-valuemax={groups.length} aria-valuenow={sent.length}>
         <svg viewBox="0 0 150 150" aria-hidden="true">
           <circle cx="75" cy="75" r={R} className="send-ring-track" />
           <circle cx="75" cy="75" r={R} className="send-ring-fill" strokeDasharray={C} strokeDashoffset={C * (1 - pct)} />
@@ -790,21 +801,21 @@ function Send({ groups, onDone }: { groups: CollectGroup[]; onDone: () => void }
           <b>
             {sent.length}/{groups.length}
           </b>
-          <small>sent</small>
+          <small>{t("collect.send.ringSent")}</small>
         </p>
       </div>
 
       <div className="send-head" aria-live="polite">
         <h1 ref={titleRef} tabIndex={-1}>
-          {busy ? "Sending invoices…" : out.length > 0 ? `${rm(outTotal)} on its way` : "Nothing was sent"}
+          {busy ? t("collect.send.busyTitle") : out.length > 0 ? t("collect.send.onItsWay", { amount: rm(outTotal) }) : t("collect.send.nothingSent")}
         </h1>
         <p>
           {busy
-            ? "PayPal is emailing each customer."
+            ? t("collect.send.busyBody")
             : [
-                notSent > 0 && `${notSent === 1 ? "1 invoice" : `${notSent} invoices`} couldn't be sent. Retry is safe: it never sends twice.`,
-                unsaved > 0 && `${unsaved === 1 ? "1 invoice was" : `${unsaved} invoices were`} sent but not saved on this device. Tap Save.`,
-                notSent === 0 && unsaved === 0 && `PayPal has emailed ${sent.length === 1 ? "1 customer" : `${sent.length} customers`}.`,
+                notSent > 0 && t("collect.send.notSent", { count: notSent }),
+                unsaved > 0 && t("collect.send.unsaved", { count: unsaved }),
+                notSent === 0 && unsaved === 0 && t("collect.send.emailed", { count: sent.length }),
               ]
                 .filter(Boolean)
                 .join(" ")}
@@ -820,16 +831,16 @@ function Send({ groups, onDone }: { groups: CollectGroup[]; onDone: () => void }
             <span className="tab-who">
               <span className="tab-name">{g.customerName}</span>
               <span className={`tab-item${r.state === "failed" || r.state === "saveFailed" ? " send-error" : ""}`}>
-                {resultText(r)}
+                {resultText(r, t)}
               </span>
             </span>
             {r.state === "saveFailed" ? (
               <button type="button" className="send-retry" onClick={() => saveSent(g, r.saved, r.request)}>
-                Save
+                {t("common.save")}
               </button>
             ) : r.state === "failed" ? (
               <button type="button" className="send-retry" onClick={() => void sendOne(g)}>
-                Retry
+                {t("collect.send.retry")}
               </button>
             ) : (
               <span className="tab-amt">{rm(g.totalSen)}</span>
@@ -841,10 +852,8 @@ function Send({ groups, onDone }: { groups: CollectGroup[]; onDone: () => void }
       {!busy && (
         <div className="collect-bar collect-bar-light">
           <p>
-            <small>{failed.length > 0 ? `${failed.length} need a retry` : "All done"}</small>
-            <b>
-              {sent.length} of {groups.length} sent
-            </b>
+            <small>{failed.length > 0 ? t("collect.send.needRetry", { count: failed.length }) : t("collect.send.allDone")}</small>
+            <b>{t("collect.send.ofSent", { sent: sent.length, total: groups.length })}</b>
           </p>
           {failed.length > 0 && (
             <button
@@ -855,11 +864,11 @@ function Send({ groups, onDone }: { groups: CollectGroup[]; onDone: () => void }
                 void sendAll(failed.filter((x) => x.r.state === "failed").map((x) => x.g));
               }}
             >
-              Retry {failed.length}
+              {t("collect.send.retryCount", { count: failed.length })}
             </button>
           )}
           <button type="button" onClick={onDone}>
-            Done
+            {t("collect.send.done")}
           </button>
         </div>
       )}

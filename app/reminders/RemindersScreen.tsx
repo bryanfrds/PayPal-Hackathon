@@ -13,11 +13,17 @@ import { palette } from "../components/palette";
 import { useCollect } from "../useCollect";
 import { useDebts } from "../useDebts";
 import { useReminders } from "../useReminders";
+import { useT } from "../useT";
 
 // Bryntum measures the DOM, so it only runs in the browser.
+function BoardLoading() {
+  const { t } = useT();
+  return <p className="card loading">{t("reminders.loading")}</p>;
+}
+
 const ReminderBoard = dynamic(() => import("./ReminderBoard"), {
   ssr: false,
-  loading: () => <p className="card loading">Loading the schedule…</p>,
+  loading: () => <BoardLoading />,
 });
 
 /** Wider than this, the Scheduler (one row per customer); narrower, the Calendar. */
@@ -36,16 +42,18 @@ function whatsAppLink(text: string): string {
   return `https://wa.me/?text=${encodeURIComponent(text)}`;
 }
 
-function formatDay(day: string, today: string): string {
-  if (day === today) return "Today";
+/** "Today", or "Tue 13 Oct" in the owner's language (`locale` from useT). */
+function formatDay(day: string, today: string, locale: string, todayWord: string): string {
+  if (day === today) return todayWord;
   const [y, m, d] = day.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString("en-MY", { weekday: "short", day: "numeric", month: "short" });
+  return new Date(y, m - 1, d).toLocaleDateString(locale, { weekday: "short", day: "numeric", month: "short" });
 }
 
 export default function RemindersScreen() {
   const { debts, ready } = useDebts();
   const { invoices } = useCollect();
   const { rules, moves, sent, move, markSent, unmarkSent } = useReminders();
+  const { t, locale } = useT();
   const [justSent, setJustSent] = useState<ScheduleItem | null>(null);
   // The Undo offer fades after a while; acting again clears it sooner.
   useEffect(() => {
@@ -68,7 +76,8 @@ export default function RemindersScreen() {
   }, []);
 
   const today = todayLocal();
-  const items = useMemo(() => buildSchedule(debts, invoices, rules, moves, today, sent), [debts, invoices, rules, moves, today, sent]);
+  const dayText = (day: string) => formatDay(day, today, locale, t("reminders.today"));
+  const items = useMemo(() => buildSchedule(debts, invoices, rules, moves, today, sent, t), [debts, invoices, rules, moves, today, sent, t]);
   const reminders = useMemo(() => items.filter((i) => i.kind === "reminder"), [items]);
   // One row per customer: their earliest reminder that should already have gone out.
   const sendNow = useMemo(() => {
@@ -95,11 +104,11 @@ export default function RemindersScreen() {
   function onMove(id: string, day: string): boolean {
     const min = earliest[id];
     if (!isDay(day) || !min) {
-      setError("That isn't a day. Pick one from the calendar.");
+      setError(t("reminders.notADay"));
       return false;
     }
     if (day < min) {
-      setError(`Pick ${formatDay(min, today)} or later: not in the past, and after the reminder before it.`);
+      setError(t("reminders.pickLater", { day: dayText(min) }));
       return false;
     }
     try {
@@ -108,7 +117,7 @@ export default function RemindersScreen() {
       setJustSent(null);
       return true;
     } catch (e) {
-      setError(e instanceof ReminderStoreError ? e.message : "Couldn't move that reminder. Try again.");
+      setError(e instanceof ReminderStoreError ? e.message : t("reminders.moveFailed"));
       return false;
     }
   }
@@ -118,7 +127,7 @@ export default function RemindersScreen() {
       markSent(item.id, today);
       setJustSent(item);
     } catch (e) {
-      setError(e instanceof ReminderStoreError ? e.message : "Couldn't mark it sent. Try again.");
+      setError(e instanceof ReminderStoreError ? e.message : t("reminders.markFailed"));
     }
   }
 
@@ -128,19 +137,19 @@ export default function RemindersScreen() {
     <div className="reminders">
       <div className="page-head">
         <div>
-          <h1 className="page-title">Reminders</h1>
+          <h1 className="page-title">{t("reminders.title")}</h1>
           <p className="page-intro">
             {rules.on
-              ? `Friendly nudges for tabs with a PayPal invoice: ${rules.firstAfterDays} days after the bill is due, then every ${rules.everyDays}.`
-              : "Reminders are off. Turn them on in Rules."}
+              ? t("reminders.intro", { first: rules.firstAfterDays, every: rules.everyDays })
+              : t("reminders.introOff")}
           </p>
         </div>
         <div className="page-actions">
           <Link href="/reminders/rules" className="button">
-            Rules
+            {t("reminders.rules")}
           </Link>
           <Link href="/nudge" className="button button-primary">
-            Ask Nudge
+            {t("reminders.askNudge")}
           </Link>
         </div>
       </div>
@@ -153,7 +162,7 @@ export default function RemindersScreen() {
 
       {justSent && (
         <p className="notice notice-success" role="status">
-          Marked {justSent.customer}'s {justSent.label} as sent. The next one is planned from today.{" "}
+          {t("reminders.markedSent", { name: justSent.customer, label: justSent.label })}{" "}
           <button
             type="button"
             className="link-button"
@@ -162,11 +171,11 @@ export default function RemindersScreen() {
                 unmarkSent(justSent.id);
                 setJustSent(null);
               } catch (e) {
-                setError(e instanceof ReminderStoreError ? e.message : "Couldn't undo. Try again.");
+                setError(e instanceof ReminderStoreError ? e.message : t("reminders.undoFailed"));
               }
             }}
           >
-            Undo
+            {t("reminders.undo")}
           </button>
         </p>
       )}
@@ -174,31 +183,31 @@ export default function RemindersScreen() {
       <div ref={boxRef} className="reminder-box">
         {!ready || width === null ? (
           <p className="card loading" aria-busy="true">
-            Loading the schedule…
+            {t("reminders.loading")}
           </p>
         ) : items.length === 0 ? (
           <div className="card empty-state">
-            <h2>Nobody to remind</h2>
-            <p>Reminders start once a tab has a PayPal invoice. Send invoices from Collect.</p>
+            <h2>{t("reminders.empty.title")}</h2>
+            <p>{t("reminders.empty.body")}</p>
             <Link href="/collect" className="button button-primary">
-              Go to Collect
+              {t("reminders.empty.go")}
             </Link>
           </div>
         ) : (
           <>
             <ReminderBoard items={items} today={today} wide={wide} earliest={earliest} onMove={onMove} />
-            {wide && <p className="reminder-hint">Drag a reminder to another day to move it, or pick a new day under Coming up.</p>}
+            {wide && <p className="reminder-hint">{t("reminders.hint")}</p>}
           </>
         )}
       </div>
 
       {ready && sendNow.length > 0 && (
         <section className="card reminder-list" aria-labelledby="send-now">
-          <h2 id="send-now">Send now</h2>
+          <h2 id="send-now">{t("reminders.sendNow")}</h2>
           <ul>
             {sendNow.map((item) => {
               const [bg, fg] = AVATAR_COLOURS[colourIndex(item.customer, AVATAR_COLOURS.length)];
-              const text = reminderMessage(item.customer, item.amountSen, payLinks.get(item.slug));
+              const text = reminderMessage(item.customer, item.amountSen, payLinks.get(item.slug), t);
               return (
                 <li key={item.id} className="reminder-row">
                   <span className="avatar" {...palette(bg, fg)} aria-hidden="true">
@@ -208,11 +217,11 @@ export default function RemindersScreen() {
                     <span className="reminder-name">{item.customer}</span>
                     <span className="reminder-meta">
                       {item.label} · RM {formatSen(item.amountSen)}
-                      {item.day < today ? ` · since ${formatDay(item.day, today)}` : ""}
+                      {item.day < today ? ` · ${t("reminders.since", { day: dayText(item.day) })}` : ""}
                     </span>
                   </span>
                   <a className="button button-primary reminder-send" href={whatsAppLink(text)} target="_blank" rel="noopener noreferrer" onClick={() => onSent(item)}
-                    aria-label={`WhatsApp ${item.customer}`}>
+                    aria-label={t("reminders.whatsappLabel", { name: item.customer })}>
                     <ChatIcon />
                     WhatsApp
                   </a>
@@ -220,25 +229,25 @@ export default function RemindersScreen() {
               );
             })}
           </ul>
-          <p className="reminder-foot">Opens WhatsApp with a friendly note and their PayPal pay link. Pick the customer there and send; it's marked sent here and the next one is planned from today.</p>
+          <p className="reminder-foot">{t("reminders.sendFoot")}</p>
         </section>
       )}
 
       {ready && upcoming.length > 0 && (
         <section className="card reminder-list" aria-labelledby="coming-up">
-          <h2 id="coming-up">Coming up</h2>
+          <h2 id="coming-up">{t("reminders.comingUp")}</h2>
           <ul>
             {upcoming.map((item) => (
               <li key={item.id} className="reminder-row">
                 <span className="reminder-when">
-                  {formatDay(item.day, today)}
+                  {dayText(item.day)}
                   <small>{String(item.hour).padStart(2, "0")}:00</small>
                 </span>
                 <span className="reminder-main">
                   <span className="reminder-name">{item.customer}</span>
                   <span className="reminder-meta">
                     {item.label} · RM {formatSen(item.amountSen)}
-                    {item.moved ? " · moved" : ""}
+                    {item.moved ? ` · ${t("reminders.moved")}` : ""}
                   </span>
                 </span>
                 {/* Same as dragging on the Scheduler, for keyboards, screen readers and phones. */}
@@ -246,7 +255,7 @@ export default function RemindersScreen() {
                   key={`${item.id}:${item.day}`}
                   day={item.day}
                   min={earliest[item.id] ?? today}
-                  label={`Move ${item.customer}'s ${item.label}`}
+                  label={t("reminders.moveLabel", { name: item.customer, label: item.label })}
                   onMove={(day) => onMove(item.id, day)}
                 />
               </li>
