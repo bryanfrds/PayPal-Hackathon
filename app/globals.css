@@ -6467,7 +6467,7 @@ body.nudge-sheet-open {
 }
 
 .set-theme input:focus-visible ~ .set-mini,
-.set-tone input:focus-visible + span {
+.set-tone input:focus-visible + .set-tone-tile {
   outline: 2px solid var(--ink);
   outline-offset: 3px;
 }
@@ -6563,7 +6563,7 @@ body.nudge-sheet-open {
   cursor: pointer;
 }
 
-.set-tone span {
+.set-tone-tile {
   display: block;
   padding: 0.5rem 0.25rem;
   font-size: 0.8rem;
@@ -6574,7 +6574,7 @@ body.nudge-sheet-open {
   border-radius: 14px;
 }
 
-.set-tone input:checked + span {
+.set-tone input:checked + .set-tone-tile {
   border-color: var(--ink);
   box-shadow: inset 0 0 0 1px var(--ink);
 }
@@ -6610,6 +6610,39 @@ body.nudge-sheet-open {
 
 .set-toggle[aria-checked="true"]::after {
   transform: translateX(18px);
+}
+
+/* Dark: a white knob on the light-green track is too faint (1.8:1); a dark knob is 9:1. */
+:root[data-theme="dark"] .set-toggle[aria-checked="true"]::after {
+  background: #0e2416;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="auto"] .set-toggle[aria-checked="true"]::after {
+    background: #0e2416;
+  }
+}
+
+/* Round 38px back button, as in the mock. */
+.set-back,
+.set-back-space {
+  width: 38px;
+  height: 38px;
+}
+
+.set-back {
+  background: var(--card);
+  border: 1px solid var(--line);
+}
+
+.set-back .icon {
+  width: 20px;
+  height: 20px;
+}
+
+.set-back:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
 }
 
 .set-toggle:focus-visible,
@@ -6699,6 +6732,16 @@ body.nudge-sheet-open {
   background: var(--card);
   border: 1.5px solid var(--line);
   border-radius: 999px;
+}
+
+.set-signout .icon {
+  flex: none;
+  width: 19px;
+  height: 19px;
+}
+
+.set-signout {
+  white-space: nowrap;
 }
 
 .set-signout:disabled {

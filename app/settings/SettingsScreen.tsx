@@ -97,7 +97,8 @@ export default function SettingsScreen() {
     window.dispatchEvent(new StorageEvent("storage", { key: null }));
     setConfirmReset(false);
     saved(ok, "Sample tabs are back");
-    resetButton.current?.focus();
+    // The Reset button comes back on the next render.
+    window.setTimeout(() => resetButton.current?.focus(), 0);
   }
 
   const reminderSummary = !rules.on
@@ -107,11 +108,11 @@ export default function SettingsScreen() {
   return (
     <div className="settings">
       <div className="tab-top">
-        <Link href="/" className="tab-back" aria-label="Back to Home">
+        <Link href="/" className="tab-back set-back" aria-label="Back to Home">
           <BackIcon />
         </Link>
         <h1>Settings</h1>
-        <span className="tab-back" aria-hidden="true" />
+        <span className="tab-back set-back-space" aria-hidden="true" />
       </div>
 
       <section className="card set-profile" aria-label="Shop profile">
@@ -196,7 +197,7 @@ export default function SettingsScreen() {
                   checked={prefs.defaultTone === t.id}
                   onChange={() => saved(setPrefs({ defaultTone: t.id }))}
                 />
-                <span>
+                <span className="set-tone-tile">
                   <span aria-hidden="true">{t.emoji} </span>
                   {t.label}
                 </span>
