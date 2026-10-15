@@ -33,7 +33,8 @@ const WIDE: Layout = {
   board: [0, 7, 6, 19],
   trend: [6, 7, 6, 19],
   late: [0, 26, 4, 16],
-  // Wide enough for every column, even beside Nudge's panel.
+  // Five 96px grid columns fit here beside Nudge's panel once the page is at its full 1180px
+  // (see TABS_COLUMN_WIDTH in studio-config.ts); a narrower laptop window scrolls the grid sideways.
   tabs: [4, 26, 8, 16],
 };
 

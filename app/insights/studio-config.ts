@@ -247,11 +247,16 @@ const legend = {
   },
 };
 
-// Every column of the "Every tab" grid gets the same width (Studio applies one width to all).
-// AG Grid pads each cell 16px a side, leaving 70px for "RM 128.00" (about 69px in 14px Manrope).
-// Phone: the grid is 390 - 2x16 page - 2x8 Studio - 2x10 tile = 322px wide at 390px (307px at
-// 375px), so three columns of 102px = 306px fit both. Wide keeps the five 112px columns.
-const TABS_COLUMN_WIDTH: Record<LayoutKind, number> = { phone: 102, wide: 112 };
+// Every column of the "Every tab" grid gets the same width: Studio applies one width to all and
+// has no per-column width or flex. Studio pads grid cells by its 8px spacing a side, so a 96px
+// column leaves 80px for the value; "RM 1,250.00" is about 69px in 13px Manrope.
+// Room for the grid (page padding, Studio's 8px page padding, then the tile's 10px each side; on
+// wide screens Nudge's 340px panel and its 1px divider come off first):
+//   phone 360: 360 - 32 - 16 - 20 = 292, and 3 x 96 = 288 fits (375: 307, 390: 322)
+//   wide 1280 and 1600 (the page stops at 1180): 1180 - 40 - 341 = 799 canvas,
+//     tile = 8/12 of (799 - 16) = 522, grid 502, and 5 x 96 = 480 fits
+// tabs-grid.test.ts checks these sums.
+const TABS_COLUMN_WIDTH = 96;
 
 // Tile titles follow the app's language; Studio reads them once per mount (Insights remounts
 // Studio when the language changes). The tile ids and layout never change.
@@ -307,7 +312,7 @@ const widgetsFor = (t: T, kind: LayoutKind = "wide") => ({
     // Headers come from t() and run long in some languages, so they wrap rather than get cut.
     format: {
       ...title(t("insights.tile.tabs")),
-      style: { columnAutoSize: false, columnWidth: TABS_COLUMN_WIDTH[kind], headerRow: { wrapText: true } },
+      style: { columnAutoSize: false, columnWidth: TABS_COLUMN_WIDTH, headerRow: { wrapText: true } },
     },
   },
 }) as const satisfies Record<WidgetId, unknown>;
