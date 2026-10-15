@@ -6,6 +6,8 @@
 //
 // Money is kept in whole sen (RM 1.00 = 100) so sums never pick up float error.
 
+import { translator, type T } from "./i18n";
+
 export type DebtStatus = "overdue" | "sent" | "unpaid" | "paid";
 export type DebtSource = "manual" | "scan";
 
@@ -95,26 +97,26 @@ export type Validated =
   | { ok: true; value: Omit<Debt, "id" | "status" | "source" | "createdAt"> }
   | { ok: false; errors: DebtErrors };
 
-/** Checks the form. `today` is YYYY-MM-DD; a debt can't be dated after it. */
-export function validateDebtInput(input: DebtInput, today: string): Validated {
+/** Checks the form. `today` is YYYY-MM-DD; a debt can't be dated after it. Messages come from `t` (English by default). */
+export function validateDebtInput(input: DebtInput, today: string, t: T = translator()): Validated {
   const errors: DebtErrors = {};
   const customerName = input.customerName.trim().replace(/\s+/g, " ");
   const item = input.item.trim().replace(/\s+/g, " ");
 
-  if (!customerName) errors.customerName = "Enter the customer's name.";
+  if (!customerName) errors.customerName = t("add.err.nameMissing");
   else if (customerName.length > MAX_NAME_LENGTH)
-    errors.customerName = `Keep the name under ${MAX_NAME_LENGTH} characters.`;
+    errors.customerName = t("add.err.nameTooLong", { max: MAX_NAME_LENGTH });
 
-  if (item.length > MAX_ITEM_LENGTH) errors.item = `Keep this under ${MAX_ITEM_LENGTH} characters.`;
+  if (item.length > MAX_ITEM_LENGTH) errors.item = t("add.err.itemTooLong", { max: MAX_ITEM_LENGTH });
 
   const amountSen = parseRmToSen(input.amount);
-  if (!input.amount.trim()) errors.amount = "Enter how much they owe.";
-  else if (amountSen === null) errors.amount = "Use a number like 12.50 (at most 2 decimals).";
-  else if (amountSen <= 0) errors.amount = "The amount must be more than RM 0.";
-  else if (amountSen > MAX_AMOUNT_SEN) errors.amount = `That's over RM ${formatSen(MAX_AMOUNT_SEN)}. Check the amount.`;
+  if (!input.amount.trim()) errors.amount = t("add.err.amountMissing");
+  else if (amountSen === null) errors.amount = t("add.err.amountFormat");
+  else if (amountSen <= 0) errors.amount = t("add.err.amountZero");
+  else if (amountSen > MAX_AMOUNT_SEN) errors.amount = t("add.err.amountTooBig", { max: formatSen(MAX_AMOUNT_SEN) });
 
-  if (!isRealDate(input.date)) errors.date = "Pick a date.";
-  else if (input.date > today) errors.date = "The date can't be in the future.";
+  if (!isRealDate(input.date)) errors.date = t("add.err.dateMissing");
+  else if (input.date > today) errors.date = t("add.err.dateFuture");
 
   if (Object.keys(errors).length > 0) return { ok: false, errors };
   return { ok: true, value: { customerName, item, amountSen: amountSen as number, date: input.date } };
