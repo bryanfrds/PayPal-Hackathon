@@ -187,7 +187,7 @@ export default function RemindersScreen() {
         ) : (
           <>
             <ReminderBoard items={items} today={today} wide={wide} earliest={earliest} onMove={onMove} />
-            {wide && <p className="reminder-hint">Drag a black reminder to another day to move it, or pick a new day under Coming up.</p>}
+            {wide && <p className="reminder-hint">Drag a reminder to another day to move it, or pick a new day under Coming up.</p>}
           </>
         )}
       </div>

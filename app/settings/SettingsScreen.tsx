@@ -101,6 +101,11 @@ export default function SettingsScreen() {
     window.setTimeout(() => resetButton.current?.focus(), 0);
   }
 
+  // The Edit button comes back on the next render, after the form closes.
+  function focusEdit() {
+    window.setTimeout(() => editButton.current?.focus(), 0);
+  }
+
   const reminderSummary = !rules.on
     ? "Off"
     : `${rules.firstAfterDays} ${rules.firstAfterDays === 1 ? "day" : "days"} after due, every ${rules.everyDays} ${rules.everyDays === 1 ? "day" : "days"}`;
@@ -125,12 +130,15 @@ export default function SettingsScreen() {
             type={shop?.type ?? "Kedai runcit"}
             onCancel={() => {
               setEditing(false);
-              editButton.current?.focus();
+              focusEdit();
             }}
             onSave={(next) => {
               const ok = saveShop(next);
               saved(ok);
-              if (ok) setEditing(false);
+              if (ok) {
+                setEditing(false);
+                focusEdit();
+              }
               return ok;
             }}
           />
@@ -324,7 +332,7 @@ function ProfileForm({
   const nameRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    nameRef.current?.focus();
+    nameRef.current?.focus({ preventScroll: true });
   }, []);
 
   function submit(e: FormEvent) {

@@ -2235,6 +2235,25 @@ button.tab-back:focus-visible {
   background: var(--accent);
 }
 
+/* Dark: the accent is near-white, so "on" is green with a dark knob, like Settings' switch. */
+:root[data-theme="dark"] .collect-switch[aria-checked="true"] {
+  background: var(--paid);
+}
+
+:root[data-theme="dark"] .collect-switch[aria-checked="true"]::after {
+  background: #0e2416;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="auto"] .collect-switch[aria-checked="true"] {
+    background: var(--paid);
+  }
+
+  :root[data-theme="auto"] .collect-switch[aria-checked="true"]::after {
+    background: #0e2416;
+  }
+}
+
 .collect-switch[aria-checked="true"]::after {
   transform: translateX(1.1rem);
 }
@@ -3382,6 +3401,18 @@ body.nudge-sheet-open {
 @media (prefers-color-scheme: dark) {
   :root[data-theme="auto"] .reminder-board {
     --b-primary: #f2efe9;
+  }
+}
+
+/* Dark: event names in white on the filled events (due #c23b22 5.3:1, invoice #2f55c4 6.5:1,
+   reminder #5c5852 7.1:1). Bryntum's dark sheet would otherwise pick near-black text. */
+:root[data-theme="dark"] .reminder-board :is(.b-sch-event, .b-sch-event-content, .b-event-name, .b-cal-event-desc) {
+  color: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="auto"] .reminder-board :is(.b-sch-event, .b-sch-event-content, .b-event-name, .b-cal-event-desc) {
+    color: #ffffff;
   }
 }
 
@@ -6198,29 +6229,16 @@ body.nudge-sheet-open {
   padding-bottom: 5rem;
 }
 
+/* The soft circle in the corner is a background, so nothing sticks out to scroll the card. */
 .set-profile {
-  position: relative;
   display: flex;
   align-items: center;
   gap: 0.9rem;
-  overflow: hidden;
+  overflow: clip;
   padding: 1.1rem;
-}
-
-.set-profile::before {
-  position: absolute;
-  top: -50px;
-  right: -40px;
-  width: 160px;
-  height: 160px;
-  content: "";
-  background: var(--paper);
-  border-radius: 50%;
-  opacity: 0.6;
-}
-
-.set-profile > * {
-  position: relative;
+  background:
+    radial-gradient(circle at calc(100% + 40px) -50px, color-mix(in srgb, var(--paper) 60%, transparent) 0 80px, transparent 80.5px),
+    var(--card);
 }
 
 .set-pav {
