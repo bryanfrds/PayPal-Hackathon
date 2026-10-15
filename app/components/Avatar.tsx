@@ -1,4 +1,5 @@
 import { colourIndex, initials } from "@/lib/home";
+import { palette } from "./palette";
 
 // Soft avatar colours; a name always gets the same one.
 const AVATAR_COLOURS = [
@@ -14,7 +15,7 @@ const AVATAR_COLOURS = [
 export default function Avatar({ name, className = "avatar" }: { name: string; className?: string }) {
   const [bg, fg] = AVATAR_COLOURS[colourIndex(name, AVATAR_COLOURS.length)];
   return (
-    <span className={className} style={{ background: bg, color: fg }} aria-hidden="true">
+    <span className={className} {...palette(bg, fg)} aria-hidden="true">
       {initials(name)}
     </span>
   );
