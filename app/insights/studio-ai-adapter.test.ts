@@ -75,4 +75,20 @@ describe("runTurn", () => {
     const fetchImpl = async () => new Response(streamOf(""), { status: 200 });
     expect((await drain(runTurn(REQUEST, {}, fetchImpl as unknown as typeof fetch))).response).toMatchObject({ status: "failed", error: { code: "no_response" } });
   });
+
+  it("lets go of the connection when Studio stops reading part-way", async () => {
+    const cancelled = vi.fn();
+    const encoder = new TextEncoder();
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode(wireLine({ event: { type: "TEXT_MESSAGE_START", messageId: "m", role: "assistant" } })));
+        // Never closes: the server is still writing.
+      },
+      cancel: cancelled,
+    });
+    const handler = runTurn(REQUEST, {}, (async () => new Response(body, { status: 200 })) as unknown as typeof fetch);
+    for await (const _event of handler.stream) break;
+    expect(cancelled).toHaveBeenCalled();
+    expect((await handler.complete).status).toBe("cancelled");
+  });
 });

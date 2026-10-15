@@ -38,6 +38,7 @@ export function runTurn(request: AgLlmRequest, options: AgLlmExecuteTurnOptions 
 
   async function* events(): AsyncGenerator<AgAiEvent> {
     let finished: AgLlmResponse | null = null;
+    let body: ReadableStream<Uint8Array> | null = null;
     try {
       const res = await fetchImpl("/api/studio-ai", {
         method: "POST",
@@ -56,7 +57,8 @@ export function runTurn(request: AgLlmRequest, options: AgLlmExecuteTurnOptions 
         finished = failedResponse(`http_${res.status}`, await errorFor(res));
         return;
       }
-      for await (const line of readWireLines(res.body)) {
+      body = res.body;
+      for await (const line of readWireLines(body)) {
         if ("event" in line) yield line.event;
         else finished = line.response;
       }
@@ -66,6 +68,8 @@ export function runTurn(request: AgLlmRequest, options: AgLlmExecuteTurnOptions 
         ? failedResponse("cancelled", "Stopped.", "cancelled")
         : failedResponse("network", "Nudge couldn't be reached. Check your connection and try again.");
     } finally {
+      // Studio stopped reading part-way (the owner pressed stop): let go of the connection.
+      body?.cancel().catch(() => {});
       settle(finished ?? failedResponse("cancelled", "Stopped.", "cancelled"));
     }
   }
