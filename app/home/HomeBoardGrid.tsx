@@ -100,9 +100,10 @@ function ActionCell({ data }: CustomCellRendererProps<Row>) {
 
 // Minimum widths add up to 504px, so the grid fits inside its card (557px wide at a 1280px
 // window, about 512px inside the padding) with no sideways scroll. Anything wider goes to
-// the flexible columns, mostly Customer.
+// the flexible columns, mostly Customer. The days-late header says just "Late" (tooltip has
+// the rest): "Days late" needs about 95px and there's no room for it at 1280.
 const COLUMNS: ColDef<Row>[] = [
-  { headerName: "Customer", field: "customerName", flex: 1.6, minWidth: 112, cellRenderer: CustomerCell },
+  { headerName: "Customer", field: "customerName", flex: 1.6, minWidth: 104, cellRenderer: CustomerCell },
   {
     headerName: "Owed",
     field: "owedSen",
@@ -123,7 +124,7 @@ const COLUMNS: ColDef<Row>[] = [
   },
   { headerName: "Late", field: "daysLate", flex: 0.5, minWidth: 56, headerTooltip: "Days past the bill's due date", type: "rightAligned" },
   // Named for screen readers; the labels are hidden on screen.
-  { headerName: "Next step", headerClass: "hg-hidden-header", colId: "next", width: 84, minWidth: 84, maxWidth: 84, sortable: false, cellClass: "hg-next-cell", cellRenderer: ActionCell },
+  { headerName: "Next step", headerClass: "hg-hidden-header", colId: "next", width: 92, minWidth: 92, maxWidth: 92, sortable: false, cellClass: "hg-next-cell", cellRenderer: ActionCell },
   {
     headerName: "WhatsApp",
     headerClass: "hg-hidden-header",
