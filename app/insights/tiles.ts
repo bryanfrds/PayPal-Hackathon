@@ -30,8 +30,9 @@ const WIDE: Layout = {
   overdue: [8, 0, 4, 7],
   board: [0, 7, 6, 19],
   trend: [6, 7, 6, 19],
-  late: [0, 26, 5, 16],
-  tabs: [5, 26, 7, 16],
+  late: [0, 26, 4, 16],
+  // Wide enough for every column, even beside Nudge's panel.
+  tabs: [4, 26, 8, 16],
 };
 
 export type LayoutKind = "phone" | "wide";

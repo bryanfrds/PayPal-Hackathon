@@ -3,6 +3,7 @@
 // reference (Studio treats a new reference as a change).
 
 import {
+  _WIDGET_MENU,
   studioTheme,
   type AgDataSourcesDefinition,
   type AgDefaultWidgetDefinition,
@@ -105,6 +106,11 @@ const SCOREBOARD: ScoreboardDefinition = {
       ],
     }),
   comp: Scoreboard,
+  // Lets Studio's AI agents (via Nudge) place a scoreboard too.
+  ai: {
+    description: "A friendly leaderboard of customers by how much they still owe, biggest first, with a bar for each.",
+    usage: "Use for \"who owes the most\". Map a customer field and a summed owed amount.",
+  },
   defaultSize: { width: 360, height: 300 },
   minSize: { width: 240, height: 160 },
 };
@@ -113,7 +119,8 @@ const SCOREBOARD: ScoreboardDefinition = {
 // registry declared as an interface; the definition above is typed as ScoreboardDefinition.
 export const widgets = createWidgets<BukuRegistry>({
   additionalTypes: [SCOREBOARD],
-  menu: [{ label: "555 Buku", widgetIds: ["scoreboard"] }],
+  // Studio's own widgets plus ours. Studio's AI agents can only add widgets listed here.
+  menu: [..._WIDGET_MENU, { label: "555 Buku", widgetIds: ["scoreboard"] }],
 } as never);
 
 // Soft Premium: warm paper canvas, white rounded tiles, ink accents (see globals.css).
@@ -150,6 +157,12 @@ export const themeFor = (fontFamily: string, canvas = "#f3f1ec") =>
     chartPaletteFills4Color: "#2f55c4",
     chartPaletteFills5Color: "#8c6512",
     chartPaletteFills6Color: "#2b7a46",
+    // Nudge's chat panel on Insights.
+    studioAiPanelWidth: 340,
+    // Not studioAiPanelInputMessageBackgroundColor: Studio paints error replies with it too, so
+    // the owner's ink bubbles are set in globals.css instead.
+    studioAiPanelRichTextAccentBackgroundColor: canvas,
+    studioAiPanelButtonHoverBackgroundColor: "#efece6",
   });
 
 const f = (
@@ -213,9 +226,12 @@ const WIDGETS = {
   tabs: {
     type: "grid",
     dataMapping: {
-      cols: [f("customer"), f("item"), f("status"), f("amount"), f("daysLate")],
+      // Amounts and days late come before the long item text, so a narrow tile cuts the items, not the money.
+      cols: [f("customer"), f("amount"), f("daysLate"), f("status"), f("item")],
     },
-    format: title("Every tab"),
+    // Studio's auto-size (on unless turned off) came out header-wide and cut amounts off
+    // ("RM 48…"), so every column gets room for its values; the grid scrolls sideways if it must.
+    format: { ...title("Every tab"), style: { columnAutoSize: false, columnWidth: 112 } },
   },
 } as const satisfies Record<WidgetId, unknown>;
 

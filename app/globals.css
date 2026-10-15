@@ -2907,6 +2907,213 @@ a.button.tab-pay {
   overflow-x: clip;
 }
 
+/* Nudge in AG Studio's own AI panel (Insights). On a laptop the panel sits right of the
+   dashboard; on a phone "Ask Nudge" opens it over the page. */
+.insights-ask {
+  gap: 0.4rem;
+}
+
+.insights-ask .icon {
+  width: 18px;
+  height: 18px;
+}
+
+/* Under the panel title: Nudge, then the dashboard helpers it hands work to. */
+/* Studio's panel body is a grid; the roster takes its own height and the chat the rest. */
+.insights-studio .ag-studio-panel-content:has(> .nudge-roster-slot) {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.nudge-roster-slot {
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.nudge-roster {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 0.35rem;
+  font-family: var(--font-manrope), system-ui, sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.nudge-roster ul {
+  display: contents;
+  list-style: none;
+}
+
+.nudge-roster li,
+.nudge-roster-on {
+  padding: 0.2rem 0.55rem;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--card);
+  white-space: nowrap;
+}
+
+.nudge-roster .nudge-roster-on {
+  color: #ffffff;
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.nudge-roster-label {
+  margin-left: 0.15rem;
+  color: var(--muted);
+}
+
+.insights-studio .ag-studio-ai-panel {
+  font-family: var(--font-manrope), system-ui, sans-serif;
+}
+
+.insights-studio .ag-studio-ai-panel .ag-studio-panel-title {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+/* The owner's own messages: ink bubbles, as in the Nudge chat. */
+.insights-studio .ag-studio-ai-input-message-user {
+  color: #ffffff;
+  background: var(--ink);
+  border-radius: 16px 16px 4px 16px;
+}
+
+.insights-studio .ag-studio-ai-input-message-user .ag-studio-ai-input-message-content {
+  color: #ffffff;
+  background: transparent;
+}
+
+.studio-draft {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.7rem;
+  background: var(--paper);
+  border-radius: 14px;
+  font-family: var(--font-manrope), system-ui, sans-serif;
+  color: var(--ink);
+}
+
+.studio-draft p {
+  margin: 0;
+}
+
+.studio-draft-to {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--muted);
+}
+
+.studio-draft-text {
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.studio-draft-link,
+.studio-draft-note {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.studio-draft-actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.2rem;
+}
+
+.studio-draft-actions .button {
+  flex: 1;
+  gap: 0.35rem;
+  min-height: 2.4rem;
+  padding: 0 0.7rem;
+  font-size: 0.82rem;
+}
+
+.studio-draft-actions .icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* Phone: the panel covers the screen as a dialog, with its close button in the title row. */
+.nudge-sheet-close {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 2.5rem;
+  height: 2.5rem;
+  color: var(--ink);
+  background: var(--paper);
+  border: 0;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.insights-asking .ag-studio-root-panel-container-right {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  padding-top: env(safe-area-inset-top);
+  width: 100% !important;
+  background: var(--card);
+}
+
+.insights-asking .ag-studio-root-panel-container-right .ag-studio-ai-panel {
+  width: 100% !important;
+  height: 100%;
+}
+
+/* Studio sizes the panel from this variable, set inline; it wins here so the sheet is full width. */
+.insights-asking .ag-studio-root-panel-container-right .ag-studio-ai-panel {
+  --ag-studio-panel-width: 100vw !important;
+}
+
+/* The sheet has its own close button; resizing or folding it away makes no sense on a phone. */
+.insights-asking .ag-studio-ai-panel .ag-studio-panel-divider,
+.insights-asking .ag-studio-ai-panel .ag-studio-panel-chevron {
+  display: none;
+}
+
+body.nudge-sheet-open {
+  overflow: hidden;
+}
+
+/* Step rows and status text: Studio draws them at half-opacity ink (about 3.5:1); ours read 5:1. */
+.insights-studio .ag-studio-ai-step-state,
+.insights-studio .ag-studio-ai-step-text,
+.insights-studio .ag-studio-ai-step-pill,
+.insights-studio .ag-studio-ai-status-bar-thinking-text,
+.insights-studio .ag-studio-ai-status-bar-back-text {
+  color: var(--muted);
+}
+
+/* Nudge couldn't answer: Studio paints these boxes with the message colours, so ours win here. */
+.insights-studio .ag-studio-ai-output-message-error,
+.insights-studio .ag-studio-ai-output-message-error * {
+  color: var(--overdue) !important;
+}
+
+.insights-studio .ag-studio-ai-output-message-error {
+  background: var(--overdue-bg) !important;
+  border-color: var(--overdue) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .insights-studio .ag-studio-ai-panel *,
+  .insights-studio .ag-studio-ai-panel *::before,
+  .insights-studio .ag-studio-ai-panel *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
 .scoreboard {
   list-style: none;
   margin: 0;
