@@ -230,28 +230,45 @@ describe("standingFrom", () => {
 });
 
 describe("invoicesToRead", () => {
-  it("reads all but cancelled or refunded invoices, newest first, up to the limit", () => {
+  it("reads only invoices still waiting or in doubt, newest first, up to the limit", () => {
     const a = rec("A", ["D1"], standing("open"), "2026-10-01T00:00:00Z");
     const b = rec("B", ["D2"], standing("paid"), "2026-10-03T00:00:00Z");
     const c = rec("C", ["D3"], standing("closed"), "2026-10-04T00:00:00Z");
     const d = rec("D", ["D4"], undefined, "2026-10-02T00:00:00Z");
-    expect(invoicesToRead([a, b, c, d], 10).map((r) => r.id)).toEqual(["B", "D", "A"]);
-    expect(invoicesToRead([a, b, c, d], 1).map((r) => r.id)).toEqual(["B"]);
+    const e = rec("E", ["D5"], standing("check"), "2026-10-05T00:00:00Z");
+    expect(invoicesToRead([a, b, c, d, e], 10).map((r) => r.id)).toEqual(["E", "D", "A"]);
+    expect(invoicesToRead([a, b, c, d, e], 1).map((r) => r.id)).toEqual(["E"]);
+    expect(invoicesToRead([b, c], 10)).toEqual([]);
   });
 });
 
 describe("standingsFromStored", () => {
   const at = "2026-10-15T11:00:00.000Z";
+  const paid = { id: "INV-1", status: "PAID", currency: "MYR", billedCurrency: "MYR", totalSen: 1000, paidSen: 1000, dueSen: 0, checkedAt: at };
+
   it("judges the database's answer against what this device billed", () => {
     const record = rec("INV-1", ["D1"]); // billed 1000
-    const paid = { id: "INV-1", status: "PAID", currency: "MYR", totalSen: 1000, paidSen: 1000, dueSen: 0, checkedAt: at };
     expect(standingsFromStored([paid], [record])).toEqual({ "INV-1": { status: "PAID", currency: "MYR", totalSen: 1000, paidSen: 1000, dueSen: 0, settlement: "paid", checkedAt: at } });
     expect(standingsFromStored([{ ...paid, totalSen: 900 }], [record])["INV-1"].settlement).toBe("check");
   });
 
+  it("never counts a payment in another currency as paid", () => {
+    const record = rec("INV-1", ["D1"]);
+    expect(standingsFromStored([{ ...paid, currency: "USD" }], [record])["INV-1"].settlement).toBe("check");
+    // PayPal's currency unknown (an older row): not proof of payment either.
+    expect(standingsFromStored([{ ...paid, currency: undefined }], [record])["INV-1"].settlement).toBe("check");
+  });
+
+  it("skips answers the device already has or that are older", () => {
+    const record = rec("INV-1", ["D1"], standing("open", at));
+    expect(standingsFromStored([paid], [record])).toEqual({});
+    expect(standingsFromStored([{ ...paid, checkedAt: "2026-10-15T10:00:00.000Z" }], [record])).toEqual({});
+    expect(Object.keys(standingsFromStored([{ ...paid, checkedAt: "2026-10-15T12:00:00.000Z" }], [record]))).toEqual(["INV-1"]);
+  });
+
   it("skips invoices this device doesn't have and malformed answers", () => {
     const record = rec("INV-1", ["D1"]);
-    expect(standingsFromStored([{ id: "OTHER", status: "PAID", currency: "MYR", checkedAt: at }], [record])).toEqual({});
-    expect(standingsFromStored([{ id: "INV-1", status: "PAID", currency: "MYR", checkedAt: "soon" }], [record])).toEqual({});
+    expect(standingsFromStored([{ ...paid, id: "OTHER" }], [record])).toEqual({});
+    expect(standingsFromStored([{ ...paid, checkedAt: "soon" }], [record])).toEqual({});
   });
 });

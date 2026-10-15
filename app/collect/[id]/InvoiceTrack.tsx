@@ -63,10 +63,10 @@ export default function InvoiceTrack({ id }: { id: string }) {
       body: JSON.stringify({ ids: [recordId] }),
     })
       .then(async (res) => {
-        const data = (await res.json().catch(() => ({}))) as { currency?: string; results?: Record<string, StatusResult>; error?: string };
+        const data = (await res.json().catch(() => ({}))) as { currency?: string; checkedAt?: string; results?: Record<string, StatusResult>; error?: string };
         if (cancelled) return;
         const result = data.results?.[recordId];
-        const standing = res.ok && data.currency ? standingFrom(result, billedSen, data.currency, new Date().toISOString()) : undefined;
+        const standing = res.ok && data.currency ? standingFrom(result, billedSen, data.currency, data.checkedAt ?? new Date().toISOString()) : undefined;
         if (!standing) {
           setLive({ state: "error", message: data.error ?? (result && !result.ok ? result.error : undefined), fallback: "invoice.reachFailed" });
           return;

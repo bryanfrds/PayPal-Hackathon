@@ -66,8 +66,23 @@ describe.skipIf(!db)("payment database", () => {
     expect(await db!.latestFacts([id])).toEqual([]); // not checked yet
     await db!.saveFacts(id, { status: "PAID", currency: "MYR", totalSen: 1000, paidSen: 1000, dueSen: 0 }, new Date("2026-10-15T11:00:00Z"), "webhook");
     expect(await db!.latestFacts([id, `${run}-NONE`])).toEqual([
-      { id, status: "PAID", currency: "MYR", totalSen: 1000, paidSen: 1000, dueSen: 0, checkedAt: "2026-10-15T11:00:00.000Z", checkedBy: "webhook" },
+      { id, status: "PAID", currency: "MYR", billedCurrency: "MYR", totalSen: 1000, paidSen: 1000, dueSen: 0, checkedAt: "2026-10-15T11:00:00.000Z", checkedBy: "webhook" },
     ]);
+  });
+
+  it("keeps the currency PayPal reported apart from the one billed", async () => {
+    const id = `${run}-USD`;
+    await db!.saveInvoice(invoice(id));
+    expect(await db!.saveFacts(id, { status: "PAID", currency: "USD", totalSen: 1000, dueSen: 0 }, new Date("2026-10-15T11:00:00Z"), "webhook")).toBe("check");
+    const [facts] = await db!.latestFacts([id]);
+    expect(facts).toMatchObject({ currency: "USD", billedCurrency: "MYR" });
+  });
+
+  it("says whether a webhook event was handled recently", async () => {
+    const id = `${run}-EV3`;
+    await db!.recordEvent(id, "INVOICING.INVOICE.PAID", "INV2-X");
+    await db!.finishEvent(id, "paid");
+    expect(await db!.webhookSeenSince(1)).toBe(true);
   });
 
   it("knows nothing about an invoice it never saved", async () => {

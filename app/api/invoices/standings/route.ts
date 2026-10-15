@@ -29,8 +29,14 @@ export async function POST(request: Request) {
   if (!db) return NextResponse.json({ available: false, webhook: false, results: [] });
 
   try {
-    const results = await within(db.latestFacts([...new Set(ids as string[])]));
-    return NextResponse.json({ available: true, webhook: Boolean(process.env.PAYPAL_WEBHOOK_ID?.trim()), results });
+    const [results, webhookWorks] = await within(
+      Promise.all([
+        db.latestFacts([...new Set(ids as string[])]),
+        // Set up is not enough: PayPal must actually have called in the last day.
+        process.env.PAYPAL_WEBHOOK_ID?.trim() ? db.webhookSeenSince(24) : Promise.resolve(false),
+      ]),
+    );
+    return NextResponse.json({ available: true, webhook: webhookWorks, results });
   } catch (error) {
     console.error("POST /api/invoices/standings failed:", error instanceof Error ? error.message : error);
     return NextResponse.json({ error: "Couldn't read payments just now." }, { status: 503 });

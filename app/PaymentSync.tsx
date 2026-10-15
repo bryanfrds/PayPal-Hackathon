@@ -63,10 +63,12 @@ export default function PaymentSync() {
   // What /api/invoices/standings said last: no database means stop asking it this visit.
   const db = useRef<{ available: boolean; webhook: boolean }>({ available: true, webhook: false });
   const reading = useRef(false);
+  // After a failed read (signed out, database down), wait a minute rather than ask every 10s.
+  const readAfter = useRef(0);
   const lastPayPalCheck = useRef(0);
 
   const read = useCallback(async () => {
-    if (!db.current.available || reading.current || document.visibilityState !== "visible") return;
+    if (!db.current.available || reading.current || Date.now() < readAfter.current || document.visibilityState !== "visible") return;
     const batch = invoicesToRead(latest.current, READ_BATCH);
     if (batch.length === 0) return;
     reading.current = true;
@@ -79,14 +81,18 @@ export default function PaymentSync() {
         body: JSON.stringify({ ids: batch.map((r) => r.id) }),
         signal: abort.signal,
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        readAfter.current = Date.now() + 60_000;
+        return;
+      }
       const body = (await res.json()) as { available?: boolean; webhook?: boolean; results?: StoredAnswer[] };
       db.current = { available: body.available === true, webhook: body.webhook === true };
       const standings = standingsFromStored(body.results ?? [], batch);
-      // setStandings only takes answers newer than what the device has.
+      // Only answers newer than what the device has; unchanged ones aren't saved again.
       if (Object.keys(standings).length > 0) setStandings(standings);
     } catch {
-      // Offline or storage full: try again on the next tick.
+      // Offline or storage full: try again shortly.
+      readAfter.current = Date.now() + 60_000;
     } finally {
       window.clearTimeout(timer);
       reading.current = false;
@@ -105,8 +111,8 @@ export default function PaymentSync() {
     const abort = new AbortController();
     const timer = window.setTimeout(() => abort.abort(), TIMEOUT_MS);
     try {
-      const now = new Date().toISOString();
-      for (const r of batch) triedAt.current[r.id] = now;
+      const tried = new Date().toISOString();
+      for (const r of batch) triedAt.current[r.id] = tried;
       const res = await fetch("/api/invoices/status", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -114,10 +120,12 @@ export default function PaymentSync() {
         signal: abort.signal,
       });
       if (!res.ok) return;
-      const { currency, results } = (await res.json()) as { currency: string; results: Record<string, StatusResult> };
+      const { currency, checkedAt, results } = (await res.json()) as { currency: string; checkedAt?: string; results: Record<string, StatusResult> };
+      // The server's clock, like the database's answers, so newer-wins compares like with like.
+      const at = checkedAt && !Number.isNaN(Date.parse(checkedAt)) ? checkedAt : tried;
       const standings: Record<string, InvoiceStanding> = {};
       for (const record of batch) {
-        const standing = standingFrom(results[record.id], record.amountSen, currency, now);
+        const standing = standingFrom(results[record.id], record.amountSen, currency, at);
         if (standing) standings[record.id] = standing;
       }
       if (Object.keys(standings).length > 0) setStandings(standings);

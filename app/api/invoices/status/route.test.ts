@@ -51,6 +51,7 @@ describe("POST /api/invoices/status", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.currency).toBe("MYR");
+    expect(Date.parse(body.checkedAt)).toBeGreaterThan(Date.now() - 60_000);
     expect(body.results).toEqual({
       "INV2-PAID": { ok: true, status: "PAID", currency: "MYR", totalSen: 2340, paidSen: 2340, dueSen: 0 },
       "INV2-OPEN": { ok: true, status: "SENT", totalSen: 1000, dueSen: 1000 },

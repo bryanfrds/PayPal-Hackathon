@@ -26,8 +26,11 @@ export type NewInvoice = {
 
 export type CheckedBy = "app" | "webhook";
 
-/** What the database last heard from PayPal about one invoice. */
-export type StoredFacts = InvoiceFacts & { id: string; currency: string; checkedAt: string; checkedBy: CheckedBy };
+/**
+ * What the database last heard from PayPal about one invoice. `currency` is what PayPal
+ * reported; `billedCurrency` is what we billed in, to judge it against.
+ */
+export type StoredFacts = InvoiceFacts & { id: string; billedCurrency: string; checkedAt: string; checkedBy: CheckedBy };
 
 export type PaymentDb = {
   /** Records a sent invoice. A retry of the same send changes nothing. */
@@ -40,6 +43,8 @@ export type PaymentDb = {
   saveFacts(id: string, facts: InvoiceFacts, checkedAt: Date, by: CheckedBy): Promise<Settlement | null>;
   /** The latest PayPal answer for each of these invoices that has one. */
   latestFacts(ids: string[]): Promise<StoredFacts[]>;
+  /** True if a webhook event was handled within `hours`: proof the webhook really works. */
+  webhookSeenSince(hours: number): Promise<boolean>;
   /**
    * Notes a webhook event. False if it was already noted: PayPal delivered it again. An event
    * noted but never finished (the function died, or forgetting it failed) is taken over after
@@ -73,10 +78,11 @@ export function createPaymentDb(query: Query): PaymentDb {
       const settlement = settlementOf(facts, Number(row.amount_sen), String(row.currency));
       const updated = await query(
         `UPDATE invoices
-         SET status = $2, settlement = $3, total_sen = $4, paid_sen = $5, due_sen = $6, checked_at = $7, checked_by = $8
+         SET status = $2, settlement = $3, total_sen = $4, paid_sen = $5, due_sen = $6, checked_at = $7, checked_by = $8,
+             reported_currency = $9
          WHERE id = $1 AND (checked_at IS NULL OR checked_at < $7)
          RETURNING id`,
-        [id, facts.status, settlement, facts.totalSen ?? null, facts.paidSen ?? null, facts.dueSen ?? null, checkedAt.toISOString(), by],
+        [id, facts.status, settlement, facts.totalSen ?? null, facts.paidSen ?? null, facts.dueSen ?? null, checkedAt.toISOString(), by, facts.currency ?? null],
       );
       return updated.length ? settlement : null;
     },
@@ -84,7 +90,7 @@ export function createPaymentDb(query: Query): PaymentDb {
     async latestFacts(ids) {
       if (ids.length === 0) return [];
       const rows = await query(
-        `SELECT id, status, currency, total_sen, paid_sen, due_sen, checked_at, checked_by
+        `SELECT id, status, currency, reported_currency, total_sen, paid_sen, due_sen, checked_at, checked_by
          FROM invoices WHERE id = ANY($1) AND checked_at IS NOT NULL`,
         [ids],
       );
@@ -92,13 +98,19 @@ export function createPaymentDb(query: Query): PaymentDb {
       return rows.map((r) => ({
         id: String(r.id),
         status: String(r.status),
-        currency: String(r.currency),
+        currency: r.reported_currency === null || r.reported_currency === undefined ? undefined : String(r.reported_currency),
+        billedCurrency: String(r.currency),
         totalSen: num(r.total_sen),
         paidSen: num(r.paid_sen),
         dueSen: num(r.due_sen),
         checkedAt: new Date(r.checked_at as string | Date).toISOString(),
         checkedBy: r.checked_by === "webhook" ? "webhook" : "app",
       }));
+    },
+
+    async webhookSeenSince(hours) {
+      const rows = await query(`SELECT 1 FROM paypal_events WHERE processed_at > now() - make_interval(hours => $1) LIMIT 1`, [hours]);
+      return rows.length > 0;
     },
 
     async recordEvent(id, type, invoiceId) {
