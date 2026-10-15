@@ -25,7 +25,12 @@ function setup() {
   const mutationCallbacks: (() => void)[] = [];
   const timers = new Map<number, () => void>();
   let nextTimer = 1;
+  const shownCallbacks = new Set<() => void>();
   const env = {
+    onShown: (run: () => void) => {
+      shownCallbacks.add(run);
+      return () => shownCallbacks.delete(run);
+    },
     ResizeObserver: class {
       constructor(run: () => void) {
         resizeCallbacks.push(run);
@@ -72,6 +77,10 @@ function setup() {
       current = next;
     },
     resize: () => resizeCallbacks.forEach((run) => run()),
+    show: () => shownCallbacks.forEach((run) => run()),
+    get shownListeners() {
+      return shownCallbacks.size;
+    },
     mutate: () => mutationCallbacks.forEach((run) => run()),
     settle: () => {
       const pending = [...timers.values()];
@@ -131,6 +140,15 @@ describe("watchElementWidth", () => {
     expect(w.queries).toBe(before);
   });
 
+  it("reads again when a hidden tab is shown, which gets no resize events", () => {
+    const w = setup();
+    // Hidden: Studio lays out without a resize event reaching us.
+    w.current!.width = 358;
+    w.show();
+    w.settle();
+    expect(w.widths).toEqual([718, 358]);
+  });
+
   it("stops reporting once cleaned up", () => {
     const w = setup();
     w.current!.width = 500;
@@ -138,5 +156,6 @@ describe("watchElementWidth", () => {
     w.stop();
     w.settle();
     expect(w.widths).toEqual([718]);
+    expect(w.shownListeners).toBe(0);
   });
 });

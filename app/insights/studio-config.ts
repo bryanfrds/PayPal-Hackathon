@@ -23,6 +23,7 @@ import Scoreboard, { type ScoreboardWidget } from "./Scoreboard";
 import {
   COLUMNS,
   PAGE_PADDING,
+  GRID_CELL_PADDING,
   NUDGE_PANEL_WIDTH,
   ROW_HEIGHT,
   TABS_COLUMN_WIDTH,
@@ -166,9 +167,12 @@ export const widgets = widgetRegistry();
 // Soft Premium: warm paper canvas, white rounded tiles, ink accents (see globals.css).
 // Takes the font family next/font gave Manrope, since Studio can't read our CSS variable.
 // `dark` swaps in the dark palette from globals.css; light values are unchanged.
-export const themeFor = (fontFamily: string, canvas = "#f3f1ec", dark = false) => {
+// `gridCellPadding` (px a side) trims the padding of grid cells and headers. Studio only has it
+// as a theme setting, so it applies to every grid on the page; Insights passes tabsGridFor's.
+export const themeFor = (fontFamily: string, canvas = "#f3f1ec", dark = false, gridCellPadding = GRID_CELL_PADDING) => {
   const light = studioTheme.withParams({
     fontFamily,
+    gridCellHorizontalPadding: gridCellPadding,
     // Titles, charts and grids read this one, not fontFamily.
     studioCanvasFontFamily: fontFamily,
     // Studio defaults to at least 600px wide, wider than a phone: the page then zooms out sideways.
@@ -338,7 +342,7 @@ export const HOME_CHART_ROWS = 13;
 /** Home's chart tile: just the owed-vs-collected chart from Insights, filling the tile. */
 export function homeChartState(t: T = translator()): AgReportState<BukuRegistry> {
   // Only the trend chart is used here, so the grid's sizing doesn't matter.
-  const trend = widgetsFor(t, { columns: 5, columnWidth: TABS_COLUMN_WIDTH }).trend;
+  const trend = widgetsFor(t, { columns: 5, columnWidth: TABS_COLUMN_WIDTH, cellPadding: GRID_CELL_PADDING }).trend;
   // Cast: see initialStateFor.
   return {
     selectedPageId: "home",

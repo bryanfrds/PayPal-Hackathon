@@ -70,21 +70,44 @@ export function canvasHeight(kind: LayoutKind): number {
 
 /** Nudge's chat panel width on Insights (the theme's studioAiPanelWidth), in px. */
 export const NUDGE_PANEL_WIDTH = 340;
+/** The 1px divider Studio draws beside a docked panel (its borderWidth). */
+export const PANEL_DIVIDER = 1;
+
+/**
+ * Width of Studio's canvas, at most. Our own box around Studio is laid out by our CSS, so its
+ * width is right even in a hidden tab; with Nudge docked beside the dashboard (laptops) the panel
+ * and divider come off it. Studio's own measured canvas, when there is one, can only lower that:
+ * it reads too wide before Studio has laid out (a hidden tab gets no resize events to correct
+ * it), but is the only way to see a panel dragged wider.
+ */
+export function studioCanvasWidth(boxWidth: number, nudgeDocked: boolean, measuredCanvas: number | null): number {
+  const bound = boxWidth - (nudgeDocked ? NUDGE_PANEL_WIDTH + PANEL_DIVIDER : 0);
+  return measuredCanvas === null ? bound : Math.min(measuredCanvas, bound);
+}
 
 // The "Every tab" grid. Studio gives every grid column one width (no per-column width or flex).
 // Its cells are padded by Studio's 8px spacing a side, so a 96px column leaves 80px for a value;
 // "RM 1,250.00" is about 69px in Studio's 13px Manrope.
 export const TABS_COLUMN_WIDTH = 96;
+/** Studio's own grid cell padding, each side (its 8px spacing). */
+export const GRID_CELL_PADDING = 8;
 /**
- * Widths the three-column grid may use, widest first. Coarse steps, so dragging a window or
- * Nudge's divider only changes the grid (and remounts Studio) at a few points. The narrowest,
- * 85px, still leaves 69px for "RM 1,250.00"; with less room the grid scrolls sideways instead.
+ * Column widths (and cell padding a side) the three-column grid may use, widest first. Coarse
+ * steps, so dragging a window or Nudge's divider only changes the grid (and remounts Studio) at a
+ * few points. Each leaves at least 69px for "RM 1,250.00": the last one, for a laptop at 1024px
+ * with Nudge docked (251px of room), trims the cell padding to 4px to fit 3 x 78 + 16 = 250px.
+ * With even less room the grid scrolls sideways rather than cut amounts.
  */
-export const TABS_NARROW_WIDTHS = [TABS_COLUMN_WIDTH, 90, 85] as const;
+export const TABS_NARROW_STEPS = [
+  { columnWidth: TABS_COLUMN_WIDTH, cellPadding: GRID_CELL_PADDING },
+  { columnWidth: 90, cellPadding: GRID_CELL_PADDING },
+  { columnWidth: 85, cellPadding: GRID_CELL_PADDING },
+  { columnWidth: 78, cellPadding: 4 },
+] as const;
 /** Room kept for the grid's own vertical scrollbar where the system draws one. */
 export const GRID_SCROLLBAR = 16;
 
-export type TabsGrid = { columns: 3 | 5; columnWidth: number };
+export type TabsGrid = { columns: 3 | 5; columnWidth: number; cellPadding: number };
 
 /** Width of the "Every tab" tile on a Studio canvas this wide, by Studio's own track sums. */
 export function tabsTileWidth(canvasWidth: number, kind: LayoutKind): number {
@@ -104,7 +127,7 @@ export function tabsGridRoom(canvasWidth: number, kind: LayoutKind): number {
  */
 export function tabsGridFor(canvasWidth: number, kind: LayoutKind): TabsGrid {
   const room = tabsGridRoom(canvasWidth, kind) - GRID_SCROLLBAR;
-  if (room >= 5 * TABS_COLUMN_WIDTH) return { columns: 5, columnWidth: TABS_COLUMN_WIDTH };
-  const step = TABS_NARROW_WIDTHS.find((width) => 3 * width <= room);
-  return { columns: 3, columnWidth: step ?? TABS_NARROW_WIDTHS[TABS_NARROW_WIDTHS.length - 1] };
+  if (room >= 5 * TABS_COLUMN_WIDTH) return { columns: 5, columnWidth: TABS_COLUMN_WIDTH, cellPadding: GRID_CELL_PADDING };
+  const step = TABS_NARROW_STEPS.find(({ columnWidth }) => 3 * columnWidth <= room);
+  return { columns: 3, ...(step ?? TABS_NARROW_STEPS[TABS_NARROW_STEPS.length - 1]) };
 }

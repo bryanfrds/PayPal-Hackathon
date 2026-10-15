@@ -69,6 +69,8 @@ type Observers = {
   MutationObserver: typeof MutationObserver;
   setTimeout: (run: () => void, ms: number) => unknown;
   clearTimeout: (handle: unknown) => void;
+  /** Calls `run` whenever the tab is shown again; returns the undo. */
+  onShown: (run: () => void) => () => void;
 };
 
 /**
@@ -77,6 +79,7 @@ type Observers = {
  * rebuilds it on a remount (asynchronously), so only a connected element with a real width is
  * read: the old element, removed or collapsed mid-rebuild, never reports 0. While the element is
  * connected, DOM changes are ignored; once it's gone, the next DOM change looks for the new one.
+ * Its width can still be wrong before Studio lays out, so callers cap it (see studioCanvasWidth).
  * Returns the cleanup.
  */
 export function watchElementWidth(
@@ -92,6 +95,10 @@ export function watchElementWidth(
     MutationObserver,
     setTimeout: (run, ms) => setTimeout(run, ms),
     clearTimeout: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
+    onShown: (run) => {
+      document.addEventListener("visibilitychange", run);
+      return () => document.removeEventListener("visibilitychange", run);
+    },
   };
   let watched: Element | null = null;
   let reported = false;
@@ -120,7 +127,10 @@ export function watchElementWidth(
   find();
   const mutations = new env.MutationObserver(find);
   mutations.observe(box, { childList: true, subtree: true });
+  // A hidden tab gets no resize events, so read again when it's shown.
+  const stopShown = env.onShown(read);
   return () => {
+    stopShown();
     mutations.disconnect();
     resize.disconnect();
     env.clearTimeout(timer);

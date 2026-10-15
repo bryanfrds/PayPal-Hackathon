@@ -15,7 +15,7 @@ import { useDebts } from "../useDebts";
 import { useIsWide } from "../useIsWide";
 import { useReminders } from "../useReminders";
 import { useShop } from "../useShop";
-import { NUDGE_PANEL_WIDTH, canvasHeight, layoutKind, tabsGridFor } from "./tiles";
+import { canvasHeight, layoutKind, studioCanvasWidth, tabsGridFor } from "./tiles";
 import { AgStudio, FILL, VIEW_PANELS, manropeFamily } from "./studio-loader";
 import {
   dataFor,
@@ -62,7 +62,12 @@ export default function InsightsScreen() {
     update();
     const observer = new ResizeObserver(update);
     observer.observe(el);
-    return () => observer.disconnect();
+    // A hidden tab gets no resize events, so read again when it's shown.
+    document.addEventListener("visibilitychange", update);
+    return () => {
+      observer.disconnect();
+      document.removeEventListener("visibilitychange", update);
+    };
   }, []);
 
   useLayoutEffect(() => {
@@ -95,27 +100,33 @@ export default function InsightsScreen() {
     [debts, today, t, lang],
   );
   // How many columns the "Every tab" grid shows, and how wide, comes from the width of Studio's
-  // canvas as measured. Before Studio has drawn it, guess: the box less Nudge's docked panel
-  // (and its 1px divider) on a laptop; on a phone Nudge opens over the page instead.
+  // canvas: our box less Nudge's docked panel on a laptop (on a phone Nudge opens over the page),
+  // lowered by Studio's own measurement if that's narrower. See studioCanvasWidth.
   const measuredCanvas = useStudioElementWidth(boxRef, ".ag-studio-layout-measurement-container", ready);
-  const canvasWidth = measuredCanvas ?? (width === null ? null : width - (isWide ? NUDGE_PANEL_WIDTH + 1 : 0));
+  const canvasWidth = width === null ? null : studioCanvasWidth(width, isWide, measuredCanvas);
   const tabs = kind === null || canvasWidth === null ? null : tabsGridFor(canvasWidth, kind);
   const tabsColumns = tabs?.columns;
   const tabsColumnWidth = tabs?.columnWidth;
+  const tabsCellPadding = tabs?.cellPadding;
   // Tile titles and the grid's columns are read once per mount, so a language change or a new
   // column count or width remounts Studio (see the key).
   const initialState = useMemo(
     () =>
-      kind === null || tabsColumns === undefined || tabsColumnWidth === undefined
+      kind === null || tabsColumns === undefined || tabsColumnWidth === undefined || tabsCellPadding === undefined
         ? null
-        : initialStateFor(kind, { columns: tabsColumns, columnWidth: tabsColumnWidth }, t),
-    [kind, tabsColumns, tabsColumnWidth, t],
+        : initialStateFor(kind, { columns: tabsColumns, columnWidth: tabsColumnWidth, cellPadding: tabsCellPadding }, t),
+    [kind, tabsColumns, tabsColumnWidth, tabsCellPadding, t],
   );
   const localeText = useMemo(() => nudgeLocaleText(t), [t]);
   // A light/dark switch remounts Studio (see the key below) so it restyles reliably; Nudge's
   // chat comes back from nudge-history.ts, as it does after a layout change.
   const mode = useResolvedTheme();
-  const theme = useMemo(() => themeFor(manropeFamily(), STUDIO_CANVAS[mode], mode === "dark"), [mode]);
+  // The grid's cell padding is a theme setting; it changes only with the column width, which
+  // remounts Studio anyway (see the key).
+  const theme = useMemo(
+    () => themeFor(manropeFamily(), STUDIO_CANVAS[mode], mode === "dark", tabsCellPadding),
+    [mode, tabsCellPadding],
+  );
 
   // What Nudge's tools read: built the same way as the Nudge chat's summary (app/nudge).
   const shop = useMemo<NudgeShop>(() => {
@@ -231,7 +242,7 @@ export default function InsightsScreen() {
           )}
         {ready && initialState && (
           <AgStudio
-            key={`${kind}-${tabsColumns}x${tabsColumnWidth}-${mode}-${lang}`}
+            key={`${kind}-${tabsColumns}x${tabsColumnWidth}p${tabsCellPadding}-${mode}-${lang}`}
             data={data}
             mode="view"
             theme={theme}
