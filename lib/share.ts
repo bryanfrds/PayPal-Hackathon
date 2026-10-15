@@ -11,10 +11,10 @@ import { formatSen, type Debt } from "./debts";
 
 export type Tone = "friendly" | "polite" | "firm";
 
-export const TONES: { id: Tone; label: string; hint: string }[] = [
-  { id: "friendly", label: "Friendly", hint: "First nudge" },
-  { id: "polite", label: "Polite", hint: "Gentle follow-up" },
-  { id: "firm", label: "Firm", hint: "Long overdue" },
+export const TONES: { id: Tone; emoji: string; label: string; hint: string }[] = [
+  { id: "friendly", emoji: "🙂", label: "Friendly", hint: "First nudge" },
+  { id: "polite", emoji: "🤝", label: "Polite", hint: "Gentle follow-up" },
+  { id: "firm", emoji: "📌", label: "Firm", hint: "Long overdue" },
 ];
 
 export const MAX_ITEMS_NAMED = 3;
@@ -67,6 +67,9 @@ function settled(record: InvoiceRecord): boolean {
  * Same rule as payPlan and reconcileDebts: if a debt was invoiced more than once, only its
  * newest invoice counts. Invoices PayPal says are closed or paid are skipped, so a cancelled
  * invoice's dead link is never sent. When several invoices are live, the newest is used.
+ * Debts marked "unpaid" (not invoiced) are never matched, so an invoice left over from before a
+ * reset of the sample tabs can't attach itself to a fresh debt with the same id. An invoice
+ * asking for more than is owed is left out too.
  */
 export function payLinkFor(invoices: InvoiceRecord[], debts: Debt[], slug: string): PayLink | undefined {
   const unpaid = debts.filter((d) => d.status !== "paid" && customerSlug(d.customerName) === slug);
@@ -75,6 +78,7 @@ export function payLinkFor(invoices: InvoiceRecord[], debts: Debt[], slug: strin
 
   const newestFor = new Map<string, InvoiceRecord>();
   for (const debt of unpaid) {
+    if (debt.status === "unpaid") continue;
     const newest = invoices
       .filter((r) => r.debtIds.includes(debt.id))
       .sort((a, b) => b.sentAt.localeCompare(a.sentAt))[0];
@@ -84,15 +88,15 @@ export function payLinkFor(invoices: InvoiceRecord[], debts: Debt[], slug: strin
   const live = [...new Set(newestFor.values())]
     .filter((r) => !settled(r) && isPayPalUrl(r.payerLink))
     .sort((a, b) => b.sentAt.localeCompare(a.sentAt))[0];
-  if (!live?.payerLink) return undefined;
+  if (!live?.payerLink || live.amountSen > owedSen) return undefined;
 
   const coversAll = unpaid.every((d) => newestFor.get(d.id) === live);
   return { link: live.payerLink, amountSen: live.amountSen, full: coversAll && live.amountSen === owedSen };
 }
 
-/** Names go in as typed, minus *, _ and ~, so WhatsApp doesn't turn them into bold, italics or strike-through. */
+/** Names and items go in as typed, with *, _ and ~ turned into spaces, so WhatsApp doesn't make them bold, italic or struck through. */
 export function plainName(name: string): string {
-  return name.replace(/[*_~]/g, "").replace(/\s+/g, " ").trim();
+  return name.replace(/[*_~]/g, " ").replace(/\s+/g, " ").trim();
 }
 
 export type ShareInput = {
@@ -122,7 +126,7 @@ export function buildShareMessage(input: ShareInput): ShareMessage {
   const name = plainName(input.customerName) || "there";
   const shop = plainName(input.shopName) || "your shop";
   const amount = `*RM ${formatSen(input.owedSen)}*`;
-  const list = itemSummary(input.items);
+  const list = itemSummary(input.items.map(plainName));
   const what = list ? `${amount} (${list})` : amount;
   const pay = input.pay && isPayPalUrl(input.pay.link) ? input.pay : undefined;
   const link = pay?.link;

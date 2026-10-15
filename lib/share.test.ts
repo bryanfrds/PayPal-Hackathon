@@ -26,7 +26,7 @@ function debt(over: Partial<Debt>): Debt {
     item: "Milo",
     amountSen: 1000,
     date: "2026-10-02",
-    status: "unpaid",
+    status: "sent",
     source: "manual",
     createdAt: "2026-10-02T08:00:00.000Z",
     ...over,
@@ -121,9 +121,15 @@ describe("buildShareMessage", () => {
 
   it("strips WhatsApp formatting marks from names", () => {
     expect(plainName(" *Kak* _Lina_ ~x~ ")).toBe("Kak Lina x");
-    const m = buildShareMessage({ ...base, customerName: "*Kak_Lina*", shopName: "~Kedai~ *Ah* Seng" });
+    expect(plainName("Kak_Lina")).toBe("Kak Lina");
+    const m = buildShareMessage({
+      ...base,
+      customerName: "*Kak_Lina*",
+      shopName: "~Kedai~ *Ah* Seng",
+      items: ["*Milo*", "gula_pasir", "~beras~"],
+    });
     expect(m.intro).toBe(
-      "Hi KakLina, Kedai Ah Seng here 🙂 Just a friendly note: your tab is *RM 128.00* (Milo, gula, beras and 1 more).",
+      "Hi Kak Lina, Kedai Ah Seng here 🙂 Just a friendly note: your tab is *RM 128.00* (Milo, gula pasir and beras).",
     );
     expect(m.text.match(/\*/g)).toHaveLength(2);
   });
@@ -174,6 +180,23 @@ describe("payLinkFor", () => {
     expect(payLinkFor([older, closed], debts, "kak-lina")).toBeUndefined();
     expect(payLinkFor([invoice({ standing: standing("paid") })], debts, "kak-lina")).toBeUndefined();
     expect(payLinkFor([invoice({ standing: standing("open") })], debts, "kak-lina")?.link).toBe(LINK);
+  });
+
+  it("leaves out an invoice that asks for more than is owed", () => {
+    // d1 is RM 10 owed; the invoice asks RM 25.
+    expect(payLinkFor([invoice({ amountSen: 2500 })], debts, "kak-lina")).toBeUndefined();
+  });
+
+  it("ignores invoices for debts not marked as invoiced (e.g. left over from a sample reset)", () => {
+    const fresh = [debt({ id: "d1", status: "unpaid" })];
+    expect(payLinkFor([invoice({})], fresh, "kak-lina")).toBeUndefined();
+    // Mixed: the invoiced debt gets its link, but it's only part of the tab.
+    const mixed = [debt({ id: "d1" }), debt({ id: "d4", status: "unpaid", amountSen: 500 })];
+    expect(payLinkFor([invoice({ debtIds: ["d1", "d4"], amountSen: 1000 })], mixed, "kak-lina")).toEqual({
+      link: LINK,
+      amountSen: 1000,
+      full: false,
+    });
   });
 
   it("marks the link partial when the invoice doesn't cover the whole tab", () => {
