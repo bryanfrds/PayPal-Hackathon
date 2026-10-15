@@ -7,9 +7,9 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
-import { formatDay, tabPath } from "@/lib/customer-tab";
+import { tabPath } from "@/lib/customer-tab";
 import { formatSen, todayLocal } from "@/lib/debts";
-import { greeting, homeOverview, initials, monthTotals, owedBoard, type BoardRow } from "@/lib/home";
+import { greeting, homeOverview, initials, lateLabel, monthTotals, owedBoard, type BoardRow } from "@/lib/home";
 import { buildSchedule } from "@/lib/reminders";
 import AccountSheet from "./components/AccountSheet";
 import Avatar from "./components/Avatar";
@@ -21,28 +21,28 @@ import { useDebts } from "./useDebts";
 import { useIsWide } from "./useIsWide";
 import { useReminders } from "./useReminders";
 import { useShop } from "./useShop";
+import { useT } from "./useT";
 
 // Loaded only on wide screens, so phones don't download AG Grid or AG Studio for Home.
+function GridLoading() {
+  const { t } = useT();
+  return <p className="loading home-loading">{t("common.loading")}</p>;
+}
 const HomeBoardGrid = dynamic(() => import("./home/HomeBoardGrid"), {
   ssr: false,
-  loading: () => <p className="loading home-loading">Loading…</p>,
+  loading: () => <GridLoading />,
 });
 const HomeChart = dynamic(() => import("./home/HomeChart"), {
   ssr: false,
-  loading: () => <p className="loading home-loading">Loading…</p>,
+  loading: () => <GridLoading />,
 });
 
 const SHOWN_ON_PHONE = 5;
 
-const LATE_TEXT: Record<BoardRow["status"], string> = { overdue: "Overdue", sent: "Invoice sent", unpaid: "Not sent" };
 const BAR_COLOUR: Record<BoardRow["status"], string> = { overdue: "var(--overdue)", sent: "var(--sent)", unpaid: "var(--unpaid)" };
 
-function lateLabel(row: BoardRow): string {
-  if (row.status === "overdue" && row.daysLate > 0) return `${row.daysLate} ${row.daysLate === 1 ? "day" : "days"} late`;
-  return LATE_TEXT[row.status];
-}
-
 function BoardList({ rows, onShare }: { rows: BoardRow[]; onShare: (slug: string, button: HTMLButtonElement) => void }) {
+  const { t } = useT();
   return (
     <ul className="card home-board">
       {rows.map((row) => (
@@ -58,7 +58,7 @@ function BoardList({ rows, onShare }: { rows: BoardRow[]; onShare: (slug: string
             </span>
             <span className="home-board-amt">
               RM {formatSen(row.owedSen)}
-              <span className={`badge badge-${row.status}`}>{lateLabel(row)}</span>
+              <span className={`badge badge-${row.status}`}>{lateLabel(row, t)}</span>
             </span>
           </Link>
           {/* A sibling of the link, so the row still opens the tab and this only opens the share sheet. */}
@@ -75,6 +75,7 @@ export default function Dashboard() {
   const { rules, moves, sent } = useReminders();
   const wide = useIsWide();
   const { name: shopName } = useShop();
+  const { t, lang, locale, formatDay } = useT();
   const [accountOpen, setAccountOpen] = useState(false);
   // Who the WhatsApp sheet is for, and the button that opened it (focus goes back there).
   const [share, setShare] = useState<{ slug: string; opener: HTMLElement } | null>(null);
@@ -93,32 +94,37 @@ export default function Dashboard() {
   const board = useMemo(() => owedBoard(debts, today), [debts, today]);
   const months = useMemo(() => monthTotals(debts, today), [debts, today]);
   const monthMax = Math.max(1, ...months.map((m) => Math.max(m.owedSen, m.collectedSen)));
+  // Short month names under the phone's bars: "Oct" in English, the local short form elsewhere.
+  const monthLabel = (m: (typeof months)[number]) =>
+    lang === "en"
+      ? m.label
+      : new Intl.DateTimeFormat(locale, { month: "short", timeZone: "UTC" }).format(new Date(`${m.month}-01T00:00:00Z`));
   const todo = (o.remindNow.length > 0 ? 1 : 0) + (o.notInvoiced.count > 0 ? 1 : 0);
 
   return (
     <div className="home">
       <div className="home-head">
         <div>
-          <p className="dash-hello">{ready ? greeting(new Date().getHours()) : " "}</p>
+          <p className="dash-hello">{ready ? greeting(new Date().getHours(), t) : " "}</p>
           <h1 className="dash-shop">{shopName}</h1>
         </div>
         <div className="home-head-actions">
           <Link href="/scan" className="button home-wide-only">
             <ScanIcon />
-            Scan notebook
+            {t("home.scanNotebook")}
           </Link>
           <Link href="/collect" className="button home-wide-only">
             <SendIcon />
-            Collect
+            {t("home.collect")}
           </Link>
           <Link href="/add" className="button button-primary home-wide-only">
             <PlusIcon />
-            Add debt
+            {t("home.addDebt")}
           </Link>
           <button
             type="button"
             className="avatar avatar-me home-phone-only home-acct"
-            aria-label={`Account: ${shopName}`}
+            aria-label={t("nav.account", { name: shopName })}
             onClick={() => setAccountOpen(true)}
           >
             {initials(shopName)}
@@ -129,7 +135,7 @@ export default function Dashboard() {
       <div className="home-top">
         <section className="home-hero" aria-labelledby="owed-label" aria-busy={!ready}>
           <p className="home-hero-label" id="owed-label">
-            Still owed to you
+            {t("home.stillOwed")}
           </p>
           <div className="home-hero-row">
             <p className="home-hero-big">
@@ -139,13 +145,13 @@ export default function Dashboard() {
             {/* Like Shopee's "Scan & Pay": the scanner is always one tap away on a phone. */}
             <Link href="/scan" className="home-hero-scan home-phone-only">
               <ScanIcon />
-              Scan
+              {t("home.scan")}
             </Link>
           </div>
           <div
             className="home-meter"
             role="img"
-            aria-label={ready ? `${o.collectedPct}% of all tabs collected, ${o.overduePct}% overdue` : "Loading"}
+            aria-label={ready ? t("home.meterAria", { collected: o.collectedPct, overdue: o.overduePct }) : t("common.loading")}
           >
             <b style={{ width: `${ready ? o.collectedPct : 0}%` }} />
             <b className="home-meter-late" style={{ width: `${ready ? o.overduePct : 0}%` }} />
@@ -154,11 +160,11 @@ export default function Dashboard() {
             <span>
               {ready ? (
                 <>
-                  <strong>RM {formatSen(o.paidSen)}</strong> collected
-                  {o.overdueSen > 0 && <span className="home-late"> · RM {formatSen(o.overdueSen)} overdue</span>}
+                  <strong>RM {formatSen(o.paidSen)}</strong> {t("home.meterCollected")}
+                  {o.overdueSen > 0 && <span className="home-late"> {t("home.meterOverdue", { amount: formatSen(o.overdueSen) })}</span>}
                 </>
               ) : (
-                "Loading your tabs…"
+                t("home.loadingTabs")
               )}
             </span>
             <span>{ready ? `${o.collectedPct}%` : ""}</span>
@@ -167,78 +173,78 @@ export default function Dashboard() {
 
         <div className="home-stats">
           <div className="home-stat">
-            <p className="home-stat-k">Collected</p>
+            <p className="home-stat-k">{t("home.collected")}</p>
             <p className="home-stat-v">{ready ? `RM ${formatSen(o.paidSen)}` : "—"}</p>
             <p className="home-stat-d home-good">
-              {ready ? `${o.paidTabs.count} ${o.paidTabs.count === 1 ? "tab" : "tabs"} paid` : " "}
+              {ready ? t("home.tabsPaid", { count: o.paidTabs.count }) : " "}
             </p>
           </div>
           <div className="home-stat">
-            <p className="home-stat-k">Overdue</p>
+            <p className="home-stat-k">{t("status.overdue")}</p>
             <p className="home-stat-v">
-              {ready ? `${o.overdueTabs} ${o.overdueTabs === 1 ? "tab" : "tabs"}` : "—"}
+              {ready ? t("home.tabs", { count: o.overdueTabs }) : "—"}
             </p>
             <p className="home-stat-d home-late">
               {ready ? `RM ${formatSen(o.overdueSen)}` : " "}
-              <span className="home-wide-only">{ready && o.oldestDaysLate > 0 ? ` · oldest ${o.oldestDaysLate} days` : ""}</span>
+              <span className="home-wide-only">{ready && o.oldestDaysLate > 0 ? ` ${t("home.oldest", { days: o.oldestDaysLate })}` : ""}</span>
             </p>
           </div>
           <div className="home-stat home-phone-only">
-            <p className="home-stat-k">Customers</p>
+            <p className="home-stat-k">{t("home.customers")}</p>
             <p className="home-stat-v">{ready ? o.customersOwing : "—"}</p>
-            <p className="home-stat-d">owe you now</p>
+            <p className="home-stat-d">{t("home.oweYouNow")}</p>
           </div>
           <div className="home-stat home-wide-only">
-            <p className="home-stat-k">Reminders today</p>
+            <p className="home-stat-k">{t("home.remindersToday")}</p>
             <p className="home-stat-v">{ready ? o.remindNow.length : "—"}</p>
-            <p className="home-stat-d">{!ready ? " " : o.nextReminder ? `next: ${formatDay(o.nextReminder).replace(/ \d{4}$/, "")}` : "none planned"}</p>
+            <p className="home-stat-d">{!ready ? " " : o.nextReminder ? t("home.nextReminder", { day: formatDay(o.nextReminder, { year: false }) }) : t("home.nonePlanned")}</p>
           </div>
         </div>
       </div>
 
-      <nav className="home-acts home-phone-only" aria-label="Quick actions">
+      <nav className="home-acts home-phone-only" aria-label={t("home.quickActions")}>
         <Link href="/add" className="home-act home-act-primary">
           <span>
             <PlusIcon />
           </span>
-          Add debt
+          {t("home.addDebt")}
         </Link>
         <Link href="/collect" className="home-act">
           <span>
             <SendIcon />
           </span>
-          Collect
+          {t("home.collect")}
         </Link>
         <Link href="/reminders" className="home-act">
           <span>
             <BellIcon />
           </span>
-          Remind
+          {t("home.remind")}
         </Link>
         <Link href="/insights" className="home-act">
           <span>
             <ChartIcon />
           </span>
-          Insights
+          {t("nav.insights")}
         </Link>
       </nav>
 
       <div className="home-body">
         <div className="home-main">
           <div className="section-head">
-            <h2>Who owes you</h2>
-            <Link href="/ledger">See all</Link>
+            <h2>{t("home.whoOwes")}</h2>
+            <Link href="/ledger">{t("home.seeAll")}</Link>
           </div>
           {!ready ? (
             <p className="card loading" aria-busy="true">
-              Loading your tabs…
+              {t("home.loadingTabs")}
             </p>
           ) : board.length === 0 ? (
             <div className="card empty-state">
-              <h2>Nobody owes you</h2>
-              <p>Every tab is paid. Add a new one when someone buys on credit.</p>
+              <h2>{t("home.nobodyOwes")}</h2>
+              <p>{t("home.allPaid")}</p>
               <Link href="/add" className="button button-primary">
-                + Add debt
+                + {t("home.addDebt")}
               </Link>
             </div>
           ) : (
@@ -255,8 +261,8 @@ export default function Dashboard() {
 
         <div className="home-side">
           <div className="section-head">
-            <h2>Today</h2>
-            <span className="home-count">{todo === 0 ? "All done" : `${todo} ${todo === 1 ? "thing" : "things"}`}</span>
+            <h2>{t("home.today")}</h2>
+            <span className="home-count">{todo === 0 ? t("home.allDone") : t("home.things", { count: todo })}</span>
           </div>
           <ul className="card home-todo">
             {o.remindNow.length > 0 && (
@@ -266,12 +272,12 @@ export default function Dashboard() {
                 </span>
                 <span className="home-todo-main">
                   <span className="home-todo-n">
-                    {o.remindNow.length} {o.remindNow.length === 1 ? "reminder" : "reminders"} to send
+                    {t("home.remindersToSend", { count: o.remindNow.length })}
                   </span>
                   <span className="home-todo-w">{o.remindNow.join(", ")}</span>
                 </span>
                 <Link href="/reminders" className="home-todo-go">
-                  Send
+                  {t("home.send")}
                 </Link>
               </li>
             )}
@@ -282,14 +288,14 @@ export default function Dashboard() {
                 </span>
                 <span className="home-todo-main">
                   <span className="home-todo-n">
-                    {o.notInvoiced.count} {o.notInvoiced.count === 1 ? "tab" : "tabs"} not invoiced
+                    {t("home.notInvoiced", { count: o.notInvoiced.count })}
                   </span>
                   <span className="home-todo-w">
                     RM {formatSen(o.notInvoiced.sen)} · {o.notInvoiced.names.join(", ")}
                   </span>
                 </span>
                 <Link href="/collect" className="home-todo-go home-todo-go-light">
-                  Collect
+                  {t("home.collect")}
                 </Link>
               </li>
             )}
@@ -300,16 +306,16 @@ export default function Dashboard() {
                 </span>
                 <span className="home-todo-main">
                   <span className="home-todo-n">
-                    {o.paidTabs.count} {o.paidTabs.count === 1 ? "tab" : "tabs"} paid · RM {formatSen(o.paidTabs.sen)}
+                    {t("home.tabsPaid", { count: o.paidTabs.count })} · RM {formatSen(o.paidTabs.sen)}
                   </span>
-                  <span className="home-todo-w">Marked paid in your ledger</span>
+                  <span className="home-todo-w">{t("home.markedPaid")}</span>
                 </span>
               </li>
             )}
             {todo === 0 && o.paidTabs.count === 0 && (
               <li className="home-todo-row">
                 <span className="home-todo-main">
-                  <span className="home-todo-w">Nothing to do right now.</span>
+                  <span className="home-todo-w">{t("home.nothingToDo")}</span>
                 </span>
               </li>
             )}
@@ -320,22 +326,22 @@ export default function Dashboard() {
               <SparkIcon />
             </span>
             <span className="home-nudge-q">
-              <strong>Ask Nudge</strong>
-              <span>&ldquo;Who should I remind today?&rdquo;</span>
+              <strong>{t("nav.askNudge")}</strong>
+              <span>{t("nav.nudgeQuestion")}</span>
             </span>
             <ChevronIcon />
           </Link>
 
           <section className="card home-chart" aria-labelledby="month-chart">
             <div className="home-chart-head">
-              <h2 id="month-chart">Owed vs collected</h2>
-              <span className="home-chart-sub">by month written down</span>
+              <h2 id="month-chart">{t("home.chartTitle")}</h2>
+              <span className="home-chart-sub">{t("home.chartSub")}</span>
             </div>
             {wide ? (
               <HomeChart debts={debts} />
             ) : (
               <>
-                <div className="home-bars" role="img" aria-label={months.map((m) => `${m.label}: RM ${formatSen(m.collectedSen)} collected, RM ${formatSen(m.owedSen)} owed`).join("; ")}>
+                <div className="home-bars" role="img" aria-label={months.map((m) => t("home.barsAria", { month: monthLabel(m), collected: formatSen(m.collectedSen), owed: formatSen(m.owedSen) })).join("; ")}>
                   {months.map((m) => (
                     <div key={m.month}>
                       <i style={{ height: `${(m.collectedSen / monthMax) * 100}%` }} />
@@ -345,11 +351,11 @@ export default function Dashboard() {
                 </div>
                 <div className="home-bar-labels" aria-hidden="true">
                   {months.map((m) => (
-                    <span key={m.month}>{m.label}</span>
+                    <span key={m.month}>{monthLabel(m)}</span>
                   ))}
                 </div>
                 <p className="home-legend" aria-hidden="true">
-                  <span className="home-key" /> Collected <span className="home-key home-key-owed" /> Still owed
+                  <span className="home-key" /> {t("home.collected")} <span className="home-key home-key-owed" /> {t("home.stillOwedKey")}
                 </p>
               </>
             )}
@@ -357,7 +363,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <p className="powered">Invoices and payments by PayPal</p>
+      <p className="powered">{t("common.poweredBy")}</p>
       {accountOpen && <AccountSheet onClose={() => setAccountOpen(false)} />}
       {share && <ShareSheet slug={share.slug} returnFocusTo={share.opener} onClose={() => setShare(null)} />}
     </div>

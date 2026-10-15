@@ -44,11 +44,11 @@ export function initials(name: string): string {
   return (first + last).toUpperCase();
 }
 
-/** Malay greeting for the hour of day (0–23): pagi before noon, petang until 7pm, then malam. */
-export function greeting(hour: number): string {
-  if (hour < 12) return "Selamat pagi";
-  if (hour < 19) return "Selamat petang";
-  return "Selamat malam";
+/** Greeting for the hour of day (0–23): morning before noon, afternoon until 7pm, then evening. English keeps the Malay words. */
+export function greeting(hour: number, t: T = translator()): string {
+  if (hour < 12) return t("home.greeting.morning");
+  if (hour < 19) return t("home.greeting.afternoon");
+  return t("home.greeting.evening");
 }
 
 /** Index into a palette of `size` colours; the same name always gets the same index. */

@@ -23,12 +23,12 @@ export const viewport: Viewport = {
 };
 
 const NAV_LINKS: NavLink[] = [
-  { href: "/", label: "Home", icon: "home" },
-  { href: "/scan", label: "Scan", icon: "scan" },
-  { href: "/ledger", label: "Ledger", icon: "ledger" },
-  { href: "/insights", label: "Insights", icon: "insights" },
-  { href: "/reminders", label: "Reminders", icon: "reminders", wideOnly: true },
-  { href: "/collect", label: "Collect", icon: "collect" },
+  { href: "/", label: "nav.home", icon: "home" },
+  { href: "/scan", label: "nav.scan", icon: "scan" },
+  { href: "/ledger", label: "nav.ledger", icon: "ledger" },
+  { href: "/insights", label: "nav.insights", icon: "insights" },
+  { href: "/reminders", label: "nav.reminders", icon: "reminders", wideOnly: true },
+  { href: "/collect", label: "nav.collect", icon: "collect" },
 ];
 
 export default function RootLayout({ children }: { children: ReactNode }) {

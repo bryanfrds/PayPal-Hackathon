@@ -8,32 +8,38 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { CODE_LENGTH, OWNER_CODE_LENGTH, safeNext, tidyCode } from "@/lib/auth";
 import { initials } from "@/lib/home";
+import type { TKey } from "@/lib/i18n";
 import { BackIcon, BellIcon, CheckIcon, MailIcon, ScanIcon, SendIcon } from "../components/icons";
 import { DEFAULT_SHOP_NAME, MAX_SHOP_NAME, SHOP_TYPES, useShop, type ShopType } from "../useShop";
+import { useT } from "../useT";
 
 type Step = "welcome" | "email" | "code" | "shop";
 
-const ERRORS: Record<string, string> = {
-  "paypal-setup": "Log in with PayPal isn't set up yet. Use your email instead.",
-  "paypal-cancelled": "PayPal login was cancelled. Try again, or use your email.",
-  "paypal-state": "That PayPal login expired. Try again.",
-  "paypal-email": "PayPal didn't share an email for this account. Use your email instead.",
-  paypal: "PayPal login didn't work just now. Try again, or use your email.",
-  setup: "Sign-in isn't set up on this server yet.",
-  "not-owner": "That PayPal account isn't set up as this shop's owner. Use the owner's email instead.",
+/** The ?error= codes the PayPal login sends back, as translation keys. */
+const ERRORS: Record<string, TKey> = {
+  "paypal-setup": "signin.error.paypalSetup",
+  "paypal-cancelled": "signin.error.paypalCancelled",
+  "paypal-state": "signin.error.paypalState",
+  "paypal-email": "signin.error.paypalEmail",
+  paypal: "signin.error.paypal",
+  setup: "signin.error.setup",
+  "not-owner": "signin.error.notOwner",
 };
+
+/** An error to show: one of ours (translated when shown) or the server's own words. */
+type ErrorMsg = { key: TKey } | { text: string };
 
 const DOMAINS = ["gmail.com", "yahoo.com", "hotmail.com"];
 
-/** Reads the server's plain-English error, or a fallback. */
-async function errorFrom(res: Response): Promise<string> {
+/** Reads the server's plain-English error (shown as it is), or a fallback. */
+async function errorFrom(res: Response): Promise<ErrorMsg> {
   try {
     const body = (await res.json()) as { error?: string };
-    if (body.error) return body.error;
+    if (body.error) return { text: body.error };
   } catch {
     // not JSON
   }
-  return "Something went wrong. Try again.";
+  return { key: "common.tryAgain" };
 }
 
 function Brand() {
@@ -49,10 +55,11 @@ function Brand() {
 
 /** The two cards from Home, as a peek at the app. Decorative. */
 function Peek() {
+  const { t } = useT();
   return (
     <div className="si-peek" aria-hidden="true">
       <div className="si-float si-float-owed">
-        <span className="si-float-k">Still owed to you</span>
+        <span className="si-float-k">{t("home.stillOwed")}</span>
         <span className="si-float-v">RM 197.10</span>
         <span className="si-float-meter">
           <b />
@@ -64,8 +71,8 @@ function Peek() {
           <CheckIcon />
         </i>
         <span>
-          Ah Hock paid
-          <small>on PayPal · just now</small>
+          {t("signin.peekPaid", { name: "Ah Hock" })}
+          <small>{t("signin.peekWhen")}</small>
         </span>
       </div>
     </div>
@@ -77,12 +84,17 @@ export default function SignInScreen() {
   const params = useSearchParams();
   const next = safeNext(params.get("next"));
   const { shop, ready: shopReady, saveShop } = useShop();
+  const { t } = useT();
 
   const [step, setStep] = useState<Step>("welcome");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(() => ERRORS[params.get("error") ?? ""] ?? null);
+  const [error, setError] = useState<ErrorMsg | null>(() => {
+    const key = ERRORS[params.get("error") ?? ""];
+    return key ? { key } : null;
+  });
+  const errorText = error ? ("key" in error ? t(error.key) : error.text) : null;
   const [resendIn, setResendIn] = useState(0);
   const [shopName, setShopName] = useState(DEFAULT_SHOP_NAME);
   const [shopType, setShopType] = useState<ShopType>("Kedai runcit");
@@ -99,8 +111,8 @@ export default function SignInScreen() {
 
   useEffect(() => {
     if (resendIn <= 0) return;
-    const t = setTimeout(() => setResendIn((s) => s - 1), 1000);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setResendIn((s) => s - 1), 1000);
+    return () => clearTimeout(timer);
   }, [resendIn]);
 
   function finish() {
@@ -133,7 +145,7 @@ export default function SignInScreen() {
       setResendIn(body.resendAfter);
       setStep("code");
     } catch {
-      setError("You seem to be offline. Check your connection and try again.");
+      setError({ key: "signin.error.offline" });
     } finally {
       setBusy(false);
     }
@@ -156,7 +168,7 @@ export default function SignInScreen() {
       }
       finish();
     } catch {
-      setError("You seem to be offline. Check your connection and try again.");
+      setError({ key: "signin.error.offline" });
     } finally {
       setBusy(false);
     }
@@ -184,44 +196,44 @@ export default function SignInScreen() {
         <>
           <section className="si-hero">
             <Brand />
-            <h1 className="si-headline">Your buku 555, collected through PayPal.</h1>
-            <p className="si-lede">Scan the notebook, send PayPal invoices, see who&apos;s paid.</p>
+            <h1 className="si-headline">{t("signin.headline")}</h1>
+            <p className="si-lede">{t("signin.lede")}</p>
             <ul className="si-feats">
               <li>
                 <i aria-hidden="true">
                   <ScanIcon />
                 </i>
-                Scan a page of your notebook
+                {t("signin.featScan")}
               </li>
               <li>
                 <i aria-hidden="true">
                   <SendIcon />
                 </i>
-                Send PayPal invoices in one go
+                {t("signin.featSend")}
               </li>
               <li>
                 <i aria-hidden="true">
                   <BellIcon />
                 </i>
-                Friendly reminders, written for you
+                {t("signin.featRemind")}
               </li>
             </ul>
             <Peek />
           </section>
           <section className="si-sheet" aria-labelledby="si-ways">
             <h2 id="si-ways" className="si-sheet-title">
-              Sign in to your shop
+              {t("signin.title")}
             </h2>
             {error && (
               <p className="si-error" role="alert" id="si-err">
-                {error}
+                {errorText}
               </p>
             )}
             {/* Stand-in for PayPal's official Log in with PayPal button. */}
             <a className="si-paypal" href={`/api/auth/paypal/start?next=${encodeURIComponent(next)}`}>
-              Log in with PayPal
+              {t("signin.paypal")}
             </a>
-            <p className="si-or">or</p>
+            <p className="si-or">{t("signin.or")}</p>
             <button
               type="button"
               className="si-btn si-btn-light"
@@ -231,24 +243,24 @@ export default function SignInScreen() {
               }}
             >
               <MailIcon />
-              Continue with email
+              {t("signin.withEmail")}
             </button>
-            <p className="si-fine">Customers don&apos;t need an account. They pay from the link you send.</p>
+            <p className="si-fine">{t("signin.customersFine")}</p>
           </section>
         </>
       )}
 
       {step === "email" && (
         <form className="si-form" onSubmit={sendCode}>
-          <button type="button" className="si-back" aria-label="Back" onClick={() => setStep("welcome")}>
+          <button type="button" className="si-back" aria-label={t("common.back")} onClick={() => setStep("welcome")}>
             <BackIcon />
           </button>
           <h1 ref={titleRef} tabIndex={-1}>
-            What&apos;s your email?
+            {t("signin.emailTitle")}
           </h1>
-          <p className="si-sub">We&apos;ll send a 6-character code. No password to remember.</p>
+          <p className="si-sub">{t("signin.emailSub")}</p>
           <label className="si-field">
-            <span>Email</span>
+            <span>{t("signin.email")}</span>
             <span className="si-field-row">
               <MailIcon />
               <input
@@ -268,7 +280,7 @@ export default function SignInScreen() {
             </span>
           </label>
           {atDomain !== null && atDomain === "" && (
-            <div className="si-chips" aria-label="Finish the email">
+            <div className="si-chips" aria-label={t("signin.finishEmail")}>
               {DOMAINS.map((d) => (
                 <button key={d} type="button" onClick={() => setEmail(`${email}${d}`)}>
                   {d}
@@ -278,12 +290,12 @@ export default function SignInScreen() {
           )}
           {error && (
             <p className="si-error" role="alert" id="si-err">
-              {error}
+              {errorText}
             </p>
           )}
           <div className="si-grow" />
           <button type="submit" className="si-btn" disabled={busy || !email.trim()}>
-            {busy ? "Sending…" : "Send code"}
+            {busy ? t("signin.sending") : t("signin.sendCode")}
           </button>
         </form>
       )}
@@ -296,18 +308,18 @@ export default function SignInScreen() {
             if (codeReady) void verify(code);
           }}
         >
-          <button type="button" className="si-back" aria-label="Back" onClick={() => setStep("email")}>
+          <button type="button" className="si-back" aria-label={t("common.back")} onClick={() => setStep("email")}>
             <BackIcon />
           </button>
           <h1 ref={titleRef} tabIndex={-1}>
-            Check your email
+            {t("signin.codeTitle")}
           </h1>
           <p className="si-sub">
-            We sent a code to <b>{email}</b>. It works for 10 minutes.
+            {t("signin.sentTo")} <b>{email}</b>. {t("signin.codeLasts")}
           </p>
           {/* One real input under the drawn boxes (6, or 12 for an owner code), so the phone can fill the code from the email. */}
           <label className="si-code">
-            <span className="visually-hidden">Sign-in code</span>
+            <span className="visually-hidden">{t("signin.codeLabel")}</span>
             <input
               ref={codeRef}
               autoComplete="one-time-code"
@@ -332,22 +344,22 @@ export default function SignInScreen() {
           </label>
           {error && (
             <p className="si-error" role="alert" id="si-err">
-              {error}
+              {errorText}
             </p>
           )}
           <p className="si-resend">
-            Didn&apos;t get it?{" "}
+            {t("signin.didntGet")}{" "}
             {resendIn > 0 ? (
-              <>Send again in 0:{String(resendIn).padStart(2, "0")}</>
+              <>{t("signin.resendIn", { time: `0:${String(resendIn).padStart(2, "0")}` })}</>
             ) : (
               <button type="button" className="link-button" onClick={() => void sendCode()} disabled={busy}>
-                Send again
+                {t("signin.resend")}
               </button>
             )}
           </p>
           <div className="si-grow" />
           <button type="submit" className="si-btn" disabled={busy || !codeReady}>
-            {busy ? "Checking…" : "Sign in"}
+            {busy ? t("signin.checking") : t("signin.signIn")}
           </button>
         </form>
       )}
@@ -359,25 +371,25 @@ export default function SignInScreen() {
             e.preventDefault();
             if (!shopName.trim()) return;
             if (!saveShop({ name: shopName, type: shopType })) {
-              setError("This browser isn't saving data (private mode), so the shop name won't be kept.");
+              setError({ key: "signin.error.noStorage" });
             }
             router.replace(next);
             router.refresh();
           }}
         >
           <h1 ref={titleRef} tabIndex={-1}>
-            Set up your shop
+            {t("signin.shopTitle")}
           </h1>
-          <p className="si-sub">This is what customers see on their invoice and their tab.</p>
+          <p className="si-sub">{t("signin.shopSub")}</p>
           <div className="si-preview" aria-hidden="true">
-            <span className="si-preview-av">{initials(shopName.trim() || "Shop")}</span>
+            <span className="si-preview-av">{initials(shopName.trim() || t("signin.shopFallback"))}</span>
             <span>
-              <small>Invoice from</small>
-              {shopName.trim() || "Your shop"}
+              <small>{t("signin.invoiceFrom")}</small>
+              {shopName.trim() || t("signin.yourShop")}
             </span>
           </div>
           <label className="si-field">
-            <span>Shop name</span>
+            <span>{t("signin.shopName")}</span>
             <span className="si-field-row">
               <input
                 required
@@ -388,22 +400,22 @@ export default function SignInScreen() {
             </span>
           </label>
           <fieldset className="si-types">
-            <legend>Type of shop</legend>
-            {SHOP_TYPES.map((t) => (
-              <label key={t} className={t === shopType ? "on" : undefined}>
-                <input type="radio" name="shop-type" checked={t === shopType} onChange={() => setShopType(t)} />
-                {t}
+            <legend>{t("signin.shopType")}</legend>
+            {SHOP_TYPES.map((type) => (
+              <label key={type} className={type === shopType ? "on" : undefined}>
+                <input type="radio" name="shop-type" checked={type === shopType} onChange={() => setShopType(type)} />
+                {type}
               </label>
             ))}
           </fieldset>
           {error && (
             <p className="si-error" role="alert" id="si-err">
-              {error}
+              {errorText}
             </p>
           )}
           <div className="si-grow" />
           <button type="submit" className="si-btn" disabled={!shopName.trim()}>
-            Open my buku
+            {t("signin.open")}
           </button>
         </form>
       )}

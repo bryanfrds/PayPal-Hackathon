@@ -9,6 +9,7 @@ import Logo from "./components/Logo";
 import { GearIcon, SparkIcon } from "./components/icons";
 import NavLinks, { type NavLink } from "./NavLinks";
 import { useShop } from "./useShop";
+import { useT } from "./useT";
 
 // The shop owner's header and menu. Hidden on a customer's own tab page (/tab/...),
 // which is what the customer opens from the link the shop sends them, on the
@@ -16,6 +17,7 @@ import { useShop } from "./useShop";
 export default function SiteHeader({ links }: { links: NavLink[] }) {
   const pathname = usePathname();
   const { name } = useShop();
+  const { t } = useT();
   const [accountOpen, setAccountOpen] = useState(false);
   if (pathname.startsWith("/tab/") || pathname === "/scan" || pathname.startsWith("/sign-in")) return null;
   return (
@@ -23,24 +25,24 @@ export default function SiteHeader({ links }: { links: NavLink[] }) {
       <Link href="/" className="brand">
         <Logo />
       </Link>
-      <nav aria-label="Main">
+      <nav aria-label={t("nav.main")}>
         <NavLinks links={links} />
       </nav>
       {/* Laptop sidebar only: Nudge, one click from every screen. */}
       <Link href="/nudge" className="side-nudge">
         <strong>
           <SparkIcon />
-          Ask Nudge
+          {t("nav.askNudge")}
         </strong>
-        <span>&ldquo;Who should I remind today?&rdquo;</span>
+        <span>{t("nav.nudgeQuestion")}</span>
       </Link>
       {/* Laptop sidebar only. On phones Settings is reached from the account sheet. */}
       <Link href="/settings" className="side-settings" aria-current={pathname === "/settings" ? "page" : undefined}>
         <GearIcon />
-        Settings
+        {t("nav.settings")}
       </Link>
       {/* Laptop sidebar only: who's signed in, and Sign out. On phones it's the avatar on Home. */}
-      <button type="button" className="side-account" onClick={() => setAccountOpen(true)} aria-label={`Account: ${name}`}>
+      <button type="button" className="side-account" onClick={() => setAccountOpen(true)} aria-label={t("nav.account", { name })}>
         <span className="side-account-av" aria-hidden="true">
           {initials(name)}
         </span>
