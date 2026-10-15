@@ -86,15 +86,46 @@ describe("POST /api/invoices/[id]/remind", () => {
     paypal.getInvoice.mockResolvedValue(owed("INV2-TWICE"));
     expect((await remind("INV2-TWICE")).status).toBe(200);
     const again = await remind("INV2-TWICE");
-    expect(again.status).toBe(429);
+    expect(again.status).toBe(409);
+    expect((await again.json()).alreadySent).toBe(true);
     expect(paypal.remindInvoice).toHaveBeenCalledTimes(1);
   });
 
-  it("lets the owner try again after PayPal clearly refused", async () => {
-    paypal.getInvoice.mockResolvedValue(owed("INV2-RETRY"));
-    paypal.remindInvoice.mockRejectedValueOnce(new PayPalError("busy", { status: 503 }));
-    expect((await remind("INV2-RETRY")).status).toBe(502);
-    expect((await remind("INV2-RETRY")).status).toBe(200);
+  it("holds back a second request that arrives while the first is still with PayPal", async () => {
+    let finish: () => void = () => {};
+    paypal.getInvoice.mockResolvedValue(owed("INV2-RACE"));
+    paypal.remindInvoice.mockImplementation(() => new Promise<void>((resolve) => (finish = resolve)));
+    const first = remind("INV2-RACE");
+    const second = await remind("INV2-RACE");
+    finish();
+    expect((await first).status).toBe(200);
+    expect(second.status).toBe(409);
+    expect(paypal.remindInvoice).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([400, 422, 429])("lets the owner try again after PayPal clearly refused (%i)", async (status) => {
+    const id = `INV2-RETRY-${status}`;
+    paypal.getInvoice.mockResolvedValue(owed(id));
+    paypal.remindInvoice.mockRejectedValueOnce(new PayPalError("refused", { status }));
+    const res = await remind(id);
+    expect(res.status).toBeGreaterThanOrEqual(400);
+    expect((await res.json()).maybeSent).toBeUndefined();
+    expect((await remind(id)).status).toBe(200);
+  });
+
+  it("lets the owner try again when the lookup failed, since nothing was sent", async () => {
+    paypal.getInvoice.mockRejectedValueOnce(new PayPalError("busy", { status: 503 })).mockResolvedValue(owed("INV2-LOOKUP"));
+    expect((await remind("INV2-LOOKUP")).status).toBe(502);
+    expect((await remind("INV2-LOOKUP")).status).toBe(200);
+  });
+
+  it("treats a PayPal server error on the send as maybe sent, and holds back a retry", async () => {
+    paypal.getInvoice.mockResolvedValue(owed("INV2-5XX"));
+    paypal.remindInvoice.mockRejectedValueOnce(new PayPalError("gateway", { status: 504 }));
+    const res = await remind("INV2-5XX");
+    expect((await res.json()).maybeSent).toBe(true);
+    expect((await remind("INV2-5XX")).status).toBe(409);
+    expect(paypal.remindInvoice).toHaveBeenCalledTimes(1);
   });
 
   it("treats no answer from PayPal as maybe sent, and holds back a retry", async () => {
@@ -103,12 +134,18 @@ describe("POST /api/invoices/[id]/remind", () => {
     const res = await remind("INV2-SILENT");
     expect(res.status).toBe(502);
     expect((await res.json()).maybeSent).toBe(true);
-    expect((await remind("INV2-SILENT")).status).toBe(429);
+    expect((await remind("INV2-SILENT")).status).toBe(409);
   });
 
   it("says when PayPal has no such invoice", async () => {
     paypal.getInvoice.mockRejectedValue(new PayPalError("not found", { status: 404 }));
     expect((await remind("INV2-GONE")).status).toBe(404);
     expect(paypal.remindInvoice).not.toHaveBeenCalled();
+  });
+
+  it("never holds back an invoice it refused to remind about", async () => {
+    paypal.getInvoice.mockResolvedValueOnce(owed("INV2-LATER", "PAYMENT_PENDING")).mockResolvedValue(owed("INV2-LATER"));
+    expect((await remind("INV2-LATER")).status).toBe(409);
+    expect((await remind("INV2-LATER")).status).toBe(200);
   });
 });

@@ -153,11 +153,12 @@ export function reconcileDebts(debts: Debt[], records: InvoiceRecord[]): DebtCha
 }
 
 /**
- * The invoice to have PayPal remind each customer about, by customer slug: for debts still
- * out on an invoice, the newest invoice that holds one of them and isn't known to be paid,
- * cancelled or in doubt. Same rule as reconcileDebts: only a debt's newest invoice counts.
+ * The invoices to have PayPal remind each customer about, by customer slug, newest first:
+ * for each debt that's out on an invoice, its newest invoice, unless that's known to be paid,
+ * cancelled or in doubt. Same rule as reconcileDebts: only a debt's newest invoice counts, and
+ * only "sent" debts (a reset sample tab with an old id isn't on any invoice of its own yet).
  */
-export function invoicesToRemind(debts: Debt[], records: InvoiceRecord[]): Record<string, InvoiceRecord> {
+export function invoicesToRemind(debts: Debt[], records: InvoiceRecord[]): Record<string, InvoiceRecord[]> {
   const newest = new Map<string, InvoiceRecord>();
   for (const record of records) {
     for (const id of record.debtIds) {
@@ -165,14 +166,15 @@ export function invoicesToRemind(debts: Debt[], records: InvoiceRecord[]): Recor
       if (!current || record.sentAt > current.sentAt) newest.set(id, record);
     }
   }
-  const out: Record<string, InvoiceRecord> = {};
+  const out: Record<string, InvoiceRecord[]> = {};
   for (const debt of debts) {
-    if (debt.status !== "sent" && debt.status !== "overdue") continue;
+    if (debt.status !== "sent") continue;
     const record = newest.get(debt.id);
     const settlement = record?.standing?.settlement;
     if (!record || (settlement !== undefined && settlement !== "open")) continue;
-    const current = out[record.slug];
-    if (!current || record.sentAt > current.sentAt) out[record.slug] = record;
+    const list = (out[record.slug] ??= []);
+    if (!list.includes(record)) list.push(record);
   }
+  for (const list of Object.values(out)) list.sort((a, b) => b.sentAt.localeCompare(a.sentAt));
   return out;
 }

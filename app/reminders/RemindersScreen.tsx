@@ -8,6 +8,7 @@ import { ReminderStoreError } from "@/lib/reminder-store";
 import { buildSchedule, earliestMoveDay, isDay, reminderMessage, type ScheduleItem } from "@/lib/reminders";
 import { isPayPalUrl } from "@/lib/customer-pay";
 import { invoicesToRemind } from "@/lib/payments";
+import { remindByEmail } from "./remind-email";
 import { colourIndex, initials } from "@/lib/home";
 import { ChatIcon, MailIcon } from "../components/icons";
 import { palette } from "../components/palette";
@@ -47,7 +48,8 @@ export default function RemindersScreen() {
   const { debts, ready } = useDebts();
   const { invoices } = useCollect();
   const { rules, moves, sent, move, markSent, unmarkSent } = useReminders();
-  // What went out last: WhatsApp can be taken back (the owner may not have sent it), a PayPal email can't.
+  // What went out last. Undo is offered when it may not have gone out: WhatsApp (the owner
+  // may not have pressed send) or a PayPal email without a clear answer.
   const [justSent, setJustSent] = useState<{ item: ScheduleItem; via: "whatsapp" | "paypal"; maybe?: boolean } | null>(null);
   // The reminder PayPal is emailing right now, so a second tap can't send it twice.
   const [emailing, setEmailing] = useState<string | null>(null);
@@ -91,7 +93,7 @@ export default function RemindersScreen() {
     for (const inv of invoices) if (inv.payerLink && isPayPalUrl(inv.payerLink) && !links.has(inv.slug)) links.set(inv.slug, inv.payerLink);
     return links;
   }, [invoices]);
-  // The open PayPal invoice for each customer, which PayPal can send a reminder about.
+  // Each customer's open PayPal invoices, which PayPal can send reminders about.
   const toRemind = useMemo(() => invoicesToRemind(debts, invoices), [debts, invoices]);
 
   // First day each reminder can move to, for the drag check and the date boxes.
@@ -128,31 +130,40 @@ export default function RemindersScreen() {
     }
   }
 
-  /** Has PayPal email the customer a reminder about their open invoice. */
-  async function onEmail(item: ScheduleItem, invoiceId: string) {
+  /**
+   * Has PayPal email the customer a reminder about each of their open invoices. If any may
+   * have gone out, the reminder counts as sent, so it isn't sent twice.
+   */
+  async function onEmail(item: ScheduleItem, invoiceIds: string[]) {
     if (emailing) return;
     setEmailing(item.id);
     setError(null);
     setJustSent(null);
     try {
-      const res = await fetch(`/api/invoices/${encodeURIComponent(invoiceId)}/remind`, { method: "POST" });
-      const body = (await res.json().catch(() => ({}))) as { error?: string; maybeSent?: boolean };
-      // Sent, or maybe sent: either way it counts, so it isn't sent again.
-      if (res.ok || body.maybeSent) {
+      const outcomes = [];
+      for (const id of invoiceIds) outcomes.push(await remindByEmail(id));
+      const problems = [...new Set(outcomes.flatMap((o) => (o.kind === "sent" ? [] : [o.message])))];
+      if (outcomes.some((o) => o.kind !== "refused")) {
         try {
           markSent(item.id, today);
         } catch {
-          // Not saved on this device; the server still holds back a repeat for a while.
+          setError(`PayPal emailed ${item.customer}, but this device couldn't save that. Don't send it again today.`);
+          return;
         }
-        setJustSent({ item, via: "paypal", maybe: !res.ok });
-        if (!res.ok) setError(body.error ?? "PayPal didn't answer, so the reminder may have gone out.");
-      } else {
-        setError(body.error ?? "PayPal couldn't send the reminder. Try again.");
+        setJustSent({ item, via: "paypal", maybe: outcomes.some((o) => o.kind !== "sent") });
       }
-    } catch {
-      setError("Couldn't reach the server. Check your connection and try again.");
+      if (problems.length > 0) setError(problems.join(" "));
     } finally {
       setEmailing(null);
+    }
+  }
+
+  function undoSent(item: ScheduleItem) {
+    try {
+      unmarkSent(item.id);
+      setJustSent(null);
+    } catch (e) {
+      setError(e instanceof ReminderStoreError ? e.message : "Couldn't undo. Try again.");
     }
   }
 
@@ -191,21 +202,12 @@ export default function RemindersScreen() {
         </p>
       )}
 
-      {justSent?.via === "whatsapp" && (
+      {justSent && (justSent.via === "whatsapp" || justSent.maybe) && (
         <p className="notice notice-success" role="status">
-          Marked {justSent.item.customer}'s {justSent.item.label} as sent. The next one is planned from today.{" "}
-          <button
-            type="button"
-            className="link-button"
-            onClick={() => {
-              try {
-                unmarkSent(justSent.item.id);
-                setJustSent(null);
-              } catch (e) {
-                setError(e instanceof ReminderStoreError ? e.message : "Couldn't undo. Try again.");
-              }
-            }}
-          >
+          {justSent.via === "paypal"
+            ? `Marked ${justSent.item.customer}'s ${justSent.item.label} as sent, since it may have gone out. If you know it didn't, undo and try again later.`
+            : `Marked ${justSent.item.customer}'s ${justSent.item.label} as sent. The next one is planned from today.`}{" "}
+          <button type="button" className="link-button" onClick={() => undoSent(justSent.item)}>
             Undo
           </button>
         </p>
@@ -239,7 +241,8 @@ export default function RemindersScreen() {
             {sendNow.map((item) => {
               const [bg, fg] = AVATAR_COLOURS[colourIndex(item.customer, AVATAR_COLOURS.length)];
               const text = reminderMessage(item.customer, item.amountSen, payLinks.get(item.slug));
-              const invoice = toRemind[item.slug];
+              const open = toRemind[item.slug] ?? [];
+              const busy = emailing === item.id;
               return (
                 <li key={item.id} className="reminder-row">
                   <span className="avatar" {...palette(bg, fg)} aria-hidden="true">
@@ -253,20 +256,26 @@ export default function RemindersScreen() {
                     </span>
                   </span>
                   <span className="reminder-actions">
-                    {invoice && (
+                    {open.length > 0 && (
                       <button
                         type="button"
                         className="button reminder-send"
                         disabled={emailing !== null}
-                        aria-busy={emailing === item.id}
-                        onClick={() => onEmail(item, invoice.id)}
+                        aria-busy={busy}
+                        onClick={() => onEmail(item, open.map((r) => r.id))}
                         aria-label={`Email ${item.customer} a PayPal reminder`}
                       >
                         <MailIcon />
-                        {emailing === item.id ? "Sending…" : "Email"}
+                        {busy ? "Sending…" : "Email"}
                       </button>
                     )}
-                    <a className="button button-primary reminder-send" href={whatsAppLink(text)} target="_blank" rel="noopener noreferrer" onClick={() => onSent(item)}
+                    {/* Not while PayPal is emailing this customer, so they don't get both. */}
+                    <a className="button button-primary reminder-send" href={whatsAppLink(text)} target="_blank" rel="noopener noreferrer"
+                      aria-disabled={busy || undefined}
+                      onClick={(event) => {
+                        if (busy) event.preventDefault();
+                        else onSent(item);
+                      }}
                       aria-label={`WhatsApp ${item.customer}`}>
                       <ChatIcon />
                       WhatsApp
