@@ -75,7 +75,9 @@ export default function Dashboard() {
   const { rules, moves, sent } = useReminders();
   const wide = useIsWide();
   const { name: shopName } = useShop();
-  const { t, lang, locale, formatDay } = useT();
+  const { t, lang, locale, formatDay, formatNumber } = useT();
+  // Display-only numbers in the language's digits (Bengali uses its own). Amounts never go through this.
+  const percent = (pct: number) => new Intl.NumberFormat(locale, { style: "percent", maximumFractionDigits: 0 }).format(pct / 100);
   const [accountOpen, setAccountOpen] = useState(false);
   // Who the WhatsApp sheet is for, and the button that opened it (focus goes back there).
   const [share, setShare] = useState<{ slug: string; opener: HTMLElement } | null>(null);
@@ -167,7 +169,7 @@ export default function Dashboard() {
                 t("home.loadingTabs")
               )}
             </span>
-            <span>{ready ? `${o.collectedPct}%` : ""}</span>
+            <span>{ready ? percent(o.collectedPct) : ""}</span>
           </p>
         </section>
 
@@ -191,12 +193,12 @@ export default function Dashboard() {
           </div>
           <div className="home-stat home-phone-only">
             <p className="home-stat-k">{t("home.customers")}</p>
-            <p className="home-stat-v">{ready ? o.customersOwing : "—"}</p>
+            <p className="home-stat-v">{ready ? formatNumber(o.customersOwing) : "—"}</p>
             <p className="home-stat-d">{t("home.oweYouNow")}</p>
           </div>
           <div className="home-stat home-wide-only">
             <p className="home-stat-k">{t("home.remindersToday")}</p>
-            <p className="home-stat-v">{ready ? o.remindNow.length : "—"}</p>
+            <p className="home-stat-v">{ready ? formatNumber(o.remindNow.length) : "—"}</p>
             <p className="home-stat-d">{!ready ? " " : o.nextReminder ? t("home.nextReminder", { day: formatDay(o.nextReminder, { year: false }) }) : t("home.nonePlanned")}</p>
           </div>
         </div>
