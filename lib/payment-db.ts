@@ -26,6 +26,9 @@ export type NewInvoice = {
 
 export type CheckedBy = "app" | "webhook";
 
+/** What the database last heard from PayPal about one invoice. */
+export type StoredFacts = InvoiceFacts & { id: string; currency: string; checkedAt: string; checkedBy: CheckedBy };
+
 export type PaymentDb = {
   /** Records a sent invoice. A retry of the same send changes nothing. */
   saveInvoice(invoice: NewInvoice): Promise<void>;
@@ -35,6 +38,8 @@ export type PaymentDb = {
    * Returns the settlement, or null if we have no such invoice (or a newer answer).
    */
   saveFacts(id: string, facts: InvoiceFacts, checkedAt: Date, by: CheckedBy): Promise<Settlement | null>;
+  /** The latest PayPal answer for each of these invoices that has one. */
+  latestFacts(ids: string[]): Promise<StoredFacts[]>;
   /**
    * Notes a webhook event. False if it was already noted: PayPal delivered it again. An event
    * noted but never finished (the function died, or forgetting it failed) is taken over after
@@ -74,6 +79,26 @@ export function createPaymentDb(query: Query): PaymentDb {
         [id, facts.status, settlement, facts.totalSen ?? null, facts.paidSen ?? null, facts.dueSen ?? null, checkedAt.toISOString(), by],
       );
       return updated.length ? settlement : null;
+    },
+
+    async latestFacts(ids) {
+      if (ids.length === 0) return [];
+      const rows = await query(
+        `SELECT id, status, currency, total_sen, paid_sen, due_sen, checked_at, checked_by
+         FROM invoices WHERE id = ANY($1) AND checked_at IS NOT NULL`,
+        [ids],
+      );
+      const num = (v: unknown) => (v === null || v === undefined ? undefined : Number(v));
+      return rows.map((r) => ({
+        id: String(r.id),
+        status: String(r.status),
+        currency: String(r.currency),
+        totalSen: num(r.total_sen),
+        paidSen: num(r.paid_sen),
+        dueSen: num(r.due_sen),
+        checkedAt: new Date(r.checked_at as string | Date).toISOString(),
+        checkedBy: r.checked_by === "webhook" ? "webhook" : "app",
+      }));
     },
 
     async recordEvent(id, type, invoiceId) {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { InvoiceRecord } from "./collect-store";
 import type { Debt, DebtStatus } from "./debts";
-import { invoiceView, invoicesToCheck, invoicesToRemind, moneyToSen, noReminderReason, reconcileDebts, settlementOf, standingFrom, type InvoiceStanding, type Settlement } from "./payments";
+import { invoiceView, invoicesToCheck, invoicesToRead, standingsFromStored, invoicesToRemind, moneyToSen, noReminderReason, reconcileDebts, settlementOf, standingFrom, type InvoiceStanding, type Settlement } from "./payments";
 
 function debt(id: string, status: DebtStatus): Debt {
   return { id, customerName: "Mr Raj", item: "", amountSen: 500, date: "2026-10-01", status, source: "manual", createdAt: "2026-10-01T00:00:00Z" };
@@ -226,5 +226,32 @@ describe("standingFrom", () => {
     expect(standingFrom({ ok: true, status: "PAID", currency: "MYR", totalSen: 900, dueSen: 0 }, 1000, "MYR", at)).toMatchObject({ settlement: "check" });
     expect(standingFrom({ ok: false, error: "x" }, 1000, "MYR", at)).toBeUndefined();
     expect(standingFrom(undefined, 1000, "MYR", at)).toBeUndefined();
+  });
+});
+
+describe("invoicesToRead", () => {
+  it("reads all but cancelled or refunded invoices, newest first, up to the limit", () => {
+    const a = rec("A", ["D1"], standing("open"), "2026-10-01T00:00:00Z");
+    const b = rec("B", ["D2"], standing("paid"), "2026-10-03T00:00:00Z");
+    const c = rec("C", ["D3"], standing("closed"), "2026-10-04T00:00:00Z");
+    const d = rec("D", ["D4"], undefined, "2026-10-02T00:00:00Z");
+    expect(invoicesToRead([a, b, c, d], 10).map((r) => r.id)).toEqual(["B", "D", "A"]);
+    expect(invoicesToRead([a, b, c, d], 1).map((r) => r.id)).toEqual(["B"]);
+  });
+});
+
+describe("standingsFromStored", () => {
+  const at = "2026-10-15T11:00:00.000Z";
+  it("judges the database's answer against what this device billed", () => {
+    const record = rec("INV-1", ["D1"]); // billed 1000
+    const paid = { id: "INV-1", status: "PAID", currency: "MYR", totalSen: 1000, paidSen: 1000, dueSen: 0, checkedAt: at };
+    expect(standingsFromStored([paid], [record])).toEqual({ "INV-1": { status: "PAID", currency: "MYR", totalSen: 1000, paidSen: 1000, dueSen: 0, settlement: "paid", checkedAt: at } });
+    expect(standingsFromStored([{ ...paid, totalSen: 900 }], [record])["INV-1"].settlement).toBe("check");
+  });
+
+  it("skips invoices this device doesn't have and malformed answers", () => {
+    const record = rec("INV-1", ["D1"]);
+    expect(standingsFromStored([{ id: "OTHER", status: "PAID", currency: "MYR", checkedAt: at }], [record])).toEqual({});
+    expect(standingsFromStored([{ id: "INV-1", status: "PAID", currency: "MYR", checkedAt: "soon" }], [record])).toEqual({});
   });
 });

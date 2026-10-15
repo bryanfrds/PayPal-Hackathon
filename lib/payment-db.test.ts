@@ -60,6 +60,16 @@ describe.skipIf(!db)("payment database", () => {
     expect(row).toEqual({ status: "CANCELLED", settlement: "closed" });
   });
 
+  it("reads back the latest answer for the invoices asked about", async () => {
+    const id = `${run}-C`;
+    await db!.saveInvoice(invoice(id));
+    expect(await db!.latestFacts([id])).toEqual([]); // not checked yet
+    await db!.saveFacts(id, { status: "PAID", currency: "MYR", totalSen: 1000, paidSen: 1000, dueSen: 0 }, new Date("2026-10-15T11:00:00Z"), "webhook");
+    expect(await db!.latestFacts([id, `${run}-NONE`])).toEqual([
+      { id, status: "PAID", currency: "MYR", totalSen: 1000, paidSen: 1000, dueSen: 0, checkedAt: "2026-10-15T11:00:00.000Z", checkedBy: "webhook" },
+    ]);
+  });
+
   it("knows nothing about an invoice it never saved", async () => {
     expect(await db!.saveFacts(`${run}-NONE`, { status: "PAID" }, new Date(), "webhook")).toBeNull();
   });

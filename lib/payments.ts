@@ -139,6 +139,34 @@ export function invoicesToCheck(records: InvoiceRecord[], limit: number, now: Da
     .slice(0, limit);
 }
 
+/** Invoices worth reading from the payments database: all but cancelled or refunded ones, newest first. */
+export function invoicesToRead(records: InvoiceRecord[], limit: number): InvoiceRecord[] {
+  return records
+    .filter((r) => r.standing?.settlement !== "closed")
+    .sort((a, b) => b.sentAt.localeCompare(a.sentAt))
+    .slice(0, limit);
+}
+
+/** One answer the payments database holds (see /api/invoices/standings). */
+export type StoredAnswer = InvoiceFacts & { id: string; currency: string; checkedAt: string };
+
+/**
+ * The database's answers as standings for the device's own invoices, judged against what the
+ * device billed, exactly like its own PayPal check. Unknown ids and malformed rows are skipped.
+ */
+export function standingsFromStored(answers: StoredAnswer[], records: InvoiceRecord[]): Record<string, InvoiceStanding> {
+  const byId = new Map(records.map((r) => [r.id, r]));
+  const out: Record<string, InvoiceStanding> = {};
+  for (const a of answers) {
+    const record = byId.get(a.id);
+    if (!record || typeof a.status !== "string" || typeof a.checkedAt !== "string" || Number.isNaN(Date.parse(a.checkedAt))) continue;
+    const { id: _id, checkedAt, ...facts } = a;
+    const standing = standingFrom({ ok: true, ...facts }, record.amountSen, a.currency, checkedAt);
+    if (standing) out[a.id] = standing;
+  }
+  return out;
+}
+
 export type DebtChanges = {
   /** Sent debts whose invoice PayPal reports paid in full. */
   toPaid: string[];
