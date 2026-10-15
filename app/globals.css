@@ -6237,7 +6237,7 @@ body.nudge-sheet-open {
   overflow: clip;
   padding: 1.1rem;
   background:
-    radial-gradient(circle at calc(100% + 40px) -50px, color-mix(in srgb, var(--paper) 60%, transparent) 0 80px, transparent 80.5px),
+    radial-gradient(circle at calc(100% - 40px) 30px, color-mix(in srgb, var(--paper) 60%, transparent) 0 80px, transparent 80.5px),
     var(--card);
 }
 
@@ -6877,4 +6877,175 @@ body.nudge-sheet-open {
   .set-toggle::after {
     transition: none;
   }
+}
+
+/* ---------- Languages: Settings row, the picker, the share sheet's message language ---------- */
+/* Mock: "555 Buku - WhatsApp and Settings Mock.html", phones 2, 3 and 3b. */
+
+.set-ic-plain {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--ink);
+  background: var(--paper);
+}
+
+.set-val {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.lang-search {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 46px;
+  margin: 0.5rem 0 0.25rem;
+  padding: 0 0.9rem;
+  color: var(--muted);
+  background: var(--card);
+  border: 1px solid var(--field-line);
+  border-radius: 999px;
+}
+
+.lang-search .icon {
+  flex: none;
+  width: 17px;
+  height: 17px;
+}
+
+.lang-search input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  font: inherit;
+  font-size: 0.92rem;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  outline: none;
+}
+
+.lang-search:focus-within {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.lang-list {
+  margin: 0;
+  padding: 0.25rem 0;
+  list-style: none;
+}
+
+.lang-list li + li {
+  border-top: 1px solid var(--line);
+}
+
+.lang-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.7rem 0.9rem;
+  font: inherit;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+}
+
+.lang-item[aria-pressed="true"] {
+  background: var(--soft, var(--paper));
+}
+
+.lang-list li:first-child .lang-item {
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+.lang-list li:last-child .lang-item {
+  border-radius: 0 0 var(--radius) var(--radius);
+}
+
+.lang-list li:only-child .lang-item {
+  border-radius: var(--radius);
+}
+
+.lang-item:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+}
+
+.lang-item b {
+  display: block;
+  font-size: 0.92rem;
+}
+
+.lang-item small {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.lang-glyph {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  font-size: 0.9rem;
+  font-weight: 800;
+  background: var(--paper);
+  border-radius: 12px;
+}
+
+.lang-tick {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  color: var(--paper);
+  background: var(--ink);
+  border-radius: 50%;
+}
+
+.lang-tick .icon {
+  width: 14px;
+  height: 14px;
+}
+
+.share-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.share-lang select {
+  max-width: 11rem;
+  height: 30px;
+  padding: 0 1.6rem 0 0.7rem;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--ink);
+  cursor: pointer;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+
+.share-lang select:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.share-label-row {
+  margin: 0.9rem 0.15rem 0.45rem;
+}
+
+.share-label-row .share-label {
+  margin: 0;
 }

@@ -15,4 +15,5 @@ export const share = {
   "msg.items.list": "{list} and {last}",
   "msg.items.more": "{list} and {count} more",
   "msg.items.sep": ", ",
+  "msg.payCard": "Pay {amount} with PayPal",
 } as const;

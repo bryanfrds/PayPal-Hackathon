@@ -9,7 +9,8 @@ import Link from "next/link";
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { resetDemoData } from "@/lib/demo-reset";
 import { initials } from "@/lib/home";
-import { THEME_CHOICES, type ThemeChoice } from "@/lib/preferences";
+import { languageInfo, type T } from "@/lib/i18n";
+import { THEME_CHOICES } from "@/lib/preferences";
 import { TONES } from "@/lib/share";
 import { BackIcon, BellIcon, ChatIcon, CheckIcon, ChevronIcon, LinkIcon, ResetIcon, SignOutIcon } from "../components/icons";
 import { useDebts } from "../useDebts";
@@ -17,12 +18,23 @@ import { usePrefs } from "../usePrefs";
 import { useReminders } from "../useReminders";
 import { MAX_SHOP_NAME, SHOP_TYPES, useShop, type ShopType } from "../useShop";
 import { useSignOut, type Me } from "../useSignOut";
+import { useT } from "../useT";
+import { takeFlash } from "./flash";
 
-const THEME_LABEL: Record<ThemeChoice, string> = { light: "Light", dark: "Dark", auto: "Auto" };
+/** Shop types are saved as typed (Malaysian names); only what's shown is translated. */
+const SHOP_TYPE_KEY = {
+  "Kedai runcit": "settings.shopType.kedai",
+  Kopitiam: "settings.shopType.kopitiam",
+  Mamak: "settings.shopType.mamak",
+  "Pasar stall": "settings.shopType.pasar",
+  Other: "settings.shopType.other",
+} as const satisfies Record<ShopType, string>;
 
-const SAVE_FAILED = "Couldn't save on this device (private mode or storage blocked).";
+export function shopTypeLabel(type: ShopType, t: T): string {
+  return t(SHOP_TYPE_KEY[type]);
+}
 
-function ThemePicture({ choice }: { choice: ThemeChoice }) {
+function ThemePicture({ choice }: { choice: (typeof THEME_CHOICES)[number] }) {
   return (
     <span className={`set-mini set-mini-${choice}`} aria-hidden="true">
       {choice !== "auto" && (
@@ -43,6 +55,7 @@ export default function SettingsScreen() {
   const { rules } = useReminders();
   const { reset: resetDebts } = useDebts();
   const { signOut, busy: signingOut, error: signOutError } = useSignOut();
+  const { t } = useT();
   const [me, setMe] = useState<Me | null>(null);
   const [toast, setToast] = useState<{ text: string; n: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -65,6 +78,12 @@ export default function SettingsScreen() {
     };
   }, []);
 
+  // Back from the language picker: show its "Saved" note here.
+  useEffect(() => {
+    const text = takeFlash();
+    if (text) setToast({ text, n: 1 });
+  }, []);
+
   // The "Saved" note hides itself after a moment.
   useEffect(() => {
     if (!toast) return;
@@ -72,12 +91,12 @@ export default function SettingsScreen() {
     return () => window.clearTimeout(t);
   }, [toast]);
 
-  function saved(ok: boolean, text = "Saved") {
+  function saved(ok: boolean, text = t("common.saved")) {
     if (ok) {
       setError(null);
       setToast((prev) => ({ text, n: (prev?.n ?? 0) + 1 }));
     } else {
-      setError(SAVE_FAILED);
+      setError(t("settings.saveFailed"));
     }
   }
 
@@ -96,7 +115,7 @@ export default function SettingsScreen() {
     // Tell every screen's store to re-read, the same signal another tab's change sends.
     window.dispatchEvent(new StorageEvent("storage", { key: null }));
     setConfirmReset(false);
-    saved(ok, "Sample tabs are back");
+    saved(ok, t("settings.resetDone"));
     // The Reset button comes back on the next render.
     window.setTimeout(() => resetButton.current?.focus(), 0);
   }
@@ -107,20 +126,23 @@ export default function SettingsScreen() {
   }
 
   const reminderSummary = !rules.on
-    ? "Off"
-    : `${rules.firstAfterDays} ${rules.firstAfterDays === 1 ? "day" : "days"} after due, every ${rules.everyDays} ${rules.everyDays === 1 ? "day" : "days"}`;
+    ? t("settings.rulesOff")
+    : t("settings.rulesSummary", {
+        first: t("settings.days", { count: rules.firstAfterDays }),
+        every: t("settings.days", { count: rules.everyDays }),
+      });
 
   return (
     <div className="settings">
       <div className="tab-top">
-        <Link href="/" className="tab-back set-back" aria-label="Back to Home">
+        <Link href="/" className="tab-back set-back" aria-label={t("settings.backHome")}>
           <BackIcon />
         </Link>
-        <h1>Settings</h1>
+        <h1>{t("settings.title")}</h1>
         <span className="tab-back set-back-space" aria-hidden="true" />
       </div>
 
-      <section className="card set-profile" aria-label="Shop profile">
+      <section className="card set-profile" aria-label={t("settings.profile")}>
         <span className="set-pav" aria-hidden="true">
           {initials(name)}
         </span>
@@ -147,23 +169,23 @@ export default function SettingsScreen() {
             <div className="set-profile-main">
               <h2>{name}</h2>
               <p>
-                {shop?.type ?? "Kedai runcit"}
+                {shopTypeLabel(shop?.type ?? "Kedai runcit", t)}
                 {me?.email ? ` · ${me.email}` : ""}
               </p>
               <span className="set-pill">
                 <CheckIcon />
-                PayPal sandbox
+                {t("settings.paypalPill")}
               </span>
             </div>
             <button ref={editButton} type="button" className="set-edit" onClick={() => setEditing(true)}>
-              Edit
+              {t("settings.edit")}
             </button>
           </>
         )}
       </section>
 
       <h2 className="set-label" id={`${ids}-theme`}>
-        Theme
+        {t("settings.theme")}
       </h2>
       <div className="card set-themes" role="radiogroup" aria-labelledby={`${ids}-theme`}>
         {THEME_CHOICES.map((choice) => (
@@ -178,36 +200,53 @@ export default function SettingsScreen() {
             <ThemePicture choice={choice} />
             <span className="set-theme-name">
               <span className="set-radio" aria-hidden="true" />
-              {THEME_LABEL[choice]}
+              {t(`settings.theme.${choice}`)}
             </span>
           </label>
         ))}
       </div>
-      <p className="set-hint">Auto follows your phone or computer&apos;s light or dark setting.</p>
+      <p className="set-hint">{t("settings.themeHint")}</p>
 
-      <h2 className="set-label">Messages</h2>
+      <h2 className="set-label">{t("settings.language")}</h2>
+      <div className="card set-group">
+        <Link href="/settings/language" className="set-item set-item-link">
+          <span className="set-ic set-ic-plain" aria-hidden="true">
+            Aa
+          </span>
+          <span className="set-grow">
+            {t("settings.appLanguage")}
+            <small>{t("settings.appLanguageHint")}</small>
+          </span>
+          <span className="set-val" lang={languageInfo(prefs.language).htmlLang}>
+            {languageInfo(prefs.language).name}
+          </span>
+          <ChevronIcon className="icon set-chev" />
+        </Link>
+      </div>
+
+      <h2 className="set-label">{t("settings.messages")}</h2>
       <div className="card set-group">
         <div className="set-item set-item-stack">
           <span className="set-ic set-ic-wa" aria-hidden="true">
             <ChatIcon />
           </span>
           <span className="set-grow" id={`${ids}-tone`}>
-            Default tone
-            <small>WhatsApp messages start on this tone</small>
+            {t("settings.defaultTone")}
+            <small>{t("settings.defaultToneHint")}</small>
           </span>
           <div className="set-tones" role="radiogroup" aria-labelledby={`${ids}-tone`}>
-            {TONES.map((t) => (
-              <label key={t.id} className="set-tone">
+            {TONES.map((tn) => (
+              <label key={tn.id} className="set-tone">
                 <input
                   type="radio"
                   name={`${ids}-tone`}
-                  value={t.id}
-                  checked={prefs.defaultTone === t.id}
-                  onChange={() => saved(setPrefs({ defaultTone: t.id }))}
+                  value={tn.id}
+                  checked={prefs.defaultTone === tn.id}
+                  onChange={() => saved(setPrefs({ defaultTone: tn.id }))}
                 />
                 <span className="set-tone-tile">
-                  <span aria-hidden="true">{t.emoji} </span>
-                  {t.label}
+                  <span aria-hidden="true">{tn.emoji} </span>
+                  {t(`tone.${tn.id}`)}
                 </span>
               </label>
             ))}
@@ -218,8 +257,8 @@ export default function SettingsScreen() {
             <LinkIcon />
           </span>
           <span className="set-grow" id={`${ids}-link`}>
-            Add PayPal pay link
-            <small>When there&apos;s an invoice</small>
+            {t("settings.payLink")}
+            <small>{t("settings.payLinkHint")}</small>
           </span>
           <button
             type="button"
@@ -235,7 +274,7 @@ export default function SettingsScreen() {
             <BellIcon />
           </span>
           <span className="set-grow">
-            Reminder rules
+            {t("settings.reminderRules")}
             <small>{reminderSummary}</small>
           </span>
           <ChevronIcon className="icon set-chev" />
@@ -248,12 +287,12 @@ export default function SettingsScreen() {
             <ResetIcon />
           </span>
           <span className="set-grow">
-            <b id={`${ids}-demo`}>Demo data</b>
-            <small>Put the sample customers back</small>
+            <b id={`${ids}-demo`}>{t("settings.demo")}</b>
+            <small>{t("settings.demoHint")}</small>
           </span>
           {!confirmReset && (
             <button ref={resetButton} type="button" className="set-btn" onClick={() => setConfirmReset(true)}>
-              Reset
+              {t("settings.reset")}
             </button>
           )}
         </div>
@@ -277,9 +316,9 @@ export default function SettingsScreen() {
 
       <button type="button" className="set-signout" onClick={signOut} disabled={signingOut}>
         <SignOutIcon />
-        {signingOut ? "Signing out…" : "Sign out"}
+        {signingOut ? t("settings.signingOut") : t("settings.signOut")}
       </button>
-      <p className="set-foot">555 Buku · PayPal sandbox</p>
+      <p className="set-foot">{t("settings.footer")}</p>
 
       <p className="set-toast-wrap" role="status" aria-live="polite">
         {toast && (
@@ -295,19 +334,20 @@ export default function SettingsScreen() {
 
 function ResetConfirm({ onCancel, onReset }: { onCancel: () => void; onReset: () => void }) {
   const cancelRef = useRef<HTMLButtonElement>(null);
+  const { t } = useT();
   useEffect(() => {
     cancelRef.current?.focus();
   }, []);
   return (
-    <div className="set-confirm" role="group" aria-label="Confirm reset">
-      <p>Are you sure? This replaces everything on this device.</p>
-      <p className="set-confirm-sub">Your sign-in, shop name and settings stay as they are.</p>
+    <div className="set-confirm" role="group" aria-label={t("settings.confirmReset")}>
+      <p>{t("settings.resetSure")}</p>
+      <p className="set-confirm-sub">{t("settings.resetKeeps")}</p>
       <div className="set-confirm-btns">
         <button ref={cancelRef} type="button" className="set-btn" onClick={onCancel}>
-          Cancel
+          {t("common.cancel")}
         </button>
         <button type="button" className="set-btn set-btn-danger" onClick={onReset}>
-          Reset
+          {t("settings.reset")}
         </button>
       </div>
     </div>
@@ -330,6 +370,7 @@ function ProfileForm({
   const [nameError, setNameError] = useState<string | null>(null);
   const ids = useId();
   const nameRef = useRef<HTMLInputElement>(null);
+  const { t } = useT();
 
   useEffect(() => {
     nameRef.current?.focus({ preventScroll: true });
@@ -339,12 +380,12 @@ function ProfileForm({
     e.preventDefault();
     const clean = draftName.trim();
     if (!clean) {
-      setNameError("Enter your shop's name.");
+      setNameError(t("settings.nameRequired"));
       nameRef.current?.focus();
       return;
     }
     if (clean.length > MAX_SHOP_NAME) {
-      setNameError(`Keep it to ${MAX_SHOP_NAME} characters or fewer.`);
+      setNameError(t("settings.nameTooLong", { max: MAX_SHOP_NAME }));
       nameRef.current?.focus();
       return;
     }
@@ -354,7 +395,7 @@ function ProfileForm({
 
   return (
     <form className="set-form" onSubmit={submit} noValidate>
-      <label htmlFor={`${ids}-name`}>Shop name</label>
+      <label htmlFor={`${ids}-name`}>{t("settings.shopName")}</label>
       <input
         ref={nameRef}
         id={`${ids}-name`}
@@ -370,20 +411,20 @@ function ProfileForm({
           {nameError}
         </p>
       )}
-      <label htmlFor={`${ids}-type`}>Shop type</label>
+      <label htmlFor={`${ids}-type`}>{t("settings.shopType")}</label>
       <select id={`${ids}-type`} value={draftType} onChange={(e) => setDraftType(e.target.value as ShopType)}>
-        {SHOP_TYPES.map((t) => (
-          <option key={t} value={t}>
-            {t}
+        {SHOP_TYPES.map((st) => (
+          <option key={st} value={st}>
+            {shopTypeLabel(st, t)}
           </option>
         ))}
       </select>
       <div className="set-form-btns">
         <button type="button" className="set-btn" onClick={onCancel}>
-          Cancel
+          {t("common.cancel")}
         </button>
         <button type="submit" className="set-btn set-btn-primary">
-          Save
+          {t("common.save")}
         </button>
       </div>
     </form>

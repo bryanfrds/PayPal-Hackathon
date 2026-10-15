@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { InvoiceRecord } from "./collect-store";
 import type { Debt } from "./debts";
+import { LANGUAGES, translate, translator } from "./i18n";
 import type { InvoiceStanding } from "./payments";
-import { buildShareMessage, chooseLink, itemSummary, NO_LINK_NOTE, payLinkFor, plainName, unpaidItems, whatsappUrl, type ShareInput } from "./share";
+import { buildShareMessage, chooseLink, itemSummary, payLinkFor, plainName, unpaidItems, whatsappUrl, type ShareInput } from "./share";
 
 const LINK = "https://www.sandbox.paypal.com/invoice/p/#INV2-K4LN-ABCD";
 const FULL = { link: LINK, amountSen: 12800, full: true };
@@ -85,7 +86,7 @@ describe("buildShareMessage", () => {
     expect(m.intro).toBe(
       "Hi Kak Lina, Kedai Ah Seng here 🙂 Just a friendly note: your tab is *RM 128.00* (Milo, gula, beras and 1 more).",
     );
-    expect(m.text.endsWith("Terima kasih!")).toBe(true);
+    expect(m.text.endsWith("Thank you!")).toBe(true);
   });
 
   it("each tone has its own wording", () => {
@@ -99,7 +100,7 @@ describe("buildShareMessage", () => {
       expect(text).toContain("Kak Lina");
       expect(text).toContain("Kedai Ah Seng");
       expect(text).toContain("RM 128.00");
-      expect(text).toContain("Terima kasih!");
+      expect(text).toContain("Thank you!");
     }
   });
 
@@ -108,7 +109,7 @@ describe("buildShareMessage", () => {
     expect(m.link).toBe(LINK);
     expect(m.linkSen).toBe(12800);
     expect(m.payLine).toBe("Pay easily with PayPal or card:");
-    expect(m.text).toBe(`${m.intro}\n\n${m.payLine} ${LINK}\n\nTerima kasih!`);
+    expect(m.text).toBe(`${m.intro}\n\n${m.payLine} ${LINK}\n\nThank you!`);
   });
 
   it("says how much the link pays when its invoice covers only part of the tab", () => {
@@ -140,7 +141,7 @@ describe("buildShareMessage", () => {
       const m = buildShareMessage({ ...base, pay });
       expect(m.link).toBeUndefined();
       expect(m.payLine).toBeUndefined();
-      expect(m.text).toBe(`${m.intro}\n\nTerima kasih!`);
+      expect(m.text).toBe(`${m.intro}\n\nThank you!`);
       expect(m.text).not.toContain("http");
     }
   });
@@ -232,12 +233,55 @@ describe("chooseLink", () => {
   });
 
   it("explains a missing link with its reason", () => {
-    expect(chooseLink({ reason: "none" }, true)).toEqual({ note: NO_LINK_NOTE.none });
+    expect(chooseLink({ reason: "none" }, true)).toEqual({ note: "No PayPal invoice yet. Send one from Collect to add a pay link." });
     expect(chooseLink({ reason: "settled" }, true).note).toBe("PayPal shows this invoice as paid or closed, so the message has no link.");
   });
 
   it("leaves the link out and says so when pay links are off in Settings", () => {
     expect(chooseLink({ pay }, false)).toEqual({ note: "Pay links are turned off in Settings, so the message has no link." });
     expect(chooseLink({ reason: "none" }, false).pay).toBeUndefined();
+  });
+});
+
+describe("messages in every language", () => {
+  const LANGS = LANGUAGES.map((l) => l.code);
+  const TONE_IDS = ["friendly", "polite", "firm"] as const;
+
+  for (const language of LANGS) {
+    for (const tone of TONE_IDS) {
+      it(`${language} · ${tone}: names, amount and items as typed, with and without a link`, () => {
+        const without = buildShareMessage({ ...base, tone, language });
+        expect(without.intro).toContain("Kak Lina");
+        expect(without.intro).toContain("Kedai Ah Seng");
+        expect(without.intro).toContain("*RM 128.00*");
+        for (const item of ["Milo", "gula", "beras"]) expect(without.intro).toContain(item);
+        expect(without.intro).not.toMatch(/\{\w+\}/);
+        expect(without.closing).toBe(translate(language, "msg.closing"));
+        expect(without.text).toBe(`${without.intro}\n\n${without.closing}`);
+        expect(without.text).not.toContain("http");
+
+        const withLink = buildShareMessage({ ...base, tone, language, pay: FULL });
+        expect(withLink.link).toBe(LINK);
+        expect(withLink.payLine).toBe(translate(language, `msg.${tone}.payLine`));
+        expect(withLink.text).toBe(`${withLink.intro}\n\n${withLink.payLine} ${LINK}\n\n${withLink.closing}`);
+
+        const partial = buildShareMessage({ ...base, tone, language, pay: { link: LINK, amountSen: 4000, full: false } });
+        expect(partial.payLine).toContain("RM 40.00");
+        expect(partial.payLine).not.toMatch(/\{\w+\}/);
+      });
+    }
+  }
+
+  it("the tones read differently in each language", () => {
+    for (const language of LANGS) {
+      const texts = TONE_IDS.map((tone) => buildShareMessage({ ...base, tone, language }).intro);
+      expect(new Set(texts).size).toBe(3);
+    }
+  });
+
+  it("names the items with the language's own 'and N more'", () => {
+    const t = translator("ms");
+    const list = ["a", "b", "c"].join(translate("ms", "msg.items.sep"));
+    expect(itemSummary(["a", "b", "c", "d"], 3, t)).toBe(translate("ms", "msg.items.more", { list, count: 1 }));
   });
 });
