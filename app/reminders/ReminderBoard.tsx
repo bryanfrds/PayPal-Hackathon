@@ -11,8 +11,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Calendar, Scheduler } from "@bryntum/calendar";
 import { formatSen } from "@/lib/debts";
+import type { Language, T } from "@/lib/i18n";
 import { addDays, type ScheduleItem } from "@/lib/reminders";
 import { useResolvedTheme } from "../usePrefs";
+import { useT } from "../useT";
 
 type BryntumCalendarModule = typeof import("@bryntum/calendar");
 
@@ -61,6 +63,45 @@ function loadBryntum(): Promise<BryntumCalendarModule> {
   return loading;
 }
 
+// Bryntum's own words (month and day names, tooltips) for the languages it ships a locale for.
+// Tamil, Filipino and Bengali have none, so Bryntum's own text stays English for them.
+const BRYNTUM_LOCALES: Partial<Record<Language, string>> = { ms: "Ms", zh: "ZhCn", id: "Id", th: "Th", vi: "Vi" };
+const localeLoads = new Map<string, Promise<void>>();
+
+/** Adds a Bryntum locale script once (after the main script, which it registers with). */
+function loadLocale(name: string): Promise<void> {
+  const known = localeLoads.get(name);
+  if (known) return known;
+  const load = new Promise<void>((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = `${BASE}/locales/calendar.locale.${name}.js`;
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Bryntum locale didn't load"));
+    document.head.appendChild(script);
+  }).catch((error) => {
+    localeLoads.delete(name);
+    throw error;
+  });
+  localeLoads.set(name, load);
+  return load;
+}
+
+/** Switches Bryntum to the app's language, or to English where it has no locale. Never fails: English is the fallback. */
+async function applyBryntumLocale(lib: BryntumCalendarModule, lang: Language): Promise<void> {
+  const name = BRYNTUM_LOCALES[lang];
+  try {
+    if (name) await loadLocale(name);
+    await lib.LocaleManager.applyLocale(name ?? "En");
+  } catch {
+    try {
+      await lib.LocaleManager.applyLocale("En");
+    } catch {
+      // Bryntum keeps whatever it had.
+    }
+  }
+}
+
 const COLOURS: Record<ScheduleItem["kind"], string> = {
   due: "#c23b22",
   invoice: "#2f55c4",
@@ -81,7 +122,7 @@ export function dayOf(date: Date): string {
   return `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}`;
 }
 
-function toEvents(items: ScheduleItem[], dark: boolean) {
+function toEvents(items: ScheduleItem[], dark: boolean, t: T) {
   const colours = dark ? DARK_COLOURS : COLOURS;
   return items.map((item) => ({
     id: item.id,
@@ -97,7 +138,7 @@ function toEvents(items: ScheduleItem[], dark: boolean) {
     resizable: false,
     cls: item.moved ? "rb-moved" : "",
     // Short words fit a day cell; the full name is in the tooltip.
-    short: item.kind === "reminder" ? (item.sent ? `${item.n} ✓` : `${item.n}`) : item.kind === "due" ? "Due" : "Invoice",
+    short: item.kind === "reminder" ? (item.sent ? `${item.n} ✓` : `${item.n}`) : item.kind === "due" ? t("reminders.board.due") : t("reminders.board.invoice"),
   }));
 }
 
@@ -133,7 +174,8 @@ export default function ReminderBoard({ items, today, wide, earliest, onMove }: 
   const earliestRef = useRef(earliest);
   const [failed, setFailed] = useState(false);
   const mode = useResolvedTheme();
-  const events = useMemo(() => toEvents(items, mode === "dark"), [items, mode]);
+  const { t, lang } = useT();
+  const events = useMemo(() => toEvents(items, mode === "dark", t), [items, mode, t]);
   const resources = useMemo(() => toResources(items), [items]);
   // The view is built once per layout and day; data changes go into its stores below.
   const latest = useRef({ events, resources });
@@ -152,6 +194,10 @@ export default function ReminderBoard({ items, today, wide, earliest, onMove }: 
   useEffect(() => {
     let cancelled = false;
     loadBryntum()
+      .then(async (lib) => {
+        await applyBryntumLocale(lib, lang);
+        return lib;
+      })
       .then((lib) => {
         const host = hostRef.current;
         if (cancelled || !host) return;
@@ -168,7 +214,7 @@ export default function ReminderBoard({ items, today, wide, earliest, onMove }: 
               rowHeight: 56,
               barMargin: 10,
               eventStyle: "filled",
-              columns: [{ text: "Customer", field: "name", width: 170 }],
+              columns: [{ text: t("reminders.board.customer"), field: "name", width: 170 }],
               // Text only: names come from the owner's notebook, so they're encoded, never HTML.
               eventRenderer: ({ eventRecord }) =>
                 lib.StringHelper.encodeHtml(String((eventRecord as unknown as { short?: string }).short ?? eventRecord.name)),
@@ -198,7 +244,7 @@ export default function ReminderBoard({ items, today, wide, earliest, onMove }: 
               events: ev,
               date: at(today),
               mode: "monthagenda",
-              modes: { day: null, week: null, year: null, month: null, monthagenda: { title: "Month" }, agenda: { title: "List" } },
+              modes: { day: null, week: null, year: null, month: null, monthagenda: { title: t("reminders.board.month") }, agenda: { title: t("reminders.board.list") } },
               sidebar: false,
               readOnly: true,
             });
@@ -211,7 +257,8 @@ export default function ReminderBoard({ items, today, wide, earliest, onMove }: 
       viewRef.current?.destroy();
       viewRef.current = null;
     };
-  }, [wide, today]);
+    // Rebuilt in a new language so Bryntum's own words and the column title switch too.
+  }, [wide, today, lang, t]);
 
   // New schedule (moved, sent, rules changed): swap the data in place.
   useEffect(() => {
@@ -224,7 +271,7 @@ export default function ReminderBoard({ items, today, wide, earliest, onMove }: 
   if (failed) {
     return (
       <p className="notice notice-error" role="alert">
-        The calendar couldn&apos;t load. Check your connection and refresh.
+        {t("reminders.board.failed")}
       </p>
     );
   }

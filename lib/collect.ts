@@ -132,9 +132,16 @@ export function invoiceRequestId(input: { debtIds: string[]; email: string; line
 
 export type InvoiceLine = { name: string; amountSen: number };
 
+/**
+ * What an invoice line says for a tab with no item name. Always English, whatever the app's
+ * language: it's the PayPal line text and part of the retry ID (invoiceRequestId), so a
+ * language switch must never change a send. Collect's preview and the invoice page show it too.
+ */
+export const SHOP_ITEMS = "Shop items";
+
 /** One invoice line per tab, named by what was taken and when. */
 export function invoiceLines(debts: Debt[]): InvoiceLine[] {
-  return debts.map((d) => ({ name: `${d.item || "Shop items"} (${d.date})`.slice(0, 200), amountSen: d.amountSen }));
+  return debts.map((d) => ({ name: `${d.item || SHOP_ITEMS} (${d.date})`.slice(0, 200), amountSen: d.amountSen }));
 }
 
 /** What goes to /api/invoices for a group: a pending send exactly as saved, otherwise a fresh one. */

@@ -7,6 +7,7 @@ import { colourIndex, initials } from "@/lib/home";
 import type { ScoreRow } from "@/lib/insights";
 import { fetchScoreRows } from "./scoreboard-data";
 import { palette } from "../components/palette";
+import { useT } from "../useT";
 
 // "Who owes you" as a friendly scoreboard, not a collections report: a custom AG Studio widget.
 // It asks Studio's data engine for the owed total per customer, so page filters and
@@ -39,6 +40,7 @@ const SHOWN = 5;
 export default function Scoreboard(props: Props) {
   const { widgetApi, dataMapping } = props;
   const [rows, setRows] = useState<ScoreRow[]>([]);
+  const { t } = useT();
   const customerField = dataMapping.customer?.[0];
   const owedField = dataMapping.owed?.[0];
 
@@ -69,7 +71,7 @@ export default function Scoreboard(props: Props) {
   const more = rows.length - shown.length;
 
   return (
-    <ol className="scoreboard" aria-label="Who owes you, biggest first">
+    <ol className="scoreboard" aria-label={t("insights.scoreboardAria")}>
       {shown.map((row, index) => {
         const [bg, fg] =
           AVATAR_COLOURS[colourIndex(row.customer, AVATAR_COLOURS.length)];
@@ -99,7 +101,7 @@ export default function Scoreboard(props: Props) {
           </li>
         );
       })}
-      {more > 0 && <li className="score-more">and {more} more</li>}
+      {more > 0 && <li className="score-more">{t("insights.scoreMore", { count: more })}</li>}
     </ol>
   );
 }

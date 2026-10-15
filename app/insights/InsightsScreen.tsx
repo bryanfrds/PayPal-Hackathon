@@ -22,12 +22,13 @@ import {
   initialStateFor,
   STUDIO_CANVAS,
   themeFor,
-  widgets,
+  widgetRegistry,
 } from "./studio-config";
-import { NUDGE_LOCALE_TEXT, NUDGE_PANELS, NudgeRoster } from "./NudgePanel";
+import { NUDGE_PANELS, NudgeRoster, nudgeLocaleText } from "./NudgePanel";
 import { nudgeHarness, nudgeToolDisplay, type NudgeShop } from "./nudge-ai";
 import { inertOutside, useStudioSlot } from "./studio-dom";
 import { useResolvedTheme } from "../usePrefs";
+import { useT } from "../useT";
 
 const AI_MODULES = [AgStudioAiModule];
 const SHEET_ID = "nudge-sheet";
@@ -40,6 +41,8 @@ export default function InsightsScreen() {
   const { rules, moves, sent } = useReminders();
   const { name: shopName } = useShop();
   const isWide = useIsWide();
+  const { t, lang } = useT();
+  const localWidgets = useMemo(() => widgetRegistry(t), [t]);
   const boxRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState<number | null>(null);
   // On phones Nudge opens over the page; on a laptop it's always beside the dashboard.
@@ -87,13 +90,15 @@ export default function InsightsScreen() {
   // Only crossing between the phone and wide layouts remounts it (via key), since the starting
   // layout is read once; the chat then comes back from nudge-history.ts.
   const data = useMemo(
-    () => dataFor(toInsightRows(debts, today)),
-    [debts, today],
+    () => dataFor(toInsightRows(debts, today), t, lang),
+    [debts, today, t, lang],
   );
+  // Tile titles are read once per mount, so a language change remounts Studio (see the key).
   const initialState = useMemo(
-    () => (kind === null ? null : initialStateFor(kind)),
-    [kind],
+    () => (kind === null ? null : initialStateFor(kind, t)),
+    [kind, t],
   );
+  const localeText = useMemo(() => nudgeLocaleText(t), [t]);
   // A light/dark switch remounts Studio (see the key below) so it restyles reliably; Nudge's
   // chat comes back from nudge-history.ts, as it does after a layout change.
   const mode = useResolvedTheme();
@@ -111,10 +116,11 @@ export default function InsightsScreen() {
   useEffect(() => {
     shopRef.current = shop;
   }, [shop]);
-  const [ai] = useState(() => {
+  // Rebuilt only when the language changes, which remounts Studio anyway; chats survive in nudge-history.ts.
+  const ai = useMemo(() => {
     const getShop = () => shopRef.current;
-    return { harness: nudgeHarness(getShop, setAnnouncement), toolDisplay: nudgeToolDisplay(getShop) };
-  });
+    return { harness: nudgeHarness(getShop, setAnnouncement, t), toolDisplay: nudgeToolDisplay(getShop, t) };
+  }, [t]);
 
   const showPanel = isWide || askOpen;
   const sheetOpen = askOpen && !isWide;
@@ -170,14 +176,14 @@ export default function InsightsScreen() {
     <div className={`insights${isWide ? " insights-wide" : ""}${sheetOpen ? " insights-asking" : ""}`}>
       <div className="page-head">
         <div>
-          <h1 className="page-title">Insights</h1>
+          <h1 className="page-title">{t("insights.title")}</h1>
           <p className="page-intro">
-            Who owes you and how fast people pay, from your ledger.
+            {t("insights.intro")}
           </p>
         </div>
         <div className="page-actions">
           <Link href="/reminders" className="button">
-            Reminders
+            {t("insights.reminders")}
           </Link>
           {!isWide && (
             <button
@@ -189,7 +195,7 @@ export default function InsightsScreen() {
               aria-controls={SHEET_ID}
             >
               <SparkIcon />
-              Ask Nudge
+              {t("insights.askNudge")}
             </button>
           )}
         </div>
@@ -205,25 +211,25 @@ export default function InsightsScreen() {
         {rosterSlot && createPortal(<NudgeRoster />, rosterSlot)}
         {closeSlot &&
           createPortal(
-            <button ref={closeRef} type="button" className="nudge-sheet-close" onClick={closeSheet} aria-label="Close Nudge">
+            <button ref={closeRef} type="button" className="nudge-sheet-close" onClick={closeSheet} aria-label={t("insights.closeNudge")}>
               <CloseIcon />
             </button>,
             closeSlot,
           )}
         {ready && initialState && (
           <AgStudio
-            key={`${kind}-${mode}`}
+            key={`${kind}-${mode}-${lang}`}
             data={data}
             mode="view"
             theme={theme}
-            widgets={widgets}
+            widgets={localWidgets}
             panels={showPanel ? NUDGE_PANELS : VIEW_PANELS}
             style={FILL}
             initialState={initialState}
             modules={AI_MODULES}
             ai={ai.harness}
             aiToolDisplay={ai.toolDisplay}
-            localeText={NUDGE_LOCALE_TEXT}
+            localeText={localeText}
           />
         )}
       </div>

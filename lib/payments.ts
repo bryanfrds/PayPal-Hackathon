@@ -44,20 +44,6 @@ export function invoiceView(standing: Pick<InvoiceStanding, "status" | "settleme
   }
 }
 
-const VIEW_LABEL: Record<InvoiceView, string | undefined> = {
-  waiting: undefined,
-  processing: "Processing",
-  paid: "Paid",
-  cancelled: "Cancelled",
-  refunded: "Refunded",
-  check: "Check on PayPal",
-};
-
-/** A short word for where an invoice stands, or undefined while it's simply waiting for payment. */
-export function settlementLabel(standing: InvoiceStanding | undefined): string | undefined {
-  return standing ? VIEW_LABEL[invoiceView(standing)] : undefined;
-}
-
 /** What one /api/invoices/status answer means for an invoice we billed, or undefined if PayPal didn't say. */
 export function standingFrom(result: StatusResult | undefined, billedSen: number, currency: string, checkedAt: string): InvoiceStanding | undefined {
   if (!result?.ok) return undefined;

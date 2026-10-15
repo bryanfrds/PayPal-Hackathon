@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { InvoiceRecord } from "./collect-store";
 import type { Debt, DebtStatus } from "./debts";
-import { invoiceView, invoicesToCheck, invoicesToRemind, moneyToSen, noReminderReason, reconcileDebts, settlementLabel, settlementOf, standingFrom, type InvoiceStanding, type Settlement } from "./payments";
+import { invoiceView, invoicesToCheck, invoicesToRemind, moneyToSen, noReminderReason, reconcileDebts, settlementOf, standingFrom, type InvoiceStanding, type Settlement } from "./payments";
 
 function debt(id: string, status: DebtStatus): Debt {
   return { id, customerName: "Mr Raj", item: "", amountSen: 500, date: "2026-10-01", status, source: "manual", createdAt: "2026-10-01T00:00:00Z" };
@@ -217,15 +217,6 @@ describe("invoiceView", () => {
     expect(view("PAID", "check")).toBe("check");
   });
 
-  it("labels an invoice that's done or needs a look, and nothing while it waits", () => {
-    const at = "2026-10-15T00:00:00Z";
-    expect(settlementLabel({ status: "PAID", settlement: "paid", checkedAt: at })).toBe("Paid");
-    expect(settlementLabel({ status: "CANCELLED", settlement: "closed", checkedAt: at })).toBe("Cancelled");
-    expect(settlementLabel({ status: "REFUNDED", settlement: "closed", checkedAt: at })).toBe("Refunded");
-    expect(settlementLabel({ status: "PARTIALLY_REFUNDED", settlement: "check", checkedAt: at })).toBe("Check on PayPal");
-    expect(settlementLabel({ status: "SENT", settlement: "open", checkedAt: at })).toBeUndefined();
-    expect(settlementLabel(undefined)).toBeUndefined();
-  });
 });
 
 describe("standingFrom", () => {

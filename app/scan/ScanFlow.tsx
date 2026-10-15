@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
 import { DebtStoreError, newDebtId } from "@/lib/debt-store";
 import { formatSen, MAX_ITEM_LENGTH, MAX_NAME_LENGTH, todayLocal, type DebtErrors } from "@/lib/debts";
-import { formatDay } from "@/lib/customer-tab";
+import type { T } from "@/lib/i18n";
 import {
   customerNames,
   includedTotalSen,
@@ -20,12 +20,18 @@ import {
 } from "@/lib/scan";
 import { BackIcon, BoltIcon, CheckIcon, CloseIcon, ImageIcon, NoteIcon, ReceiptIcon } from "../components/icons";
 import { useDebts } from "../useDebts";
+import { useT } from "../useT";
 
 type Phase = "camera" | "reading" | "check";
 
-function readingSteps(mode: ScanMode): string[] {
-  const found = sampleRead(mode, todayLocal()).length;
-  return ["Photo is clear", `Found ${found} ${found === 1 ? "line" : "lines"}`, mode === "notebook" ? "Matching names to your customers" : "Reading the items and total", "Ready to check"];
+function readingSteps(mode: ScanMode, t: T): string[] {
+  const found = sampleRead(mode, todayLocal(), t).length;
+  return [
+    t("scan.step.clear"),
+    t("scan.step.found", { count: found }),
+    mode === "notebook" ? t("scan.step.matching") : t("scan.step.readingItems"),
+    t("scan.step.ready"),
+  ];
 }
 const STEP_MS = 650;
 
@@ -87,6 +93,7 @@ function Camera({
   onPhoto: (url: string) => void;
   focusTitle: boolean;
 }) {
+  const { t } = useT();
   const titleRef = useFocusOnMount<HTMLHeadingElement>(focusTitle);
   // True once the video has a frame to capture; the shutter waits for it.
   const [videoReady, setVideoReady] = useState(false);
@@ -177,7 +184,7 @@ function Camera({
           className="scan-video"
           playsInline
           muted
-          aria-label="Camera view"
+          aria-label={t("scan.cameraView")}
           onLoadedData={() => setVideoReady(true)}
         />
       ) : (
@@ -185,18 +192,18 @@ function Camera({
       )}
 
       <div className="scan-camtop">
-        <Link href="/" className="scan-round" aria-label="Close scanner">
+        <Link href="/" className="scan-round" aria-label={t("scan.close")}>
           <CloseIcon />
         </Link>
         <h1 ref={titleRef} tabIndex={-1}>
-          Scan
+          {t("scan.title")}
         </h1>
         {torch.supported ? (
           <button
             type="button"
             className="scan-round"
             aria-pressed={torch.on}
-            aria-label={torch.on ? "Turn flash off" : "Turn flash on"}
+            aria-label={torch.on ? t("scan.flashOff") : t("scan.flashOn")}
             onClick={toggleTorch}
           >
             <BoltIcon />
@@ -216,39 +223,39 @@ function Camera({
             <span className="scan-line" />
           </div>
           <p className="scan-tip">
-            {mode === "notebook" ? "Fit the whole page inside the frame" : "Fit the whole receipt inside the frame"}
+            {mode === "notebook" ? t("scan.tipNotebook") : t("scan.tipReceipt")}
           </p>
         </>
       )}
 
       {(state === "starting" || (state === "live" && !videoReady)) && (
         <p className="scan-tip scan-tip-mid" role="status">
-          Starting the camera…
+          {t("scan.starting")}
         </p>
       )}
 
       {state === "unavailable" && (
         <div className="scan-fallback">
-          <p className="scan-fallback-title">Camera isn&apos;t available here</p>
-          <p>Allow camera access in your browser, or take or choose a photo instead.</p>
+          <p className="scan-fallback-title">{t("scan.noCamera")}</p>
+          <p>{t("scan.noCameraBody")}</p>
           <button type="button" className="button button-primary" onClick={() => takeRef.current?.click()}>
-            Take a photo
+            {t("scan.takePhoto")}
           </button>
           <button type="button" className="button scan-fallback-alt" onClick={() => galleryRef.current?.click()}>
-            Choose from gallery
+            {t("scan.chooseGallery")}
           </button>
         </div>
       )}
 
       <div className="scan-camfoot">
-        <div className="scan-mode" role="group" aria-label="What are you scanning?">
+        <div className="scan-mode" role="group" aria-label={t("scan.modeGroup")}>
           <button type="button" aria-pressed={mode === "notebook"} onClick={() => onMode("notebook")}>
             <NoteIcon />
-            Notebook
+            {t("scan.notebook")}
           </button>
           <button type="button" aria-pressed={mode === "receipt"} onClick={() => onMode("receipt")}>
             <ReceiptIcon />
-            Receipt
+            {t("scan.receipt")}
           </button>
         </div>
         <div className="scan-controls">
@@ -256,10 +263,10 @@ function Camera({
             <span aria-hidden="true">
               <ImageIcon />
             </span>
-            Gallery
+            {t("scan.gallery")}
           </button>
           {state === "live" && videoReady ? (
-            <button type="button" className="scan-shutter" aria-label="Take photo" onClick={snap}>
+            <button type="button" className="scan-shutter" aria-label={t("scan.shutter")} onClick={snap}>
               <b />
             </button>
           ) : (
@@ -280,8 +287,9 @@ function Camera({
 /* 2 · Reading */
 
 function Reading({ mode, photo, onDone }: { mode: ScanMode; photo: string | null; onDone: () => void }) {
+  const { t } = useT();
   const [step, setStep] = useState(0);
-  const [steps] = useState(() => readingSteps(mode));
+  const [steps] = useState(() => readingSteps(mode, t));
   const titleRef = useFocusOnMount<HTMLHeadingElement>();
   useEffect(() => {
     if (step >= steps.length) {
@@ -301,10 +309,10 @@ function Reading({ mode, photo, onDone }: { mode: ScanMode; photo: string | null
       )}
       <div className="scan-sheet" role="status" aria-live="polite">
         <h1 ref={titleRef} tabIndex={-1}>
-          {mode === "notebook" ? "Reading your buku…" : "Reading your receipt…"}
+          {mode === "notebook" ? t("scan.readingBuku") : t("scan.readingReceipt")}
         </h1>
-        <p>This takes a few seconds.</p>
-        <div className="scan-bar" role="progressbar" aria-label="Reading progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
+        <p>{t("scan.fewSeconds")}</p>
+        <div className="scan-bar" role="progressbar" aria-label={t("scan.progress")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
           <b style={{ width: `${pct}%` }} />
         </div>
         <ul className="scan-steps">
@@ -325,13 +333,14 @@ function Reading({ mode, photo, onDone }: { mode: ScanMode; photo: string | null
 const NEW_NAME = "__new__";
 
 function Check({ mode, photo, onRetake }: { mode: ScanMode; photo: string | null; onRetake: () => void }) {
+  const { t, formatDay } = useT();
   const router = useRouter();
   const { debts, ready, addMany } = useDebts();
   const titleRef = useFocusOnMount<HTMLHeadingElement>();
   // After a refused save: the line whose first bad field gets focus once it's open.
   const [focusLine, setFocusLine] = useState<{ key: string; n: number } | null>(null);
   const [today] = useState(() => todayLocal());
-  const [lines, setLines] = useState<ScanLine[]>(() => sampleRead(mode, todayLocal()));
+  const [lines, setLines] = useState<ScanLine[]>(() => sampleRead(mode, todayLocal(), t));
   const [open, setOpen] = useState<string | null>(mode === "receipt" ? "r1" : null);
   const [errors, setErrors] = useState<Record<string, DebtErrors>>({});
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -371,7 +380,7 @@ function Check({ mode, photo, onRetake }: { mode: ScanMode; photo: string | null
   function save() {
     setSaveError(null);
     const now = todayLocal();
-    const result = linesToDebts(lines, now, { newId: newDebtId, now: new Date() });
+    const result = linesToDebts(lines, now, { newId: newDebtId, now: new Date() }, t);
     if (!result.ok) {
       setErrors(Object.fromEntries(result.problems.map((p) => [p.key, p.errors])));
       setOpen(result.problems[0].key);
@@ -382,7 +391,7 @@ function Check({ mode, photo, onRetake }: { mode: ScanMode; photo: string | null
     try {
       addMany(result.debts); // one write: all of them or none
     } catch (error) {
-      setSaveError(error instanceof DebtStoreError ? error.message : "Couldn't save. Try again.");
+      setSaveError(error instanceof DebtStoreError ? error.message : t("add.saveFailed"));
       setSaving(false);
       return;
     }
@@ -394,11 +403,11 @@ function Check({ mode, photo, onRetake }: { mode: ScanMode; photo: string | null
   return (
     <div className="tab-page">
       <div className="tab-top">
-        <button type="button" className="tab-back" aria-label="Back to camera" onClick={onRetake}>
+        <button type="button" className="tab-back" aria-label={t("scan.backToCamera")} onClick={onRetake}>
           <BackIcon />
         </button>
         <h1 ref={titleRef} tabIndex={-1}>
-          {mode === "notebook" ? "Check the page" : "Check the receipt"}
+          {mode === "notebook" ? t("scan.checkPage") : t("scan.checkReceipt")}
         </h1>
         <span className="tab-back" aria-hidden="true" />
       </div>
@@ -406,28 +415,28 @@ function Check({ mode, photo, onRetake }: { mode: ScanMode; photo: string | null
       <section className="card scan-thumb">
         {photo ? (
           // eslint-disable-next-line @next/next/no-img-element -- a local photo, not a site image
-          <img src={photo} alt={mode === "notebook" ? "Your notebook photo" : "Your receipt photo"} />
+          <img src={photo} alt={mode === "notebook" ? t("scan.photoNotebook") : t("scan.photoReceipt")} />
         ) : (
           <span className="scan-thumb-empty" aria-hidden="true" />
         )}
         <div>
-          <p className="tab-name">{mode === "notebook" ? "Notebook page" : "Receipt"}</p>
+          <p className="tab-name">{mode === "notebook" ? t("scan.notebookPage") : t("scan.receipt")}</p>
           <p className="tab-item">
-            {formatDay(today).replace(/ \d{4}$/, "")} · {lines.length} {lines.length === 1 ? "line" : "lines"} found
+            {formatDay(today, { year: false })} · {t("scan.linesFound", { count: lines.length })}
           </p>
         </div>
         <button type="button" className="link-button scan-retake" onClick={onRetake}>
-          Retake
+          {t("scan.retake")}
         </button>
       </section>
 
       <p className="notice notice-warning scan-sample" role="note">
-        Sample reading: the AI reader isn&apos;t connected yet, so these lines are examples, not your photo.
+        {t("scan.sample")}
       </p>
 
       {problemCount > 0 && (
         <p className="notice notice-error" role="alert">
-          {problemCount === 1 ? "1 line needs fixing" : `${problemCount} lines need fixing`} before saving.
+          {t("scan.linesNeedFixing", { count: problemCount })}
         </p>
       )}
 
@@ -439,7 +448,7 @@ function Check({ mode, photo, onRetake }: { mode: ScanMode; photo: string | null
 
       {receipt && (
         <section className="card scan-who">
-          <label htmlFor="scan-customer">Which customer is this for?</label>
+          <label htmlFor="scan-customer">{t("scan.whichCustomer")}</label>
           <select
             id="scan-customer"
             value={pickNew ? NEW_NAME : receipt.customerName}
@@ -456,20 +465,20 @@ function Check({ mode, photo, onRetake }: { mode: ScanMode; photo: string | null
             }}
           >
             <option value="" disabled>
-              {ready ? "Pick a customer" : "Loading customers…"}
+              {ready ? t("scan.pickCustomer") : t("scan.loadingCustomers")}
             </option>
             {known.map((name) => (
               <option key={name} value={name}>
                 {name}
               </option>
             ))}
-            <option value={NEW_NAME}>+ New customer</option>
+            <option value={NEW_NAME}>{t("scan.newCustomerOption")}</option>
           </select>
           {pickNew && (
             <input
               type="text"
-              aria-label="New customer's name"
-              placeholder="Customer's name"
+              aria-label={t("scan.newCustomerName")}
+              placeholder={t("scan.customerPlaceholder")}
               maxLength={MAX_NAME_LENGTH}
               value={receipt.customerName}
               aria-invalid={Boolean(errors[receipt.key]?.customerName) || undefined}
@@ -479,7 +488,7 @@ function Check({ mode, photo, onRetake }: { mode: ScanMode; photo: string | null
           )}
           {errors[receipt.key]?.customerName && (
             <p className="field-error" id="scan-customer-error">
-              Pick who this receipt is for.
+              {t("scan.pickWho")}
             </p>
           )}
         </section>
@@ -487,7 +496,7 @@ function Check({ mode, photo, onRetake }: { mode: ScanMode; photo: string | null
 
       <p className="bill-meta">
         <span>
-          {lines.length} {lines.length === 1 ? "line" : "lines"} · {included.length} ticked
+          {t("scan.lines", { count: lines.length })} · {t("scan.ticked", { count: included.length })}
         </span>
         <span>RM {formatSen(total)}</span>
       </p>
@@ -505,7 +514,7 @@ function Check({ mode, photo, onRetake }: { mode: ScanMode; photo: string | null
                   type="checkbox"
                   checked={l.include}
                   onChange={(e) => toggle(l.key, e.target.checked)}
-                  aria-label={`Add ${l.customerName || "this line"}, RM ${l.amount || "no amount"}`}
+                  aria-label={t("scan.addLine", { name: l.customerName || t("scan.thisLine"), amount: l.amount || t("scan.noAmount") })}
                 />
                 <button
                   type="button"
@@ -515,11 +524,11 @@ function Check({ mode, photo, onRetake }: { mode: ScanMode; photo: string | null
                   onClick={() => setOpen(isOpen ? null : l.key)}
                 >
                   <span className="tab-who">
-                    <span className="tab-name">{l.customerName || (mode === "receipt" ? "Pick a customer above" : "No name")}</span>
-                    <span className="tab-item">{l.item || "No item written"}</span>
+                    <span className="tab-name">{l.customerName || (mode === "receipt" ? t("scan.pickAbove") : t("scan.noName"))}</span>
+                    <span className="tab-item">{l.item || t("scan.noItem")}</span>
                     {l.unsure && <span className="badge badge-unpaid badge-text">{l.unsure}</span>}
-                    {fresh && <span className="badge badge-sent badge-text">New customer</span>}
-                    {hasError && <span className="badge badge-overdue badge-text">Needs fixing</span>}
+                    {fresh && <span className="badge badge-sent badge-text">{t("scan.newCustomer")}</span>}
+                    {hasError && <span className="badge badge-overdue badge-text">{t("scan.needsFixing")}</span>}
                   </span>
                   <span className="tab-amt">RM {l.amount || "—"}</span>
                 </button>
@@ -529,7 +538,7 @@ function Check({ mode, photo, onRetake }: { mode: ScanMode; photo: string | null
                   {mode === "notebook" && (
                     <EditField
                       id={`${l.key}-name`}
-                      label="Customer"
+                      label={t("scan.customer")}
                       value={l.customerName}
                       max={MAX_NAME_LENGTH}
                       error={lineErrors.customerName}
@@ -538,7 +547,7 @@ function Check({ mode, photo, onRetake }: { mode: ScanMode; photo: string | null
                   )}
                   <EditField
                     id={`${l.key}-item`}
-                    label="What they took"
+                    label={t("add.item")}
                     value={l.item}
                     max={MAX_ITEM_LENGTH}
                     error={lineErrors.item}
@@ -546,7 +555,7 @@ function Check({ mode, photo, onRetake }: { mode: ScanMode; photo: string | null
                   />
                   <EditField
                     id={`${l.key}-amount`}
-                    label="Amount (RM)"
+                    label={t("add.amount")}
                     value={l.amount}
                     inputMode="decimal"
                     error={lineErrors.amount}
@@ -570,11 +579,9 @@ function Check({ mode, photo, onRetake }: { mode: ScanMode; photo: string | null
         disabled={!ready || saving || included.length === 0}
         onClick={save}
       >
-        {included.length === 0
-          ? "Tick at least one line"
-          : `Add ${included.length} ${included.length === 1 ? "debt" : "debts"} to ledger`}
+        {included.length === 0 ? t("scan.tickOne") : t("scan.addToLedger", { count: included.length })}
       </button>
-      <p className="tab-note">Nothing is sent to customers until you approve invoices.</p>
+      <p className="tab-note">{t("scan.nothingSent")}</p>
     </div>
   );
 }

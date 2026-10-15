@@ -4,6 +4,7 @@
 // that points it out the first time someone sees it.
 
 import { useCallback, useEffect, useState } from "react";
+import { useT } from "../useT";
 import { ChatIcon, CloseIcon } from "./icons";
 
 export function ShareButton({
@@ -15,12 +16,13 @@ export function ShareButton({
   onOpen: (button: HTMLButtonElement) => void;
   className?: string;
 }) {
+  const { t } = useT();
   return (
     <button
       type="button"
       className={`wa-btn ${className}`.trim()}
-      aria-label={`Send ${customerName}'s tab on WhatsApp`}
-      title="Send on WhatsApp"
+      aria-label={t("tip.shareAria", { name: customerName })}
+      title={t("tip.shareTitle")}
       onClick={(e) => onOpen(e.currentTarget)}
     >
       <ChatIcon />
@@ -55,11 +57,12 @@ export function useShareTip(): [boolean, () => void] {
 }
 
 export function ShareTip({ onDismiss }: { onDismiss: () => void }) {
+  const { t } = useT();
   return (
     <div className="wa-tip-wrap">
       <p className="wa-tip" role="note">
-        New: send their tab on WhatsApp
-        <button type="button" className="wa-tip-close" aria-label="Dismiss tip" onClick={onDismiss}>
+        {t("tip.whatsapp")}
+        <button type="button" className="wa-tip-close" aria-label={t("tip.dismiss")} onClick={onDismiss}>
           <CloseIcon />
         </button>
       </p>

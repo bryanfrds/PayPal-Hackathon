@@ -7,6 +7,12 @@ import dynamic from "next/dynamic";
 import type { ComponentType } from "react";
 import type { AgStudioReactProperties } from "ag-studio-react";
 import type { BukuRegistry } from "./studio-config";
+import { useT } from "../useT";
+
+function StudioLoading() {
+  const { t } = useT();
+  return <p className="card loading">{t("common.loading")}</p>;
+}
 
 export const AgStudio = dynamic(
   () =>
@@ -20,7 +26,7 @@ export const AgStudio = dynamic(
       .then((m) => m.AgStudio as unknown as ComponentType<AgStudioReactProperties<BukuRegistry>>),
   {
     ssr: false,
-    loading: () => <p className="card loading">Loading…</p>,
+    loading: () => <StudioLoading />,
   },
 );
 

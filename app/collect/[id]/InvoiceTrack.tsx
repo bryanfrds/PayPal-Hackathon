@@ -6,9 +6,10 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { SHOP_ITEMS } from "@/lib/collect";
 import { isPayPalUrl } from "@/lib/customer-pay";
-import { invoiceView, standingFrom, type InvoiceStanding, type StatusResult } from "@/lib/payments";
-import { formatDay } from "@/lib/customer-tab";
+import type { TKey } from "@/lib/i18n";
+import { invoiceView, standingFrom, type InvoiceStanding, type InvoiceView, type StatusResult } from "@/lib/payments";
 import { formatSen } from "@/lib/debts";
 import Avatar from "../../components/Avatar";
 import StatusBadge from "../../components/StatusBadge";
@@ -16,22 +17,37 @@ import { BackIcon, ChatIcon, CheckIcon, ClockIcon, LinkIcon } from "../../compon
 import { useCollect } from "../../useCollect";
 import { useDebts } from "../../useDebts";
 import { useShop } from "../../useShop";
+import { useT } from "../../useT";
 
-type Live = { state: "loading" } | { state: "ok"; standing: InvoiceStanding } | { state: "error"; message: string };
+type Live =
+  | { state: "loading" }
+  | { state: "ok"; standing: InvoiceStanding }
+  | { state: "error"; message?: string; fallback: "invoice.reachFailed" | "invoice.offline" };
 
-const VIEW_NOTE: Record<ReturnType<typeof invoiceView>, string> = {
-  waiting: "PayPal says it's waiting for payment.",
-  processing: "PayPal is processing the customer's payment.",
-  paid: "PayPal says this invoice is paid.",
-  cancelled: "PayPal says this invoice was cancelled. Its tab is owed again; send a new invoice from Collect.",
-  refunded: "PayPal says this invoice was refunded. Its tab is owed again; send a new invoice from Collect.",
-  check: "PayPal's answer doesn't match what you billed (a partial refund, or a changed total). The tab stays owed; check it on PayPal.",
-};
+// What the owner reads about the invoice, from the same view the ledger and Sent tab use.
+const VIEW_NOTE = {
+  waiting: "invoice.isWaiting",
+  processing: "invoice.isProcessing",
+  paid: "invoice.isPaid",
+  cancelled: "invoice.isCancelled",
+  refunded: "invoice.isRefunded",
+  check: "invoice.isCheck",
+} as const satisfies Record<InvoiceView, TKey>;
+
+const STEP_NOTE = {
+  waiting: "invoice.step.forPayment",
+  processing: "invoice.step.processing",
+  paid: "invoice.step.done",
+  cancelled: "invoice.step.stopped",
+  refunded: "invoice.step.stopped",
+  check: "invoice.step.check",
+} as const satisfies Record<InvoiceView, TKey>;
 
 export default function InvoiceTrack({ id }: { id: string }) {
   const { invoices, ready, setStandings } = useCollect();
   const { debts } = useDebts();
   const { name: shopName } = useShop();
+  const { t, formatDay } = useT();
   const record = invoices.find((r) => r.id === id);
   const [live, setLive] = useState<Live>({ state: "loading" });
   const [copied, setCopied] = useState<"idle" | "done" | "failed">("idle");
@@ -52,7 +68,7 @@ export default function InvoiceTrack({ id }: { id: string }) {
         const result = data.results?.[recordId];
         const standing = res.ok && data.currency ? standingFrom(result, billedSen, data.currency, new Date().toISOString()) : undefined;
         if (!standing) {
-          setLive({ state: "error", message: data.error ?? (result && !result.ok ? result.error : "Couldn't reach PayPal.") });
+          setLive({ state: "error", message: data.error ?? (result && !result.ok ? result.error : undefined), fallback: "invoice.reachFailed" });
           return;
         }
         setLive({ state: "ok", standing });
@@ -64,7 +80,7 @@ export default function InvoiceTrack({ id }: { id: string }) {
         }
       })
       .catch(() => {
-        if (!cancelled) setLive({ state: "error", message: "No internet connection." });
+        if (!cancelled) setLive({ state: "error", fallback: "invoice.offline" });
       });
     return () => {
       cancelled = true;
@@ -74,7 +90,7 @@ export default function InvoiceTrack({ id }: { id: string }) {
   if (!ready) {
     return (
       <p className="card loading" aria-busy="true">
-        Loading…
+        {t("common.loading")}
       </p>
     );
   }
@@ -83,14 +99,14 @@ export default function InvoiceTrack({ id }: { id: string }) {
     return (
       <div className="collect">
         <div className="tab-top">
-          <Link href="/collect" className="tab-back" aria-label="Back to Collect">
+          <Link href="/collect" className="tab-back" aria-label={t("invoice.backToCollect")}>
             <BackIcon />
           </Link>
-          <h1>Invoice</h1>
+          <h1>{t("invoice.title")}</h1>
           <span className="tab-back" aria-hidden="true" />
         </div>
         <div className="card empty-state">
-          <p>This invoice isn&apos;t on this device. Invoices sent from another phone show up there.</p>
+          <p>{t("invoice.notOnDevice")}</p>
         </div>
       </div>
     );
@@ -104,7 +120,8 @@ export default function InvoiceTrack({ id }: { id: string }) {
   const payerLink = isPayPalUrl(record.payerLink) ? record.payerLink : undefined;
   const items = debts.filter((d) => record.debtIds.includes(d.id));
   const sentDay = formatDay(record.sentAt.slice(0, 10));
-  const shareText = `Hi ${record.customerName}, here's your invoice from ${shopName} for RM ${formatSen(record.amountSen)}. You can pay with PayPal or card: ${payerLink}`;
+  const sentDayShort = formatDay(record.sentAt.slice(0, 10), { year: false });
+  const shareText = t("invoice.shareText", { name: record.customerName, shop: shopName, amount: formatSen(record.amountSen), link: payerLink ?? "" });
 
   async function copy() {
     if (!payerLink) return;
@@ -119,10 +136,10 @@ export default function InvoiceTrack({ id }: { id: string }) {
   return (
     <div className="collect">
       <div className="tab-top">
-        <Link href="/collect" className="tab-back" aria-label="Back to Collect">
+        <Link href="/collect" className="tab-back" aria-label={t("invoice.backToCollect")}>
           <BackIcon />
         </Link>
-        <h1>{record.number ? `Invoice ${record.number}` : "Invoice"}</h1>
+        <h1>{record.number ? t("invoice.titleNumber", { number: record.number }) : t("invoice.title")}</h1>
         <span className="tab-back" aria-hidden="true" />
       </div>
 
@@ -140,34 +157,33 @@ export default function InvoiceTrack({ id }: { id: string }) {
           <small>RM</small>
           {formatSen(record.amountSen)}
         </p>
-        <p className="tab-item">Sent {sentDay}</p>
+        <p className="tab-item">{t("invoice.sentOn", { day: sentDay })}</p>
 
         <ol className="track-steps">
           <li className="done">
             <span aria-hidden="true">
               <CheckIcon />
             </span>
-            Sent
-            <small>{sentDay.replace(/ \d{4}$/, "")}</small>
+            {t("invoice.step.sent")}
+            <small>{sentDayShort}</small>
           </li>
           <li className={paid ? "done" : closed ? undefined : "now"}>
             <span aria-hidden="true">
               <ClockIcon />
             </span>
-            Waiting
-            <small>{paid ? "Done" : closed ? "Stopped" : view === "processing" ? "Processing" : view === "check" ? "Check" : "For payment"}</small>
+            {t("invoice.step.waiting")}
+            <small>{t(STEP_NOTE[view])}</small>
           </li>
           <li className={paid ? "done" : undefined}>
             <span aria-hidden="true">
               <CheckIcon />
             </span>
-            Paid
-            <small>{paid ? "On PayPal" : "Not yet"}</small>
+            {t("invoice.step.paid")}
+            <small>{paid ? t("invoice.step.onPayPal") : t("invoice.step.notYet")}</small>
           </li>
         </ol>
         <p className="tab-note" role="status">
-          {live.state === "loading" ? "Checking PayPal… " : live.state === "error" ? `${live.message} Showing what this device knows. ` : ""}
-          {live.state !== "loading" && VIEW_NOTE[view]}
+          {live.state === "loading" ? t("invoice.checking") : live.state === "error" ? `${t("invoice.errorFallback", { message: live.message ?? t(live.fallback) })} ${t(VIEW_NOTE[view])}` : t(VIEW_NOTE[view])}
         </p>
       </section>
 
@@ -178,7 +194,7 @@ export default function InvoiceTrack({ id }: { id: string }) {
             <span aria-hidden="true">
               <LinkIcon />
             </span>
-            {copied === "done" ? "Copied" : copied === "failed" ? "Couldn't copy" : "Copy pay link"}
+            {copied === "done" ? t("invoice.copied") : copied === "failed" ? t("invoice.copyFailed") : t("invoice.copyLink")}
           </button>
           <a className="track-wa" href={`https://wa.me/?text=${encodeURIComponent(shareText)}`} target="_blank" rel="noopener noreferrer">
             <span aria-hidden="true">
@@ -193,7 +209,8 @@ export default function InvoiceTrack({ id }: { id: string }) {
         <ul className="card track-lines">
           {items.map((d) => (
             <li key={d.id}>
-              <span>{d.item || "Shop items"}</span>
+              {/* The words on the PayPal invoice itself, which stay English. */}
+              <span>{d.item || SHOP_ITEMS}</span>
               <b>RM {formatSen(d.amountSen)}</b>
             </li>
           ))}

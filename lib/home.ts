@@ -1,6 +1,7 @@
 // Numbers and labels for the home dashboard. Pure functions so they can be tested in Node.
 
 import { customerSlug, daysBetween, dueDateFor } from "./customer-tab";
+import { translator, type T } from "./i18n";
 import type { ScheduleItem } from "./reminders";
 import { outstanding, type Debt } from "./debts";
 
@@ -43,11 +44,11 @@ export function initials(name: string): string {
   return (first + last).toUpperCase();
 }
 
-/** Malay greeting for the hour of day (0–23): pagi before noon, petang until 7pm, then malam. */
-export function greeting(hour: number): string {
-  if (hour < 12) return "Selamat pagi";
-  if (hour < 19) return "Selamat petang";
-  return "Selamat malam";
+/** Greeting for the hour of day (0–23): morning before noon, afternoon until 7pm, then evening. English keeps the Malay words. */
+export function greeting(hour: number, t: T = translator()): string {
+  if (hour < 12) return t("home.greeting.morning");
+  if (hour < 19) return t("home.greeting.afternoon");
+  return t("home.greeting.evening");
 }
 
 /** Index into a palette of `size` colours; the same name always gets the same index. */
@@ -112,12 +113,10 @@ export type BoardRow = {
   sharePct: number;
 };
 
-const BOARD_STATUS_TEXT: Record<BoardRow["status"], string> = { overdue: "Overdue", sent: "Invoice sent", unpaid: "Not sent" };
-
 /** The badge on a board row: "5 days late" once past due, otherwise Overdue / Invoice sent / Not sent. */
-export function lateLabel(row: Pick<BoardRow, "status" | "daysLate">): string {
-  if (row.status === "overdue" && row.daysLate > 0) return `${row.daysLate} ${row.daysLate === 1 ? "day" : "days"} late`;
-  return BOARD_STATUS_TEXT[row.status];
+export function lateLabel(row: Pick<BoardRow, "status" | "daysLate">, t: T = translator()): string {
+  if (row.status === "overdue" && row.daysLate > 0) return t("late.days", { count: row.daysLate });
+  return t(`status.${row.status}`);
 }
 
 /** Who owes, biggest balance first, with days late and a bar length. */
