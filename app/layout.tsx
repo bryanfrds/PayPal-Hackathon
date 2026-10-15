@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Manrope } from "next/font/google";
 import type { ReactNode } from "react";
+import { THEME_SCRIPT } from "@/lib/preferences";
 import type { NavLink } from "./NavLinks";
 import PaymentSync from "./PaymentSync";
 import SiteHeader from "./SiteHeader";
@@ -32,7 +33,13 @@ const NAV_LINKS: NavLink[] = [
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={manrope.variable}>
+    // The theme script sets data-theme before React loads, so the attribute can differ from
+    // the server's; suppressHydrationWarning covers only this element's own attributes.
+    <html lang="en" className={manrope.variable} data-theme="light" suppressHydrationWarning>
+      <head>
+        {/* Before first paint: no flash of light for an owner who picked Dark. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body>
         <SiteHeader links={NAV_LINKS} />
         <main className="site-main">{children}</main>
