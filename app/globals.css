@@ -5089,12 +5089,6 @@ body.nudge-sheet-open {
   font-weight: 800;
 }
 
-.debt-detail-id {
-  font-family: monospace;
-  font-size: 0.78rem;
-  color: var(--muted);
-}
-
 .debt-detail-invoice {
   margin-top: 0.75rem;
   padding: 0.85rem;
