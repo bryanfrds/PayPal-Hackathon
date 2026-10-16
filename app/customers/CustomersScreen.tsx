@@ -28,10 +28,19 @@ type CustomerRow = {
   lastDate?: string;
 };
 
+/** "kak-lina" → "Kak Lina", for a customer known only by a saved email. */
+function nameFromSlug(slug: string): string {
+  return slug
+    .split("-")
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
 export default function CustomersScreen() {
   const { t, formatDay, formatNumber } = useT();
   const { debts } = useDebts();
-  const { emails } = useCollect();
+  const { emails, invoices, pending } = useCollect();
 
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<FilterTab>("all");
@@ -71,11 +80,15 @@ export default function CustomersScreen() {
       }
     }
 
-    // Include any saved emails for customers who might not have active debts
+    // Include any saved emails for customers who might not have active debts, named as they
+    // were last written (on a sent invoice or an unfinished send), else from the slug.
+    const knownNames = new Map<string, string>();
+    for (const inv of invoices) if (!knownNames.has(inv.slug)) knownNames.set(inv.slug, inv.customerName);
+    for (const p of Object.values(pending)) if (!knownNames.has(p.slug)) knownNames.set(p.slug, p.customerName);
     for (const [slug, email] of Object.entries(emails)) {
       if (!map.has(slug)) {
         map.set(slug, {
-          name: slug.replace(/-/g, " "),
+          name: knownNames.get(slug) ?? nameFromSlug(slug),
           slug,
           email,
           totalDebts: 0,
@@ -90,7 +103,7 @@ export default function CustomersScreen() {
     }
 
     return Array.from(map.values()).sort((a, b) => b.owedSen - a.owedSen || a.name.localeCompare(b.name));
-  }, [debts, emails]);
+  }, [debts, emails, invoices, pending]);
 
   // Filtered customer list
   const filtered = useMemo(() => {
