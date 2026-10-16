@@ -83,4 +83,20 @@ describe("debtsToCsv", () => {
     const csv = debtsToCsv([debt]);
     expect(csv).toContain('"Kedai ""Ali"", Jalan 1","Milo\nGula"');
   });
+
+  it("sanitizes potential formula injection characters", () => {
+    const maliciousDebt: Debt = {
+      id: "inj-1",
+      customerName: "=SUM(A1:A10)",
+      item: "+cmd|' /C calc'!A0",
+      amountSen: 1000,
+      date: "2026-10-01",
+      status: "unpaid",
+      source: "manual",
+      createdAt: "2026-10-01T00:00:00.000Z",
+    };
+    const csv = debtsToCsv([maliciousDebt]);
+    expect(csv).toContain("\"'=SUM(A1:A10)\"");
+    expect(csv).toContain("\"'+cmd|' /C calc'!A0\"");
+  });
 });

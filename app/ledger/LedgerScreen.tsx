@@ -25,7 +25,7 @@ type Notice =
   | { kind: "error"; message: string };
 
 function downloadCsv(content: string, filename: string) {
-  const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
+  const blob = new Blob(["﻿" + content], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.setAttribute("href", url);
@@ -144,6 +144,22 @@ function DebtDetailSheet({
                 {t("ledger.detail.openPaypal")}
               </a>
             )}
+          </div>
+        )}
+
+        {!invoice && (debt.status === "unpaid" || debt.status === "overdue") && (
+          <div className="card" style={{ marginTop: "1rem", padding: "0.85rem", background: "var(--bg-subtle, rgba(0,0,0,0.02))", border: "1px dashed var(--border)" }}>
+            <p style={{ margin: "0 0 0.5rem", fontSize: "0.85rem", color: "var(--ink-muted)" }}>
+              This tab has not been billed yet. Send an official PayPal invoice to collect securely.
+            </p>
+            <Link
+              href="/collect"
+              className="button button-primary button-sm"
+              onClick={onClose}
+              style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem" }}
+            >
+              <SendIcon /> Bill with PayPal
+            </Link>
           </div>
         )}
 

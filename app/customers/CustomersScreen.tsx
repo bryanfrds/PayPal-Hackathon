@@ -74,6 +74,8 @@ export default function CustomersScreen() {
       } else if (d.status === "overdue") {
         row.overdueCount += 1;
         row.owedSen += d.amountSen;
+      } else if (d.status === "sent") {
+        row.owedSen += d.amountSen;
       }
       if (!row.lastDate || d.date > row.lastDate) {
         row.lastDate = d.date;

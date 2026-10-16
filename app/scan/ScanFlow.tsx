@@ -681,14 +681,43 @@ function Check({ mode, photo, onRetake }: { mode: ScanMode; photo: string | null
                   {isOpen && (
                     <div className="scan-edit" id={`scan-edit-${l.key}`}>
                       {mode === "notebook" && (
-                        <EditField
-                          id={`${l.key}-name`}
-                          label={t("scan.customer")}
-                          value={l.customerName}
-                          max={MAX_NAME_LENGTH}
-                          error={lineErrors.customerName}
-                          onChange={(v) => update(l.key, "customerName", v)}
-                        />
+                        <div>
+                          <EditField
+                            id={`${l.key}-name`}
+                            label={t("scan.customer")}
+                            value={l.customerName}
+                            max={MAX_NAME_LENGTH}
+                            error={lineErrors.customerName}
+                            onChange={(v) => update(l.key, "customerName", v)}
+                          />
+                          {known.length > 0 && !known.includes(l.customerName) && (
+                            <div style={{ marginTop: "0.35rem", display: "flex", gap: "0.35rem", alignItems: "center", flexWrap: "wrap" }}>
+                              <span style={{ fontSize: "0.75rem", color: "var(--ink-muted)" }}>Suggested matches:</span>
+                              {known
+                                .filter((name) => {
+                                  const q = l.customerName.trim().toLowerCase();
+                                  if (!q) return false;
+                                  return (
+                                    name.toLowerCase().includes(q) ||
+                                    q.includes(name.toLowerCase().slice(0, 3)) ||
+                                    name.toLowerCase().startsWith(q[0])
+                                  );
+                                })
+                                .slice(0, 3)
+                                .map((match) => (
+                                  <button
+                                    key={match}
+                                    type="button"
+                                    className="button button-sm"
+                                    style={{ fontSize: "0.75rem", padding: "0.15rem 0.45rem" }}
+                                    onClick={() => update(l.key, "customerName", match)}
+                                  >
+                                    {match} ✓
+                                  </button>
+                                ))}
+                            </div>
+                          )}
+                        </div>
                       )}
                       <EditField
                         id={`${l.key}-item`}
