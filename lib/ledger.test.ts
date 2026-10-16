@@ -66,6 +66,14 @@ describe("debtsToCsv", () => {
     expect(row.startsWith(`"'${start}HYPERLINK(""x"")"`)).toBe(true);
   });
 
+  it.each(["  =1+1", " +SUM(A1)", "\u00a0-2", "\n@cmd"])("prefixes %j, whose first non-space character starts a formula", (value) => {
+    expect(csvCell(value)).toBe(`"'${value}"`);
+  });
+
+  it("doesn't prefix leading spaces before ordinary text", () => {
+    expect(csvCell("  Ah Seng")).toBe('"  Ah Seng"');
+  });
+
   it("leaves a formula character in the middle of a cell alone", () => {
     expect(csvCell("Ah Seng = 2kg")).toBe('"Ah Seng = 2kg"');
   });

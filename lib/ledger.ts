@@ -29,8 +29,9 @@ export function filterByStatus(debts: Debt[], filter: LedgerFilter): Debt[] {
   return filter === "all" ? debts : debts.filter((d) => d.status === filter);
 }
 
-// Spreadsheet apps run a cell that starts with one of these as a formula (CSV injection).
-const FORMULA_START = /^[=+\-@\t\r]/;
+// Spreadsheet apps run a cell that starts with one of these as a formula (CSV injection),
+// including after leading spaces, which some of them skip.
+const FORMULA_START = /^(?:[\t\r]|\s*[=+\-@])/;
 
 /** One CSV cell: formula-looking text gets a leading ', and every cell is quoted. */
 export function csvCell(value: string): string {

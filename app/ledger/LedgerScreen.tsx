@@ -33,7 +33,8 @@ function downloadCsv(content: string, filename: string) {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  // Some browsers start the download after click() returns: let go of the file a moment later.
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function describe(debt: Debt) {
