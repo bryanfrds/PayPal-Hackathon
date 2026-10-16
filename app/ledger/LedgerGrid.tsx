@@ -1,14 +1,18 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useImperativeHandle, useMemo, useRef, useState, type Ref } from "react";
 import { AgGridReact, type CustomCellRendererProps } from "ag-grid-react";
 import {
   AllCommunityModule,
   ModuleRegistry,
   themeQuartz,
+  type CellKeyDownEvent,
   type ColDef,
+  type FullWidthCellKeyDownEvent,
   type GridApi,
   type ModelUpdatedEvent,
+  type RowSelectionOptions,
+  type SelectionColumnDef,
 } from "ag-grid-community";
 import { formatSen, outstanding, sortDebts, STATUS_ORDER, type Debt, type DebtStatus } from "@/lib/debts";
 import type { T } from "@/lib/i18n";
@@ -86,19 +90,6 @@ function buildColumnDefs(mode: LayoutMode, t: T): ColDef<LedgerRow>[] {
   const phone = mode === "phone";
   const label = (status: DebtStatus) => t(`status.${status}`);
   return [
-    {
-      colId: "selection",
-      headerName: "",
-      width: 38,
-      minWidth: 38,
-      maxWidth: 38,
-      checkboxSelection: (p) => !p.node.isRowPinned(),
-      headerCheckboxSelection: true,
-      headerCheckboxSelectionFilteredOnly: true,
-      sortable: false,
-      filter: false,
-      resizable: false,
-    },
     { field: "customerName", headerName: t("ledger.colName"), flex: 1.2, minWidth: phone ? 90 : 120 },
     { field: "item", headerName: t("ledger.colItem"), flex: 2, minWidth: 150, hide: phone },
     {
@@ -146,6 +137,34 @@ function buildColumnDefs(mode: LayoutMode, t: T): ColDef<LedgerRow>[] {
   ];
 }
 
+// Tick boxes in their own column; the header box ticks only the rows the search leaves showing.
+// A plain row click opens the detail sheet instead of ticking, and the pinned "Still owed" row
+// can't be ticked (no box shows on it).
+const ROW_SELECTION: RowSelectionOptions<LedgerRow> = {
+  mode: "multiRow",
+  checkboxes: true,
+  headerCheckbox: true,
+  selectAll: "filtered",
+  enableClickSelection: false,
+  hideDisabledCheckboxes: true,
+  isRowSelectable: (node) => !node.rowPinned && node.data?.id !== "OUTSTANDING",
+};
+
+const SELECTION_COLUMN: SelectionColumnDef = {
+  width: 38,
+  minWidth: 38,
+  maxWidth: 38,
+  resizable: false,
+  sortable: false,
+  suppressHeaderMenuButton: true,
+};
+
+/** What the ledger screen can ask of the grid. */
+export type LedgerGridHandle = {
+  /** Unticks every row (the bulk bar's Clear). */
+  clearSelection: () => void;
+};
+
 type LedgerView = {
   /** Rows the grid is showing after the quick filter, paid included. */
   visibleCount: number;
@@ -190,11 +209,13 @@ function useLayoutMode(ref: React.RefObject<HTMLElement | null>): LayoutMode {
 }
 
 export default function LedgerGrid({
+  ref,
   rows,
   onDelete,
   onRowClick,
   onSelectionChange,
 }: {
+  ref?: Ref<LedgerGridHandle>;
   rows: Debt[];
   onDelete: (debt: Debt) => void;
   onRowClick?: (debt: Debt) => void;
@@ -206,6 +227,8 @@ export default function LedgerGrid({
   const wrapperRef = useRef<HTMLDivElement>(null);
   const layout = useLayoutMode(wrapperRef);
   const sortedRows = useMemo(() => sortDebts(rows), [rows]);
+  const apiRef = useRef<GridApi<LedgerRow> | null>(null);
+  useImperativeHandle(ref, () => ({ clearSelection: () => apiRef.current?.deselectAll() }), []);
   // AG Grid only reads `context` once, so it gets a stable function that always calls
   // the latest onDelete instead of the one from the first render.
   const onDeleteRef = useRef(onDelete);
@@ -262,6 +285,15 @@ export default function LedgerGrid({
     [view, t],
   );
 
+  // Enter on a focused row opens its detail sheet, like a click (not on the tick box or delete cells).
+  const onCellKeyDown = (event: CellKeyDownEvent<LedgerRow> | FullWidthCellKeyDownEvent<LedgerRow>) => {
+    const key = (event.event as KeyboardEvent | null | undefined)?.key;
+    if (key !== "Enter" || !("column" in event) || !event.data || event.node.rowPinned) return;
+    const colId = event.column.getColId();
+    if (colId === "delete" || colId.startsWith("ag-Grid-")) return;
+    onRowClick?.(event.data);
+  };
+
   // Header + visible rows + the pinned total row, plus the 1px borders.
   const gridHeight = HEADER_HEIGHT + (view.visibleCount + 1) * ROW_HEIGHT + 2;
 
@@ -294,17 +326,22 @@ export default function LedgerGrid({
           headerHeight={HEADER_HEIGHT}
           getRowId={(params) => params.data.id}
           context={gridContext}
-          rowSelection="multiple"
+          rowSelection={ROW_SELECTION}
+          selectionColumnDef={SELECTION_COLUMN}
+          onGridReady={(event) => {
+            apiRef.current = event.api;
+            // A remount (language change) starts with nothing ticked, so the bulk bar follows.
+            onSelectionChange?.([]);
+          }}
+          onCellKeyDown={onCellKeyDown}
           onSelectionChanged={(event) => {
             const selected = event.api.getSelectedRows();
             onSelectionChange?.(selected);
           }}
           onRowClicked={(event) => {
             const target = event.event?.target as HTMLElement | null;
-            if (target?.closest(".row-delete") || target?.closest(".ag-selection-checkbox") || target?.closest(".ag-checkbox-input")) {
-              return;
-            }
-            if (event.data && !event.node.isRowPinned() && event.data.id !== "OUTSTANDING") {
+            if (target?.closest(".row-delete, .ag-selection-checkbox, .ag-checkbox-input")) return;
+            if (event.data && !event.node.isRowPinned()) {
               onRowClick?.(event.data);
             }
           }}

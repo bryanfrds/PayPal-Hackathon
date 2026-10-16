@@ -7338,3 +7338,51 @@ body.nudge-sheet-open {
 .lang-status:empty {
   margin: 0;
 }
+
+/* ---------- Ledger review fixes (PR #37) ---------- */
+/* Ledger: header buttons, debt detail sheet (dl rows, actions). Tokens only. */
+.ledger-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* The detail rows are a <dl>; drop the browser's list margins. */
+dl.debt-detail-content {
+  margin: 1rem 0 0;
+}
+
+dd.debt-detail-value {
+  margin: 0;
+}
+
+.debt-detail-paypal {
+  display: inline-block;
+  margin-top: 0.5rem;
+}
+
+.debt-detail-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.debt-detail-actions .button:last-child {
+  margin-left: auto;
+}
+
+.debt-detail-delete {
+  color: var(--error-ink);
+}
+
+.ledger-bulk-btn:focus-visible {
+  outline: 2px solid var(--on-ink);
+  outline-offset: 2px;
+}
+
+/* The bar is --ink, and --accent is the same colour as --ink, so the main button vanished. */
+.ledger-bulk-btn-primary {
+  background: var(--on-ink);
+  color: var(--ink);
+}

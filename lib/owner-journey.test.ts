@@ -249,7 +249,7 @@ describe("Person 3: End-to-End Owner Journeys", () => {
       expect(totals.counts.all).toBe(0);
 
       const emptyCsv = debtsToCsv([], {});
-      expect(emptyCsv).toContain("Customer,Item,Amount (RM)");
+      expect(emptyCsv).toContain('"Customer","Item","Amount (RM)"');
     });
 
     it("resets all persistent stores and session draft persistence", () => {

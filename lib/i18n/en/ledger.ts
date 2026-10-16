@@ -25,6 +25,33 @@ export const ledger = {
   "ledger.stillOwed": "Still owed",
   "ledger.invoiceCustomers_one": "Invoice {count} customer",
   "ledger.invoiceCustomers_other": "Invoice {count} customers",
+  "ledger.customers": "Customers",
+  "ledger.exportCsv": "Export CSV",
+  // Shown when a tab has no item written (also the CSV's fallback).
+  "ledger.noItem": "Shop items",
+  "ledger.saveFailed": "Couldn't save on this device. Your entry is still here; try again.",
+
+  // Debt detail sheet
+  "ledger.detail.viewTab": "View customer tab",
+  "ledger.detail.amount": "Amount",
+  "ledger.detail.status": "Status",
+  "ledger.detail.item": "Item",
+  "ledger.detail.date": "Date recorded",
+  "ledger.detail.source": "Source",
+  "ledger.detail.sourceScan": "Scanned from notebook (buku 555)",
+  "ledger.detail.sourceManual": "Manual entry",
+  "ledger.detail.invoiceTitle": "PayPal invoice",
+  "ledger.detail.invoiceId": "Invoice ID",
+  "ledger.detail.invoiceSent": "Sent",
+  "ledger.detail.openPaypal": "Open in PayPal",
+
+  // Bulk actions bar (rows ticked in the grid)
+  "ledger.bulk.label": "Actions for ticked tabs",
+  "ledger.bulk.selected_one": "{count} tab ticked · RM {amount}",
+  "ledger.bulk.selected_other": "{count} tabs ticked · RM {amount}",
+  "ledger.bulk.goToCollect": "Go to Collect",
+  "ledger.bulk.clear": "Clear",
+  "ledger.bulk.nothingToInvoice": "The ticked tabs are already paid or invoiced.",
 
   // Ledger grid
   "ledger.search": "Search the ledger",

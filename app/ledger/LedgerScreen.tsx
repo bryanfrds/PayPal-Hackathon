@@ -2,21 +2,23 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { DebtStoreError } from "@/lib/debt-store";
 import { formatSen, type Debt, type DebtStatus } from "@/lib/debts";
 import Avatar from "../components/Avatar";
 import StatusBadge from "../components/StatusBadge";
 import { CloseIcon, SendIcon } from "../components/icons";
+import { useDialog } from "../components/useDialog";
 import { useDebts } from "../useDebts";
 import { useCollect } from "../useCollect";
-import { useIsWide } from "../useIsWide";
 import { useT } from "../useT";
 import { collectGroups } from "@/lib/collect";
 import { customerSlug } from "@/lib/customer-tab";
+import { isPayPalUrl } from "@/lib/customer-pay";
 import type { InvoiceRecord } from "@/lib/collect-store";
 import { LEDGER_FILTERS, debtsToCsv, filterByStatus, ledgerTotals, type LedgerFilter } from "@/lib/ledger";
-import LedgerGrid from "./LedgerGrid";
+import LedgerGrid, { type LedgerGridHandle } from "./LedgerGrid";
 
 type Notice =
   | { kind: "deleted"; debt: Debt }
@@ -44,6 +46,14 @@ export function LedgerLoading() {
   return <p className="card loading">{t("ledger.loading")}</p>;
 }
 
+/** The local calendar day ("2026-10-15") of an ISO timestamp, for formatDay. */
+function localDay(iso: string): string | null {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 function DebtDetailSheet({
   debt,
   invoice,
@@ -55,13 +65,22 @@ function DebtDetailSheet({
   onClose: () => void;
   onDelete: (debt: Debt) => void;
 }) {
-  const { t } = useT();
+  const { t, formatDay } = useT();
+  const sheetRef = useDialog<HTMLDivElement>(onClose);
   const slug = customerSlug(debt.customerName);
+  const sentDay = invoice ? localDay(invoice.sentAt) : null;
 
-  return (
-    <div className="sheet-layer" role="dialog" aria-modal="true" aria-labelledby="debt-detail-title">
+  // Rendered at the end of <body>, so no sticky or layered part of the page can sit on top.
+  return createPortal(
+    <div className="sheet-layer">
       <div className="sheet-dim" onClick={onClose} aria-hidden="true" />
-      <div className="sheet debt-detail-sheet">
+      <div
+        ref={sheetRef}
+        className="sheet debt-detail-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="debt-detail-title"
+      >
         <button type="button" className="sheet-close" aria-label={t("common.close")} onClick={onClose}>
           <CloseIcon />
         </button>
@@ -70,71 +89,67 @@ function DebtDetailSheet({
           <h2 id="debt-detail-title">{debt.customerName}</h2>
           <p>
             <Link href={`/tab/${slug}`} className="link-button" onClick={onClose}>
-              View customer tab ↗
+              {t("ledger.detail.viewTab")}
             </Link>
           </p>
         </div>
 
-        <div className="debt-detail-content">
+        <dl className="debt-detail-content">
           <div className="debt-detail-row">
-            <span className="debt-detail-label">Amount</span>
-            <span className="debt-detail-value debt-detail-amount">RM {formatSen(debt.amountSen)}</span>
+            <dt className="debt-detail-label">{t("ledger.detail.amount")}</dt>
+            <dd className="debt-detail-value debt-detail-amount">RM {formatSen(debt.amountSen)}</dd>
           </div>
           <div className="debt-detail-row">
-            <span className="debt-detail-label">Status</span>
-            <span className="debt-detail-value">
+            <dt className="debt-detail-label">{t("ledger.detail.status")}</dt>
+            <dd className="debt-detail-value">
               <StatusBadge status={debt.status} />
-            </span>
+            </dd>
           </div>
           <div className="debt-detail-row">
-            <span className="debt-detail-label">Item</span>
-            <span className="debt-detail-value">{debt.item || "Barang kedai"}</span>
+            <dt className="debt-detail-label">{t("ledger.detail.item")}</dt>
+            <dd className="debt-detail-value">{debt.item || t("ledger.noItem")}</dd>
           </div>
           <div className="debt-detail-row">
-            <span className="debt-detail-label">Date recorded</span>
-            <span className="debt-detail-value">{debt.date}</span>
+            <dt className="debt-detail-label">{t("ledger.detail.date")}</dt>
+            <dd className="debt-detail-value">{formatDay(debt.date)}</dd>
           </div>
           <div className="debt-detail-row">
-            <span className="debt-detail-label">Source</span>
-            <span className="debt-detail-value">
-              {debt.source === "scan" ? "Scanned from notebook (buku 555)" : "Manual entry"}
-            </span>
+            <dt className="debt-detail-label">{t("ledger.detail.source")}</dt>
+            <dd className="debt-detail-value">
+              {debt.source === "scan" ? t("ledger.detail.sourceScan") : t("ledger.detail.sourceManual")}
+            </dd>
           </div>
-          <div className="debt-detail-row">
-            <span className="debt-detail-label">Debt ID</span>
-            <span className="debt-detail-value debt-detail-id">{debt.id}</span>
-          </div>
+        </dl>
 
-          {invoice && (
-            <div className="debt-detail-invoice card">
-              <h3>PayPal Invoice</h3>
+        {invoice && (
+          <div className="debt-detail-invoice">
+            <h3>{t("ledger.detail.invoiceTitle")}</h3>
+            <p>
+              <strong>{t("ledger.detail.invoiceId")}:</strong> {invoice.id}
+              {invoice.number && ` (#${invoice.number})`}
+            </p>
+            {sentDay && (
               <p>
-                <strong>Invoice ID:</strong> {invoice.id}
-                {invoice.number && ` (#${invoice.number})`}
+                <strong>{t("ledger.detail.invoiceSent")}:</strong> {formatDay(sentDay)}
               </p>
-              <p>
-                <strong>Sent:</strong> {new Date(invoice.sentAt).toLocaleDateString()}
-              </p>
-              {invoice.payerLink && (
-                <a
-                  href={invoice.payerLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="button button-primary"
-                  style={{ display: "inline-block", marginTop: "0.5rem" }}
-                >
-                  Open in PayPal ↗
-                </a>
-              )}
-            </div>
-          )}
-        </div>
+            )}
+            {isPayPalUrl(invoice.payerLink) && (
+              <a
+                href={invoice.payerLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="button button-primary debt-detail-paypal"
+              >
+                {t("ledger.detail.openPaypal")}
+              </a>
+            )}
+          </div>
+        )}
 
-        <div className="sheet-actions" style={{ marginTop: "1rem", display: "flex", gap: "0.5rem" }}>
+        <div className="debt-detail-actions">
           <button
             type="button"
-            className="button"
-            style={{ color: "var(--danger)" }}
+            className="button debt-detail-delete"
             onClick={() => {
               onDelete(debt);
               onClose();
@@ -142,12 +157,13 @@ function DebtDetailSheet({
           >
             {t("ledger.delete")}
           </button>
-          <button type="button" className="button" onClick={onClose} style={{ marginLeft: "auto" }}>
+          <button type="button" className="button" onClick={onClose}>
             {t("common.close")}
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -165,6 +181,7 @@ export default function LedgerScreen() {
   const [filter, setFilter] = useState<LedgerFilter>("all");
   const [selectedDebts, setSelectedDebts] = useState<Debt[]>([]);
   const [detailDebt, setDetailDebt] = useState<Debt | null>(null);
+  const gridRef = useRef<LedgerGridHandle>(null);
   const { counts, sen: totals, owedSen } = ledgerTotals(debts);
   const shown = filterByStatus(debts, filter);
   // Same list as Collect's "To send": customers with tabs not invoiced yet.
@@ -197,7 +214,7 @@ export default function LedgerScreen() {
     try {
       action();
     } catch (error) {
-      const message = error instanceof DebtStoreError ? error.message : t("common.tryAgain");
+      const message = error instanceof DebtStoreError ? t("ledger.saveFailed") : t("common.tryAgain");
       setNotice({ kind: "error", message });
       return false;
     }
@@ -227,9 +244,9 @@ export default function LedgerScreen() {
           <h1 className="page-title">{t("ledger.title")}</h1>
           <p className="page-intro">{t("ledger.intro")}</p>
         </div>
-        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+        <div className="ledger-head-actions">
           <Link href="/customers" className="button">
-            Customers
+            {t("ledger.customers")}
           </Link>
           {debts.length > 0 && (
             <button
@@ -240,7 +257,7 @@ export default function LedgerScreen() {
                 downloadCsv(csv, `buku-555-ledger-${new Date().toISOString().slice(0, 10)}.csv`);
               }}
             >
-              Export CSV
+              {t("ledger.exportCsv")}
             </button>
           )}
           <Link href="/add" className="button button-primary">
@@ -327,6 +344,7 @@ export default function LedgerScreen() {
           </div>
           <div className="ledger-cols">
             <LedgerGrid
+              ref={gridRef}
               rows={shown}
               onDelete={onDelete}
               onRowClick={(debt) => setDetailDebt(debt)}
@@ -364,32 +382,27 @@ export default function LedgerScreen() {
       )}
 
       {selectedDebts.length > 0 && (
-        <div className="ledger-bulk-bar" role="toolbar" aria-label="Bulk actions">
+        <div className="ledger-bulk-bar" role="toolbar" aria-label={t("ledger.bulk.label")}>
           <div className="ledger-bulk-info">
-            {selectedDebts.length} selected · RM {formatSen(selectedDebts.reduce((sum, d) => sum + d.amountSen, 0))}
+            {t("ledger.bulk.selected", {
+              count: selectedDebts.length,
+              amount: formatSen(selectedDebts.reduce((sum, d) => sum + d.amountSen, 0)),
+            })}
           </div>
           <div className="ledger-bulk-actions">
             <button
               type="button"
               className="ledger-bulk-btn ledger-bulk-btn-primary"
               onClick={() => {
-                const eligible = selectedDebts.filter((d) => d.status === "unpaid" || d.status === "overdue");
-                const excluded = selectedDebts.length - eligible.length;
-                if (eligible.length === 0) {
-                  setNotice({
-                    kind: "error",
-                    message: "Selected tabs are already paid or invoiced.",
-                  });
+                // Collect has its own picker; this only checks there's something left to invoice.
+                if (!selectedDebts.some((d) => d.status === "unpaid" || d.status === "overdue")) {
+                  setNotice({ kind: "error", message: t("ledger.bulk.nothingToInvoice") });
                   return;
                 }
-                if (excluded > 0) {
-                  router.push("/collect");
-                } else {
-                  router.push("/collect");
-                }
+                router.push("/collect");
               }}
             >
-              Invoice Selected
+              {t("ledger.bulk.goToCollect")}
             </button>
             <button
               type="button"
@@ -399,14 +412,17 @@ export default function LedgerScreen() {
                 downloadCsv(csv, `buku-555-selected-${new Date().toISOString().slice(0, 10)}.csv`);
               }}
             >
-              Export CSV
+              {t("ledger.exportCsv")}
             </button>
             <button
               type="button"
               className="ledger-bulk-btn"
-              onClick={() => setSelectedDebts([])}
+              onClick={() => {
+                gridRef.current?.clearSelection();
+                setSelectedDebts([]);
+              }}
             >
-              Clear
+              {t("ledger.bulk.clear")}
             </button>
           </div>
         </div>
