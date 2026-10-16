@@ -63,4 +63,12 @@ describe("resetDemoData", () => {
     };
     expect(resetDemoData(flaky)).toBe(false);
   });
+
+  it("clears scan draft keys from sessionStorage when provided", () => {
+    const local = memory({});
+    const session = memory({ "buku.scan.draft.photo.v1": "draft_data", "other.key": "keep_this" });
+    expect(resetDemoData(local, session)).toBe(true);
+    expect(session.data["buku.scan.draft.photo.v1"]).toBeUndefined();
+    expect(session.data["other.key"]).toBe("keep_this");
+  });
 });

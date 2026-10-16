@@ -10,13 +10,16 @@ import { EMAILS_KEY, INVOICES_KEY, PENDING_KEY } from "./collect-store";
 import { STORAGE_KEY as DEBTS_KEY } from "./debt-store";
 import { MOVES_KEY, RULES_KEY, SENT_KEY } from "./reminder-store";
 
-/** What a reset clears. Anything else on the device is left alone. */
+/** Scan draft keys stored in sessionStorage. */
+export const SCAN_DRAFT_KEYS = ["buku.scan.draft.photo.v1", "buku.scan.draft.camera.v1"] as const;
+
+/** What a reset clears from localStorage. Anything else on the device is left alone. */
 export const DEMO_KEYS = [DEBTS_KEY, INVOICES_KEY, PENDING_KEY, EMAILS_KEY, RULES_KEY, MOVES_KEY, SENT_KEY] as const;
 
 type StorageLike = Pick<Storage, "removeItem">;
 
 /** Clears the demo keys. Returns false if storage is missing or a removal failed (some may be cleared). */
-export function resetDemoData(storage: StorageLike | null): boolean {
+export function resetDemoData(storage: StorageLike | null, sessionStorage?: StorageLike | null): boolean {
   if (!storage) return false;
   let ok = true;
   for (const key of DEMO_KEYS) {
@@ -24,6 +27,15 @@ export function resetDemoData(storage: StorageLike | null): boolean {
       storage.removeItem(key);
     } catch {
       ok = false;
+    }
+  }
+  if (sessionStorage) {
+    for (const key of SCAN_DRAFT_KEYS) {
+      try {
+        sessionStorage.removeItem(key);
+      } catch {
+        // non-fatal
+      }
     }
   }
   return ok;

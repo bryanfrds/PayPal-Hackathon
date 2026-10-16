@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Debt } from "./debts";
-import { filterByStatus, ledgerTotals } from "./ledger";
+import { debtsToCsv, filterByStatus, ledgerTotals } from "./ledger";
 
 const d = (id: string, status: Debt["status"], amountSen: number): Debt => ({
   id,
@@ -34,5 +34,17 @@ describe("filterByStatus", () => {
     expect(filterByStatus(DEBTS, "all")).toHaveLength(5);
     expect(filterByStatus(DEBTS, "overdue").map((x) => x.id)).toEqual(["a", "b"]);
     expect(filterByStatus(DEBTS, "paid").map((x) => x.id)).toEqual(["e"]);
+  });
+});
+
+describe("debtsToCsv", () => {
+  it("generates csv with header and debt rows", () => {
+    const csv = debtsToCsv(DEBTS.slice(0, 2), { a: "INV2-123" });
+    const lines = csv.split("\r\n");
+    expect(lines[0]).toBe("Customer,Item,Amount (RM),Date,Status,Source,Invoice ID");
+    expect(lines[1]).toContain('"X"');
+    expect(lines[1]).toContain("10.00");
+    expect(lines[1]).toContain('"INV2-123"');
+    expect(lines[2]).toContain("5.00");
   });
 });

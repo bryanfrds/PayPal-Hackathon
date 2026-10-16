@@ -8,9 +8,10 @@ import { ReminderStoreError } from "@/lib/reminder-store";
 import { buildSchedule, earliestMoveDay, isDay, reminderMessage, type ScheduleItem } from "@/lib/reminders";
 import { isPayPalUrl } from "@/lib/customer-pay";
 import { invoicesToRemind } from "@/lib/payments";
+import { customerSlug } from "@/lib/customer-tab";
 import { remindByEmail } from "./remind-email";
 import { colourIndex, initials } from "@/lib/home";
-import { ChatIcon, MailIcon } from "../components/icons";
+import { ChatIcon, CheckIcon, MailIcon } from "../components/icons";
 import { palette } from "../components/palette";
 import { useCollect } from "../useCollect";
 import { useDebts } from "../useDebts";
@@ -97,6 +98,25 @@ export default function RemindersScreen() {
     return out;
   }, [reminders]);
   const upcoming = reminders.filter((i) => !i.dueNow && !i.sent).slice(0, 6);
+  const sentReminders = useMemo(() => items.filter((i) => i.kind === "reminder" && i.sent), [items]);
+  const paidCustomers = useMemo(() => {
+    const bySlug = new Map<string, { customerName: string; slug: string; totalPaidSen: number }>();
+    for (const d of debts) {
+      const slug = customerSlug(d.customerName);
+      if (!bySlug.has(slug)) {
+        bySlug.set(slug, { customerName: d.customerName, slug, totalPaidSen: 0 });
+      }
+      if (d.status === "paid") {
+        bySlug.get(slug)!.totalPaidSen += d.amountSen;
+      }
+    }
+    return Array.from(bySlug.values()).filter((c) => {
+      const remaining = debts.some(
+        (d) => customerSlug(d.customerName) === c.slug && (d.status === "unpaid" || d.status === "overdue"),
+      );
+      return !remaining && c.totalPaidSen > 0;
+    });
+  }, [debts]);
   const payLinks = useMemo(() => {
     const links = new Map<string, string>();
     for (const inv of invoices) if (inv.payerLink && isPayPalUrl(inv.payerLink) && !links.has(inv.slug)) links.set(inv.slug, inv.payerLink);
@@ -323,6 +343,60 @@ export default function RemindersScreen() {
                   label={t("reminders.moveLabel", { name: item.customer, label: item.label })}
                   onMove={(day) => onMove(item.id, day)}
                 />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {ready && (sentReminders.length > 0 || paidCustomers.length > 0) && (
+        <section className="card reminder-list" aria-labelledby="reminder-history">
+          <h2 id="reminder-history">Activity &amp; Delivery History</h2>
+          <ul>
+            {sentReminders.map((item) => (
+              <li key={`sent-${item.id}`} className="reminder-row" style={{ opacity: 0.9 }}>
+                <span className="reminder-when" style={{ color: "var(--success)" }}>
+                  <CheckIcon />
+                  <small>{dayText(sent[item.id] || item.day)}</small>
+                </span>
+                <span className="reminder-main">
+                  <span className="reminder-name">{item.customer}</span>
+                  <span className="reminder-meta">
+                    {item.label} · RM {formatSen(item.amountSen)} · Sent
+                  </span>
+                </span>
+                <span className="reminder-actions">
+                  <button
+                    type="button"
+                    className="button button-sm"
+                    onClick={() => undoSent(item)}
+                    title="Undo sent status"
+                  >
+                    Undo
+                  </button>
+                  <Link href={`/tab/${item.slug}`} className="button button-sm">
+                    View Tab ↗
+                  </Link>
+                </span>
+              </li>
+            ))}
+            {paidCustomers.slice(0, 5).map((c) => (
+              <li key={`paid-${c.slug}`} className="reminder-row" style={{ opacity: 0.75 }}>
+                <span className="reminder-when" style={{ color: "var(--success)" }}>
+                  <CheckIcon />
+                  <small>Paid</small>
+                </span>
+                <span className="reminder-main">
+                  <span className="reminder-name">{c.customerName}</span>
+                  <span className="reminder-meta">
+                    RM {formatSen(c.totalPaidSen)} received · Reminders cancelled (tab settled)
+                  </span>
+                </span>
+                <span className="reminder-actions">
+                  <Link href={`/tab/${c.slug}`} className="button button-sm">
+                    View Tab ↗
+                  </Link>
+                </span>
               </li>
             ))}
           </ul>

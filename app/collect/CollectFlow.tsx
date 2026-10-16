@@ -100,6 +100,7 @@ export default function CollectFlow() {
   const preview = pickPreview(groups, chosen, previewSlug);
   const previewGroup = preview?.group;
   const showPane = wide && tab === "toSend" && ready && groups.length > 0;
+  const unresolved = groups.filter((g) => !g.email);
 
   return (
     <div className={`collect collect-home${showPane ? " collect-wide" : ""}`}>
@@ -144,14 +145,47 @@ export default function CollectFlow() {
               <p>{t("collect.empty.body")}</p>
             </div>
           ) : (
-            <ul className="collect-list">
-              {groups.map((g) => (
-                <CustomerCard
-                  key={g.slug}
-                  group={g}
-                  on={Boolean(g.email) && !off.has(g.slug)}
-                  onToggle={(on) =>
-                    setOff((prev) => {
+            <>
+              {unresolved.length > 0 && (
+                <div
+                  className="notice notice-warning"
+                  style={{
+                    marginBottom: "0.85rem",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: "0.5rem",
+                  }}
+                >
+                  <div>
+                    <strong>{unresolved.length} customer{unresolved.length > 1 ? "s" : ""} missing email</strong>
+                    <p style={{ margin: "0.15rem 0 0", fontSize: "0.82rem" }}>
+                      Invoices cannot be sent until a valid PayPal email address is added.
+                    </p>
+                  </div>
+                  <div style={{ display: "flex", gap: "0.4rem", flexShrink: 0 }}>
+                    <Link href="/customers" className="button button-sm">
+                      Directory
+                    </Link>
+                    <button
+                      type="button"
+                      className="button button-sm button-primary"
+                      style={{ whiteSpace: "nowrap" }}
+                      onClick={() => setEmailFor(unresolved[0])}
+                    >
+                      Resolve next ✉
+                    </button>
+                  </div>
+                </div>
+              )}
+              <ul className="collect-list">
+                {groups.map((g) => (
+                  <CustomerCard
+                    key={g.slug}
+                    group={g}
+                    on={Boolean(g.email) && !off.has(g.slug)}
+                    onToggle={(on) =>
+                      setOff((prev) => {
                       const next = new Set(prev);
                       if (on) next.delete(g.slug);
                       else next.add(g.slug);
@@ -164,6 +198,7 @@ export default function CollectFlow() {
                 />
               ))}
             </ul>
+            </>
           )
         ) : tab === "sent" ? (
           invoices.length + olderSent.length === 0 ? (
@@ -583,6 +618,7 @@ function Paper({ group: g, label }: { group: CollectGroup; label: string }) {
 function Review({ groups, onBack, onSend }: { groups: CollectGroup[]; onBack: () => void; onSend: () => void }) {
   const { t } = useT();
   const [index, setIndex] = useState(0);
+  const [confirming, setConfirming] = useState(false);
   const railRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const total = groups.reduce((sum, g) => sum + g.totalSen, 0);
@@ -648,11 +684,40 @@ function Review({ groups, onBack, onSend }: { groups: CollectGroup[]; onBack: ()
           <small>{t("collect.invoicesNoCharge", { count: groups.length })}</small>
           <b>{rm(total)}</b>
         </p>
-        <button type="button" onClick={onSend}>
+        <button type="button" onClick={() => setConfirming(true)}>
           <SendIcon />
           {t("collect.review.sendAll")}
         </button>
       </div>
+
+      {confirming && (
+        <div className="sheet-layer" role="dialog" aria-modal="true" aria-labelledby="confirm-batch-title">
+          <div className="sheet-dim" onClick={() => setConfirming(false)} aria-hidden="true" />
+          <div className="sheet" style={{ maxWidth: "480px" }}>
+            <h2 id="confirm-batch-title" style={{ margin: "0 0 0.5rem", fontSize: "1.2rem", fontWeight: 800 }}>
+              Send {groups.length} PayPal Invoice{groups.length > 1 ? "s" : ""}?
+            </h2>
+            <p style={{ margin: "0 0 1.25rem", fontSize: "0.9rem", color: "var(--ink-muted)", lineHeight: 1.5 }}>
+              You are about to send official PayPal invoices totaling <strong>{rm(total)}</strong> to {groups.length} customer{groups.length > 1 ? "s" : ""}. Each customer will receive an itemized invoice email with a link to pay securely.
+            </p>
+            <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
+              <button type="button" className="button" onClick={() => setConfirming(false)}>
+                {t("common.cancel")}
+              </button>
+              <button
+                type="button"
+                className="button button-primary"
+                onClick={() => {
+                  setConfirming(false);
+                  onSend();
+                }}
+              >
+                Confirm &amp; Send
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -662,7 +727,7 @@ function Review({ groups, onBack, onSend }: { groups: CollectGroup[]; onBack: ()
 type Saved = { id: string; number?: string; payerLink?: string };
 type Result =
   | { state: "waiting" | "sending" }
-  | { state: "sent"; id: string; number?: string }
+  | { state: "sent"; id: string; number?: string; payerLink?: string }
   | { state: "saveFailed"; saved: Saved; request: PendingSend }
   | { state: "failed"; message: string };
 
@@ -724,7 +789,7 @@ function Send({ groups, onDone }: { groups: CollectGroup[]; onDone: () => void }
       setResults((prev) => ({ ...prev, [g.slug]: { state: "saveFailed", saved, request } }));
       return;
     }
-    setResults((prev) => ({ ...prev, [g.slug]: { state: "sent", id: saved.id, number: saved.number } }));
+    setResults((prev) => ({ ...prev, [g.slug]: { state: "sent", id: saved.id, number: saved.number, payerLink: saved.payerLink } }));
   }
 
   async function sendOne(g: CollectGroup) {
@@ -857,7 +922,20 @@ function Send({ groups, onDone }: { groups: CollectGroup[]; onDone: () => void }
                 {t("collect.send.retry")}
               </button>
             ) : (
-              <span className="tab-amt">{rm(g.totalSen)}</span>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.2rem" }}>
+                <span className="tab-amt">{rm(g.totalSen)}</span>
+                {r.state === "sent" && r.payerLink && (
+                  <a
+                    href={r.payerLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="link-button"
+                    style={{ fontSize: "0.78rem" }}
+                  >
+                    Open in PayPal ↗
+                  </a>
+                )}
+              </div>
             )}
           </li>
         ))}

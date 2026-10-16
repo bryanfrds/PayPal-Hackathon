@@ -86,24 +86,44 @@ function buildColumnDefs(mode: LayoutMode, t: T): ColDef<LedgerRow>[] {
   const phone = mode === "phone";
   const label = (status: DebtStatus) => t(`status.${status}`);
   return [
-    { field: "customerName", headerName: t("ledger.colName"), flex: 1.2, minWidth: phone ? 100 : 120 },
+    {
+      colId: "selection",
+      headerName: "",
+      width: 38,
+      minWidth: 38,
+      maxWidth: 38,
+      checkboxSelection: (p) => !p.node.isRowPinned(),
+      headerCheckboxSelection: true,
+      headerCheckboxSelectionFilteredOnly: true,
+      sortable: false,
+      filter: false,
+      resizable: false,
+    },
+    { field: "customerName", headerName: t("ledger.colName"), flex: 1.2, minWidth: phone ? 90 : 120 },
     { field: "item", headerName: t("ledger.colItem"), flex: 2, minWidth: 150, hide: phone },
     {
       field: "amountSen",
       headerName: mode === "desktop" ? t("ledger.colAmount") : "RM",
       flex: 1,
-      minWidth: phone ? 80 : 130,
+      minWidth: phone ? 75 : 130,
       type: "rightAligned",
       // Right-aligned headers put the filter button before the label, where it looks like an empty column.
       suppressHeaderFilterButton: true,
       valueFormatter: (p) => (p.value == null ? "" : formatSen(Number(p.value))),
     },
-    { field: "date", headerName: t("ledger.colDate"), flex: 1, minWidth: 110, hide: mode !== "desktop" },
+    {
+      field: "date",
+      headerName: t("ledger.colDate"),
+      flex: 1,
+      minWidth: 110,
+      hide: mode !== "desktop",
+      getQuickFilterText: (p) => p.data?.date ?? "",
+    },
     {
       field: "status",
       headerName: t("ledger.colStatus"),
       flex: 1,
-      minWidth: phone ? 112 : 120,
+      minWidth: phone ? 100 : 120,
       cellRenderer: StatusCell,
       // Search and filter by the words on the badge ("Invoice sent"), not the stored value ("sent").
       getQuickFilterText: (p) => (p.value ? label(p.value as DebtStatus) : ""),
@@ -115,9 +135,9 @@ function buildColumnDefs(mode: LayoutMode, t: T): ColDef<LedgerRow>[] {
     {
       colId: "delete",
       headerName: "",
-      width: 44,
-      minWidth: 44,
-      maxWidth: 44,
+      width: 38,
+      minWidth: 38,
+      maxWidth: 38,
       sortable: false,
       filter: false,
       resizable: false,
@@ -169,7 +189,17 @@ function useLayoutMode(ref: React.RefObject<HTMLElement | null>): LayoutMode {
   return mode;
 }
 
-export default function LedgerGrid({ rows, onDelete }: { rows: Debt[]; onDelete: (debt: Debt) => void }) {
+export default function LedgerGrid({
+  rows,
+  onDelete,
+  onRowClick,
+  onSelectionChange,
+}: {
+  rows: Debt[];
+  onDelete: (debt: Debt) => void;
+  onRowClick?: (debt: Debt) => void;
+  onSelectionChange?: (selected: Debt[]) => void;
+}) {
   const { t, lang } = useT();
   const [quickFilter, setQuickFilter] = useState("");
   const dark = useResolvedTheme() === "dark";
@@ -264,6 +294,20 @@ export default function LedgerGrid({ rows, onDelete }: { rows: Debt[]; onDelete:
           headerHeight={HEADER_HEIGHT}
           getRowId={(params) => params.data.id}
           context={gridContext}
+          rowSelection="multiple"
+          onSelectionChanged={(event) => {
+            const selected = event.api.getSelectedRows();
+            onSelectionChange?.(selected);
+          }}
+          onRowClicked={(event) => {
+            const target = event.event?.target as HTMLElement | null;
+            if (target?.closest(".row-delete") || target?.closest(".ag-selection-checkbox") || target?.closest(".ag-checkbox-input")) {
+              return;
+            }
+            if (event.data && !event.node.isRowPinned() && event.data.id !== "OUTSTANDING") {
+              onRowClick?.(event.data);
+            }
+          }}
         />
       </div>
     </div>
