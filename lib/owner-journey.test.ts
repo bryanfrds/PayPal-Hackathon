@@ -1,14 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { collectGroups, isInvoiceable, isValidEmail, sendRequest, type CollectGroup } from "./collect";
-import { createCollectStore, type InvoiceRecord } from "./collect-store";
-import { createDebtStore, newDebtId } from "./debt-store";
+import { collectGroups, isValidEmail, sendRequest, type CollectGroup } from "./collect";
+import { createDebtStore } from "./debt-store";
 import { DEMO_KEYS, SCAN_DRAFT_KEYS, resetDemoData } from "./demo-reset";
-import { SCAN_MODES, parseScanDraft, scanDraftKey } from "./scan";
-import { ledgerTotals, debtsToCsv, filterByStatus } from "./ledger";
+import { SCAN_MODES, linesToDebts, parseScanDraft, sampleRead, scanDraftKey } from "./scan";
+import { ledgerTotals, debtsToCsv } from "./ledger";
 import { DEFAULT_RULES, RULE_LIMITS, buildSchedule, normaliseRules, type ReminderRules } from "./reminders";
 import { customerSlug } from "./customer-tab";
-import { createManualDebt, formatSen, type Debt } from "./debts";
-import { isAllowedOwner, safeNext } from "./auth";
+import { formatSen, type Debt } from "./debts";
+import { safeNext } from "./auth";
 
 function memoryStorage(initial: Record<string, string> = {}) {
   const data = { ...initial };
@@ -27,72 +26,66 @@ function memoryStorage(initial: Record<string, string> = {}) {
 describe("Person 3: End-to-End Owner Journeys", () => {
   // Journey 1: Upload Failure and Retry
   describe("Journey 1: Upload failure, retry, and draft persistence", () => {
-    it("persists scan drafts without duplicating entries upon retry", () => {
-      const storage = memoryStorage();
-      const draftLines = [
-        { customerName: "Ah Chong", item: "Beras 5kg", amountSen: 3200, unsure: false },
-        { customerName: "Kak Minah", item: "Gula 2kg", amountSen: 700, unsure: true },
-      ];
+    it("restores the check screen's draft and saves each line once, even after a failed save", () => {
+      const today = "2026-10-16";
+      const session = memoryStorage();
+      const lines = sampleRead("notebook", today);
+      // The check screen keeps its lines under the same key the demo reset clears.
+      session.setItem(scanDraftKey("notebook"), JSON.stringify(lines));
+      const restored = parseScanDraft(session.getItem(scanDraftKey("notebook")));
+      expect(restored).toEqual(lines);
 
-      // Simulate saving draft in sessionStorage before confirmation
-      storage.setItem(SCAN_DRAFT_KEYS[0], JSON.stringify(draftLines));
+      // A save that fails leaves nothing behind; the retry saves every ticked line exactly once.
+      const failing = {
+        getItem: () => null,
+        setItem: () => {
+          throw new Error("quota");
+        },
+      };
+      const store = createDebtStore(failing, []);
+      let n = 0;
+      const result = linesToDebts(restored!, today, { newId: () => `scan-${++n}`, now: new Date("2026-10-16T09:00:00Z") });
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(() => store.addMany(result.debts)).toThrow();
 
-      // Retrieve draft after a simulated network retry
-      const raw = storage.getItem(SCAN_DRAFT_KEYS[0]);
-      expect(raw).not.toBeNull();
-      const recovered = JSON.parse(raw!);
-      expect(recovered).toHaveLength(2);
-      expect(recovered[1].unsure).toBe(true);
+      const working = createDebtStore(memoryStorage(), []);
+      working.addMany(result.debts);
+      expect(() => working.addMany(result.debts)).toThrow(); // same ids: no duplicates on a second tap
+      expect(working.list()).toHaveLength(lines.filter((l) => l.include).length);
+      expect(working.list().every((d) => d.source === "scan")).toBe(true);
+    });
 
-      // Confirm lines and convert to debts
-      const debts: Debt[] = recovered.map((line: typeof draftLines[0], index: number) => ({
-        id: `scan-${index}`,
-        customerName: line.customerName,
-        item: line.item,
-        amountSen: line.amountSen,
-        date: "2026-10-16",
-        status: "unpaid",
-        source: "scan",
-        createdAt: new Date().toISOString(),
-      }));
-
-      expect(debts).toHaveLength(2);
-      expect(debts[0].customerName).toBe("Ah Chong");
-      expect(debts[0].source).toBe("scan");
+    it("drops a draft that isn't the check screen's shape", () => {
+      expect(parseScanDraft(JSON.stringify([{ customerName: "Ah Chong", amountSen: 3200 }]))).toBeNull();
+      expect(parseScanDraft("not json")).toBeNull();
+      expect(parseScanDraft("[]")).toBeNull();
     });
   });
 
   // Journey 2: Correct an Uncertain Amount
   describe("Journey 2: Correct an uncertain amount", () => {
-    it("identifies ambiguous lines, corrects them, and preserves source metadata", () => {
-      const uncertainLine = {
-        customerName: "Muthu",
-        item: "Telur 1 papan",
-        amountSen: 1650,
-        unsure: true,
-      };
+    it("holds back the unsure line until the owner corrects and ticks it", () => {
+      const today = "2026-10-16";
+      const lines = sampleRead("notebook", today);
+      const unsure = lines.find((l) => l.unsure);
+      expect(unsure).toBeDefined();
+      expect(unsure!.include).toBe(false);
 
-      expect(uncertainLine.unsure).toBe(true);
+      // The owner corrects the amount and ticks it: the flag clears and it's saved.
+      const corrected = lines.map((l) => (l.key === unsure!.key ? { ...l, amount: "18.50", include: true, unsure: undefined } : l));
+      let n = 0;
+      const result = linesToDebts(corrected, today, { newId: () => `d${++n}`, now: new Date() });
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      const fixed = result.debts.find((d) => d.customerName === unsure!.customerName);
+      expect(fixed?.amountSen).toBe(1850);
+      expect(formatSen(fixed!.amountSen)).toBe("18.50");
 
-      // Owner corrects amount from 1650 to 1800 sen (RM 18.00)
-      const corrected = {
-        ...uncertainLine,
-        amountSen: 1800,
-        unsure: false,
-      };
-
-      const debt = createManualDebt(
-        {
-          customerName: corrected.customerName,
-          item: corrected.item,
-          amountSen: corrected.amountSen,
-          date: "2026-10-16",
-        },
-        { id: "debt-corr-1", now: new Date() }
-      );
-
-      expect(debt.amountSen).toBe(1800);
-      expect(formatSen(debt.amountSen)).toBe("18.00");
+      // A bad correction is refused with the line's errors, not saved.
+      const bad = corrected.map((l) => (l.key === unsure!.key ? { ...l, amount: "abc" } : l));
+      const refused = linesToDebts(bad, today, { newId: () => "x", now: new Date() });
+      expect(refused.ok).toBe(false);
     });
   });
 
