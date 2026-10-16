@@ -7386,3 +7386,362 @@ dd.debt-detail-value {
   background: var(--on-ink);
   color: var(--ink);
 }
+
+/* ---------- Customers (PR #37 review fixes) ---------- */
+
+/* Customers screen (app/customers/CustomersScreen.tsx). Tokens only, so dark mode follows. */
+.customers-page {
+  display: grid;
+  gap: 0;
+}
+
+.button-sm {
+  min-height: 2.25rem;
+  padding: 0 0.85rem;
+  font-size: 0.85rem;
+  border-radius: 12px;
+  gap: 0.3rem;
+}
+
+.button-sm .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.avatar-md {
+  width: 46px;
+  height: 46px;
+  font-size: 0.9rem;
+}
+
+.cust-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.cust-back .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.cust-add {
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+
+.cust-add .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.cust-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  padding: 1rem;
+  text-align: center;
+}
+
+.cust-metric-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.cust-metric-value {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.cust-metric-good {
+  color: var(--paid);
+}
+
+.cust-metric-warn {
+  color: var(--unpaid);
+}
+
+.cust-metric-quiet {
+  color: var(--muted);
+}
+
+.cust-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-bottom: 1.25rem;
+  color: var(--ink);
+}
+
+.cust-tools {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.cust-search {
+  position: relative;
+}
+
+.cust-search input {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.8rem 0.5rem 2.4rem;
+  font: inherit;
+  font-size: 1rem; /* 16px stops iOS zooming into the field */
+  color: var(--ink);
+  background: var(--card);
+  border: 1.5px solid var(--field-line);
+  border-radius: 12px;
+}
+
+.cust-search input::placeholder {
+  color: var(--muted);
+}
+
+.cust-search input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.cust-search-icon {
+  position: absolute;
+  top: 50%;
+  left: 0.75rem;
+  display: grid;
+  color: var(--muted);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.cust-search-icon .icon {
+  width: 18px;
+  height: 18px;
+}
+
+/* The ledger's filter chips, laid out the same way on this page. */
+.customers-page .ledger-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.ledger-chips button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.cust-muted {
+  color: var(--muted);
+}
+
+.cust-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.cust-card {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.cust-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.cust-who {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.cust-card h2.cust-name {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.cust-card h2.cust-name a {
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.cust-card h2.cust-name a:hover,
+.cust-card h2.cust-name a:focus-visible {
+  text-decoration: underline;
+}
+
+.cust-meta {
+  margin-top: 0.2rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.cust-owed {
+  display: grid;
+  justify-items: end;
+  gap: 0.2rem;
+  text-align: right;
+  flex: none;
+}
+
+.cust-owed-amount {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.cust-owed-paid {
+  color: var(--paid);
+}
+
+.cust-overdue {
+  font-size: 0.75rem;
+}
+
+.cust-email {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  color: var(--ink);
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.cust-email-missing {
+  background: var(--unpaid-bg);
+  border-color: transparent;
+}
+
+.cust-email-text {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.cust-email-text .icon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+
+.cust-email-text code {
+  font-size: 0.85rem;
+}
+
+.cust-email-warn {
+  font-weight: 600;
+  color: var(--unpaid);
+}
+
+.cust-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+/* Add customer and Edit email sheets: the shared .sheet look, scrollable when tall. */
+.cust-sheet {
+  max-height: 92dvh;
+  overflow-y: auto;
+  color: var(--ink);
+}
+
+.cust-sheet-title {
+  margin: 0 3rem 0.4rem 0;
+  font-size: 1.2rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.cust-sheet-intro {
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.cust-sheet .field {
+  margin-bottom: 0.75rem;
+}
+
+.cust-sheet .field input {
+  width: 100%;
+}
+
+.cust-sheet .sheet-chips {
+  margin: 0.25rem 0 0.25rem;
+}
+
+.cust-debt-box {
+  margin-bottom: 1.25rem;
+  padding: 0.75rem;
+  border: 1.5px dashed var(--line);
+  border-radius: 12px;
+}
+
+.cust-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cust-check input {
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: var(--accent);
+}
+
+.cust-debt-fields {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.cust-debt-fields .field {
+  margin-bottom: 0;
+}
+
+@media (max-width: 400px) {
+  .cust-debt-fields {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cust-conflict {
+  color: var(--ink);
+}
+
+.cust-sheet-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
