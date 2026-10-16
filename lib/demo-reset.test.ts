@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createDebtStore } from "./debt-store";
 import { DEMO_KEYS, resetDemoData } from "./demo-reset";
+import { SCAN_MODES, scanDraftKey } from "./scan";
 import { PREFS_KEY } from "./preferences";
 import type { Debt } from "./debts";
 
@@ -64,11 +65,14 @@ describe("resetDemoData", () => {
     expect(resetDemoData(flaky)).toBe(false);
   });
 
-  it("clears scan draft keys from sessionStorage when provided", () => {
+  it("clears the scan drafts ScanFlow saves, for every scan mode", () => {
     const local = memory({});
-    const session = memory({ "buku.scan.draft.photo.v1": "draft_data", "other.key": "keep_this" });
+    // The keys the check screen actually writes: scanDraftKey(mode) for each mode.
+    const drafts = Object.fromEntries(SCAN_MODES.map((m) => [scanDraftKey(m), "draft_data"]));
+    expect(Object.keys(drafts)).toEqual(["buku.scan.draft.notebook.v1", "buku.scan.draft.receipt.v1"]);
+    const session = memory({ ...drafts, "other.key": "keep_this" });
     expect(resetDemoData(local, session)).toBe(true);
-    expect(session.data["buku.scan.draft.photo.v1"]).toBeUndefined();
+    for (const m of SCAN_MODES) expect(session.data[scanDraftKey(m)]).toBeUndefined();
     expect(session.data["other.key"]).toBe("keep_this");
   });
 });

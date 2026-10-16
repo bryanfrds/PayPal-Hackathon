@@ -9,9 +9,10 @@
 import { EMAILS_KEY, INVOICES_KEY, PENDING_KEY } from "./collect-store";
 import { STORAGE_KEY as DEBTS_KEY } from "./debt-store";
 import { MOVES_KEY, RULES_KEY, SENT_KEY } from "./reminder-store";
+import { SCAN_DRAFT_KEYS } from "./scan";
 
-/** Scan draft keys stored in sessionStorage. */
-export const SCAN_DRAFT_KEYS = ["buku.scan.draft.photo.v1", "buku.scan.draft.camera.v1"] as const;
+/** Scan draft keys stored in sessionStorage: the same helper ScanFlow saves with. */
+export { SCAN_DRAFT_KEYS };
 
 /** What a reset clears from localStorage. Anything else on the device is left alone. */
 export const DEMO_KEYS = [DEBTS_KEY, INVOICES_KEY, PENDING_KEY, EMAILS_KEY, RULES_KEY, MOVES_KEY, SENT_KEY] as const;

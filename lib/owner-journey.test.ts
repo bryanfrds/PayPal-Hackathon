@@ -3,6 +3,7 @@ import { collectGroups, isInvoiceable, isValidEmail, sendRequest, type CollectGr
 import { createCollectStore, type InvoiceRecord } from "./collect-store";
 import { createDebtStore, newDebtId } from "./debt-store";
 import { DEMO_KEYS, SCAN_DRAFT_KEYS, resetDemoData } from "./demo-reset";
+import { SCAN_MODES, parseScanDraft, scanDraftKey } from "./scan";
 import { ledgerTotals, debtsToCsv, filterByStatus } from "./ledger";
 import { DEFAULT_RULES, RULE_LIMITS, buildSchedule, normaliseRules, type ReminderRules } from "./reminders";
 import { customerSlug } from "./customer-tab";
@@ -260,10 +261,9 @@ describe("Person 3: End-to-End Owner Journeys", () => {
 
     it("resets all persistent stores and session draft persistence", () => {
       const local = memoryStorage(Object.fromEntries(DEMO_KEYS.map((k) => [k, "value"])));
-      const session = memoryStorage({
-        [SCAN_DRAFT_KEYS[0]]: "draft",
-        [SCAN_DRAFT_KEYS[1]]: "draft",
-      });
+      // Exactly the keys ScanFlow writes (scanDraftKey per mode), so a mismatch would fail here.
+      const session = memoryStorage(Object.fromEntries(SCAN_MODES.map((m) => [scanDraftKey(m), "draft"])));
+      expect(SCAN_DRAFT_KEYS).toEqual(SCAN_MODES.map(scanDraftKey));
 
       const resetOk = resetDemoData(local, session);
       expect(resetOk).toBe(true);

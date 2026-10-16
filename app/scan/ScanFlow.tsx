@@ -17,6 +17,7 @@ import {
   sampleRead,
   type ScanLine,
   type ScanMode,
+  scanDraftKey,
 } from "@/lib/scan";
 import { BackIcon, BoltIcon, CheckIcon, CloseIcon, ImageIcon, NoteIcon, ReceiptIcon } from "../components/icons";
 import { useDebts } from "../useDebts";
@@ -404,7 +405,7 @@ function Check({ mode, photo, onRetake }: { mode: ScanMode; photo: string | null
   // After a refused save: the line whose first bad field gets focus once it's open.
   const [focusLine, setFocusLine] = useState<{ key: string; n: number } | null>(null);
   const [today] = useState(() => todayLocal());
-  const draftKey = `buku.scan.draft.${mode}.v1`;
+  const draftKey = scanDraftKey(mode);
   const [lines, setLines] = useState<ScanLine[]>(() => {
     if (typeof window !== "undefined") {
       try {
