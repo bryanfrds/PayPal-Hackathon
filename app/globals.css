@@ -1758,46 +1758,69 @@ a.tab-back:focus-visible,
   font-size: 0.82rem;
 }
 
-/* Scan side-by-side inspect and photo modal */
+/* ---------- Scan check, Collect and Reminders history (PR #37 review fixes) ---------- */
+
+/* (A) Scan side-by-side inspect and photo viewer.
+   The side photo shows from the app's laptop width (1024px, same as useIsWide), and the
+   two-column grid only applies when there is a photo, so no empty column at 900-1023px. */
 .scan-check-split {
   display: block;
 }
 
-@media (min-width: 900px) {
-  .scan-check-split {
+.scan-photo-inspect {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .scan-check-split-photo {
     display: grid;
-    grid-template-columns: 360px 1fr;
+    grid-template-columns: 360px minmax(0, 1fr);
     gap: 1.5rem;
     align-items: start;
   }
 
   .scan-photo-inspect {
+    display: block;
     position: sticky;
     top: 1.5rem;
     background: var(--card);
     border-radius: var(--radius);
     padding: 1rem;
-    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--shadow);
   }
 
   .scan-photo-inspect img {
+    display: block;
     width: 100%;
     max-height: 60vh;
     object-fit: contain;
     border-radius: 8px;
-    background: #111;
+    background: var(--hero);
   }
 }
 
+.scan-photo-inspect-title {
+  margin: 0 0 0.5rem;
+  font-weight: 700;
+}
+
+.scan-photo-expand {
+  display: block;
+  margin-top: 0.5rem;
+}
+
+/* The full-screen viewer: a dark surface in both themes (like the hero cards), so the
+   photo reads the same; white text and translucent white edges are on purpose. */
 .scan-photo-modal {
   position: fixed;
   inset: 1rem;
   z-index: 35;
-  background: rgba(18, 18, 18, 0.95);
-  border-radius: 20px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  color: #ffffff;
+  background: var(--hero);
+  border-radius: 20px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
 }
 
@@ -1816,6 +1839,19 @@ a.tab-back:focus-visible,
   gap: 0.6rem;
 }
 
+.scan-photo-zoom {
+  min-width: 3.2em;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Sits in the header row rather than floating in the corner like other sheets. */
+.scan-photo-modal .sheet-close {
+  position: static;
+}
+
 .scan-photo-modal-body {
   flex: 1;
   overflow: auto;
@@ -1831,8 +1867,18 @@ a.tab-back:focus-visible,
   max-height: 100%;
   object-fit: contain;
   user-select: none;
+  transform-origin: center center;
+  transition: transform 0.15s ease;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .scan-photo-modal-body img {
+    transition: none;
+  }
+}
+
+/* (B) "Not sure" note under a scanned line: the same amber as the Not sent badge, from tokens,
+   so dark mode follows on its own. */
 .scan-unsure-banner {
   display: flex;
   align-items: center;
@@ -1840,12 +1886,88 @@ a.tab-back:focus-visible,
   gap: 0.5rem;
   margin-top: 0.4rem;
   padding: 0.4rem 0.6rem;
-  background: #fdf5e6;
-  border: 1px solid #e8cb9b;
+  color: var(--unpaid);
+  background: var(--unpaid-bg);
+  border: 1px solid color-mix(in srgb, var(--unpaid) 35%, transparent);
   border-radius: 8px;
   font-size: 0.8rem;
-  color: #7a4d05;
   font-weight: 600;
+}
+
+/* ---- NEW rules below (nothing to replace) ---- */
+
+/* Scan check: View photo + Retake beside the thumbnail. */
+.scan-thumb-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+/* Collect: customers with no email, above the To send list. */
+.collect-missing {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.85rem;
+}
+
+.collect-missing-body {
+  margin: 0.15rem 0 0;
+  font-size: 0.82rem;
+}
+
+.collect-missing-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 0.4rem;
+}
+
+.collect-missing-actions .button {
+  white-space: nowrap;
+}
+
+/* Collect Review: "Send N PayPal invoices?" confirm sheet. */
+.collect-confirm {
+  max-width: 480px;
+}
+
+.collect-confirm-title {
+  margin: 0 0 0.5rem;
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+
+.collect-confirm-body {
+  margin: 0 0 1.25rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.collect-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+/* Collect Send: amount with the PayPal link under it. */
+.send-row-end {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.2rem;
+}
+
+.send-paypal-link {
+  font-size: 0.78rem;
+}
+
+/* Reminders history: the tick and day of a reminder already sent, or a settled tab. */
+.reminder-when-done {
+  color: var(--paid);
 }
 
 .scan-who {

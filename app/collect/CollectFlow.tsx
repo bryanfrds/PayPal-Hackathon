@@ -17,6 +17,7 @@ import {
   type PendingSend,
 } from "@/lib/collect";
 import { CollectStoreError } from "@/lib/collect-store";
+import { isPayPalUrl } from "@/lib/customer-pay";
 import { customerSlug, tabPath } from "@/lib/customer-tab";
 import { DebtStoreError } from "@/lib/debt-store";
 import { formatSen } from "@/lib/debts";
@@ -26,6 +27,7 @@ import { invoiceView, type InvoiceView } from "@/lib/payments";
 import Avatar from "../components/Avatar";
 import StatusBadge from "../components/StatusBadge";
 import { BackIcon, CheckIcon, ChevronIcon, CloseIcon, MailIcon, PlusIcon, SendIcon } from "../components/icons";
+import { useDialog } from "../components/useDialog";
 import { useCollect } from "../useCollect";
 import { useIsWide } from "../useIsWide";
 import { useShop } from "../useShop";
@@ -147,33 +149,22 @@ export default function CollectFlow() {
           ) : (
             <>
               {unresolved.length > 0 && (
-                <div
-                  className="notice notice-warning"
-                  style={{
-                    marginBottom: "0.85rem",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: "0.5rem",
-                  }}
-                >
+                <div className="notice notice-warning collect-missing">
                   <div>
-                    <strong>{unresolved.length} customer{unresolved.length > 1 ? "s" : ""} missing email</strong>
-                    <p style={{ margin: "0.15rem 0 0", fontSize: "0.82rem" }}>
-                      Invoices cannot be sent until a valid PayPal email address is added.
-                    </p>
+                    <strong>{t("collect.missingEmail.title", { count: unresolved.length })}</strong>
+                    <p className="collect-missing-body">{t("collect.missingEmail.body")}</p>
                   </div>
-                  <div style={{ display: "flex", gap: "0.4rem", flexShrink: 0 }}>
+                  <div className="collect-missing-actions">
                     <Link href="/customers" className="button button-sm">
-                      Directory
+                      {t("collect.missingEmail.directory")}
                     </Link>
                     <button
                       type="button"
                       className="button button-sm button-primary"
-                      style={{ whiteSpace: "nowrap" }}
+                      aria-label={t("collect.missingEmail.nextLabel", { name: unresolved[0].customerName })}
                       onClick={() => setEmailFor(unresolved[0])}
                     >
-                      Resolve next ✉
+                      {t("collect.missingEmail.next")}
                     </button>
                   </div>
                 </div>
@@ -691,33 +682,50 @@ function Review({ groups, onBack, onSend }: { groups: CollectGroup[]; onBack: ()
       </div>
 
       {confirming && (
-        <div className="sheet-layer" role="dialog" aria-modal="true" aria-labelledby="confirm-batch-title">
-          <div className="sheet-dim" onClick={() => setConfirming(false)} aria-hidden="true" />
-          <div className="sheet" style={{ maxWidth: "480px" }}>
-            <h2 id="confirm-batch-title" style={{ margin: "0 0 0.5rem", fontSize: "1.2rem", fontWeight: 800 }}>
-              Send {groups.length} PayPal Invoice{groups.length > 1 ? "s" : ""}?
-            </h2>
-            <p style={{ margin: "0 0 1.25rem", fontSize: "0.9rem", color: "var(--ink-muted)", lineHeight: 1.5 }}>
-              You are about to send official PayPal invoices totaling <strong>{rm(total)}</strong> to {groups.length} customer{groups.length > 1 ? "s" : ""}. Each customer will receive an itemized invoice email with a link to pay securely.
-            </p>
-            <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
-              <button type="button" className="button" onClick={() => setConfirming(false)}>
-                {t("common.cancel")}
-              </button>
-              <button
-                type="button"
-                className="button button-primary"
-                onClick={() => {
-                  setConfirming(false);
-                  onSend();
-                }}
-              >
-                Confirm &amp; Send
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmSend
+          count={groups.length}
+          total={total}
+          onCancel={() => setConfirming(false)}
+          onConfirm={() => {
+            setConfirming(false);
+            onSend();
+          }}
+        />
       )}
+    </div>
+  );
+}
+
+/** "Send these invoices?" before Review sends the batch. Focus starts on Cancel. */
+function ConfirmSend({ count, total, onCancel, onConfirm }: { count: number; total: number; onCancel: () => void; onConfirm: () => void }) {
+  const { t } = useT();
+  const ref = useDialog<HTMLDivElement>(onCancel);
+  return (
+    <div className="sheet-layer">
+      <div className="sheet-dim" onClick={onCancel} aria-hidden="true" />
+      <div
+        className="sheet collect-confirm"
+        ref={ref}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-batch-title"
+        aria-describedby="confirm-batch-body"
+      >
+        <h2 id="confirm-batch-title" className="collect-confirm-title">
+          {t("collect.confirm.title", { count })}
+        </h2>
+        <p id="confirm-batch-body" className="collect-confirm-body">
+          {t("collect.confirm.body", { count, amount: rm(total) })}
+        </p>
+        <div className="collect-confirm-actions">
+          <button type="button" className="button" onClick={onCancel}>
+            {t("common.cancel")}
+          </button>
+          <button type="button" className="button button-primary" onClick={onConfirm}>
+            {t("collect.confirm.send")}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -922,17 +930,17 @@ function Send({ groups, onDone }: { groups: CollectGroup[]; onDone: () => void }
                 {t("collect.send.retry")}
               </button>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.2rem" }}>
+              <div className="send-row-end">
                 <span className="tab-amt">{rm(g.totalSen)}</span>
-                {r.state === "sent" && r.payerLink && (
+                {r.state === "sent" && isPayPalUrl(r.payerLink) && (
                   <a
                     href={r.payerLink}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="link-button"
-                    style={{ fontSize: "0.78rem" }}
+                    className="link-button send-paypal-link"
+                    aria-label={t("collect.send.openPayPalLabel", { name: g.customerName })}
                   >
-                    Open in PayPal ↗
+                    {t("collect.send.openPayPal")}
                   </a>
                 )}
               </div>
