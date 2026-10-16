@@ -7,7 +7,7 @@
 
 import type { InvoiceRecord } from "./collect-store";
 import { customerSlug, dueDateFor } from "./customer-tab";
-import { todayLocal, type Debt } from "./debts";
+import { outstanding, todayLocal, type Debt } from "./debts";
 import { translator, type T, type TKey } from "./i18n";
 
 export type ReminderRules = {
@@ -258,4 +258,42 @@ export function earliestMoveDay(items: ScheduleItem[], item: ScheduleItem, today
   const before = items.find((i) => i.kind === "reminder" && i.slug === item.slug && i.n === item.n - 1);
   const afterBefore = before ? addDays(before.day, 1) : today;
   return afterBefore > today ? afterBefore : today;
+}
+
+export type SettledCustomer = {
+  customerName: string;
+  slug: string;
+  totalPaidSen: number;
+  /** When they last paid, as best this device knows (YYYY-MM-DD or an ISO time). */
+  lastPaid: string;
+};
+
+/**
+ * Customers whose whole tab is paid, so their reminders have stopped, most recently paid first.
+ * Anything not "paid" still counts as owed: unpaid, overdue, and "sent" (invoiced but not paid).
+ * "When they paid" is the latest PayPal check that saw a paid invoice for their debts, or else
+ * the latest date among their paid debts (the device keeps no separate payment date).
+ */
+export function settledCustomers(debts: Debt[], invoices: InvoiceRecord[] = []): SettledCustomer[] {
+  const bySlug = new Map<string, Debt[]>();
+  for (const d of debts) {
+    const slug = customerSlug(d.customerName);
+    const list = bySlug.get(slug);
+    if (list) list.push(d);
+    else bySlug.set(slug, [d]);
+  }
+  const out: SettledCustomer[] = [];
+  for (const [slug, mine] of bySlug) {
+    if (outstanding(mine).count > 0) continue;
+    const paid = mine.filter((d) => d.status === "paid");
+    if (paid.length === 0) continue;
+    const ids = new Set(paid.map((d) => d.id));
+    let lastPaid = paid.reduce((max, d) => (d.date > max ? d.date : max), paid[0].date);
+    for (const inv of invoices) {
+      const at = inv.standing?.settlement === "paid" ? inv.standing.checkedAt : undefined;
+      if (at && inv.debtIds.some((id) => ids.has(id)) && at > lastPaid) lastPaid = at;
+    }
+    out.push({ customerName: paid[paid.length - 1].customerName, slug, totalPaidSen: paid.reduce((s, d) => s + d.amountSen, 0), lastPaid });
+  }
+  return out.sort((a, b) => b.lastPaid.localeCompare(a.lastPaid) || a.customerName.localeCompare(b.customerName));
 }

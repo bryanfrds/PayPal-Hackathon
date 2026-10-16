@@ -5,10 +5,9 @@ import Link from "next/link";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { formatSen, todayLocal } from "@/lib/debts";
 import { ReminderStoreError } from "@/lib/reminder-store";
-import { buildSchedule, earliestMoveDay, isDay, reminderMessage, type ScheduleItem } from "@/lib/reminders";
+import { buildSchedule, earliestMoveDay, isDay, reminderMessage, settledCustomers, type ScheduleItem } from "@/lib/reminders";
 import { isPayPalUrl } from "@/lib/customer-pay";
 import { invoicesToRemind } from "@/lib/payments";
-import { customerSlug } from "@/lib/customer-tab";
 import { remindByEmail } from "./remind-email";
 import { colourIndex, initials } from "@/lib/home";
 import { ChatIcon, CheckIcon, MailIcon } from "../components/icons";
@@ -103,24 +102,8 @@ export default function RemindersScreen() {
   }, [reminders]);
   const upcoming = reminders.filter((i) => !i.dueNow && !i.sent).slice(0, 6);
   const sentReminders = useMemo(() => items.filter((i) => i.kind === "reminder" && i.sent), [items]);
-  const paidCustomers = useMemo(() => {
-    const bySlug = new Map<string, { customerName: string; slug: string; totalPaidSen: number }>();
-    for (const d of debts) {
-      const slug = customerSlug(d.customerName);
-      if (!bySlug.has(slug)) {
-        bySlug.set(slug, { customerName: d.customerName, slug, totalPaidSen: 0 });
-      }
-      if (d.status === "paid") {
-        bySlug.get(slug)!.totalPaidSen += d.amountSen;
-      }
-    }
-    return Array.from(bySlug.values()).filter((c) => {
-      const remaining = debts.some(
-        (d) => customerSlug(d.customerName) === c.slug && (d.status === "unpaid" || d.status === "overdue"),
-      );
-      return !remaining && c.totalPaidSen > 0;
-    });
-  }, [debts]);
+  // Whole tab paid (anything not "paid" still counts as owed), most recently paid first.
+  const paidCustomers = useMemo(() => settledCustomers(debts, invoices), [debts, invoices]);
   // History shows the latest sent reminders first, capped so it doesn't grow forever.
   const historySent = useMemo(
     () =>
