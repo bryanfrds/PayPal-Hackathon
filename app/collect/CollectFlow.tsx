@@ -17,6 +17,7 @@ import {
   type PendingSend,
 } from "@/lib/collect";
 import { CollectStoreError } from "@/lib/collect-store";
+import { isPayPalUrl } from "@/lib/customer-pay";
 import { customerSlug, tabPath } from "@/lib/customer-tab";
 import { DebtStoreError } from "@/lib/debt-store";
 import { formatSen } from "@/lib/debts";
@@ -26,6 +27,7 @@ import { invoiceView, type InvoiceView } from "@/lib/payments";
 import Avatar from "../components/Avatar";
 import StatusBadge from "../components/StatusBadge";
 import { BackIcon, CheckIcon, ChevronIcon, CloseIcon, MailIcon, PlusIcon, SendIcon } from "../components/icons";
+import { useDialog } from "../components/useDialog";
 import { useCollect } from "../useCollect";
 import { useIsWide } from "../useIsWide";
 import { useShop } from "../useShop";
@@ -100,6 +102,7 @@ export default function CollectFlow() {
   const preview = pickPreview(groups, chosen, previewSlug);
   const previewGroup = preview?.group;
   const showPane = wide && tab === "toSend" && ready && groups.length > 0;
+  const unresolved = groups.filter((g) => !g.email);
 
   return (
     <div className={`collect collect-home${showPane ? " collect-wide" : ""}`}>
@@ -144,14 +147,36 @@ export default function CollectFlow() {
               <p>{t("collect.empty.body")}</p>
             </div>
           ) : (
-            <ul className="collect-list">
-              {groups.map((g) => (
-                <CustomerCard
-                  key={g.slug}
-                  group={g}
-                  on={Boolean(g.email) && !off.has(g.slug)}
-                  onToggle={(on) =>
-                    setOff((prev) => {
+            <>
+              {unresolved.length > 0 && (
+                <div className="notice notice-warning collect-missing">
+                  <div>
+                    <strong>{t("collect.missingEmail.title", { count: unresolved.length })}</strong>
+                    <p className="collect-missing-body">{t("collect.missingEmail.body")}</p>
+                  </div>
+                  <div className="collect-missing-actions">
+                    <Link href="/customers" className="button button-sm">
+                      {t("collect.missingEmail.directory")}
+                    </Link>
+                    <button
+                      type="button"
+                      className="button button-sm button-primary"
+                      aria-label={t("collect.missingEmail.nextLabel", { name: unresolved[0].customerName })}
+                      onClick={() => setEmailFor(unresolved[0])}
+                    >
+                      {t("collect.missingEmail.next")}
+                    </button>
+                  </div>
+                </div>
+              )}
+              <ul className="collect-list">
+                {groups.map((g) => (
+                  <CustomerCard
+                    key={g.slug}
+                    group={g}
+                    on={Boolean(g.email) && !off.has(g.slug)}
+                    onToggle={(on) =>
+                      setOff((prev) => {
                       const next = new Set(prev);
                       if (on) next.delete(g.slug);
                       else next.add(g.slug);
@@ -164,6 +189,7 @@ export default function CollectFlow() {
                 />
               ))}
             </ul>
+            </>
           )
         ) : tab === "sent" ? (
           invoices.length + olderSent.length === 0 ? (
@@ -583,6 +609,7 @@ function Paper({ group: g, label }: { group: CollectGroup; label: string }) {
 function Review({ groups, onBack, onSend }: { groups: CollectGroup[]; onBack: () => void; onSend: () => void }) {
   const { t } = useT();
   const [index, setIndex] = useState(0);
+  const [confirming, setConfirming] = useState(false);
   const railRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const total = groups.reduce((sum, g) => sum + g.totalSen, 0);
@@ -648,10 +675,56 @@ function Review({ groups, onBack, onSend }: { groups: CollectGroup[]; onBack: ()
           <small>{t("collect.invoicesNoCharge", { count: groups.length })}</small>
           <b>{rm(total)}</b>
         </p>
-        <button type="button" onClick={onSend}>
+        <button type="button" onClick={() => setConfirming(true)}>
           <SendIcon />
           {t("collect.review.sendAll")}
         </button>
+      </div>
+
+      {confirming && (
+        <ConfirmSend
+          count={groups.length}
+          total={total}
+          onCancel={() => setConfirming(false)}
+          onConfirm={() => {
+            setConfirming(false);
+            onSend();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/** "Send these invoices?" before Review sends the batch. Focus starts on Cancel. */
+function ConfirmSend({ count, total, onCancel, onConfirm }: { count: number; total: number; onCancel: () => void; onConfirm: () => void }) {
+  const { t } = useT();
+  const ref = useDialog<HTMLDivElement>(onCancel);
+  return (
+    <div className="sheet-layer">
+      <div className="sheet-dim" onClick={onCancel} aria-hidden="true" />
+      <div
+        className="sheet collect-confirm"
+        ref={ref}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-batch-title"
+        aria-describedby="confirm-batch-body"
+      >
+        <h2 id="confirm-batch-title" className="collect-confirm-title">
+          {t("collect.confirm.title", { count })}
+        </h2>
+        <p id="confirm-batch-body" className="collect-confirm-body">
+          {t("collect.confirm.body", { count, amount: rm(total) })}
+        </p>
+        <div className="collect-confirm-actions">
+          <button type="button" className="button" onClick={onCancel}>
+            {t("common.cancel")}
+          </button>
+          <button type="button" className="button button-primary" onClick={onConfirm}>
+            {t("collect.confirm.send")}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -662,7 +735,7 @@ function Review({ groups, onBack, onSend }: { groups: CollectGroup[]; onBack: ()
 type Saved = { id: string; number?: string; payerLink?: string };
 type Result =
   | { state: "waiting" | "sending" }
-  | { state: "sent"; id: string; number?: string }
+  | { state: "sent"; id: string; number?: string; payerLink?: string }
   | { state: "saveFailed"; saved: Saved; request: PendingSend }
   | { state: "failed"; message: string };
 
@@ -724,7 +797,7 @@ function Send({ groups, onDone }: { groups: CollectGroup[]; onDone: () => void }
       setResults((prev) => ({ ...prev, [g.slug]: { state: "saveFailed", saved, request } }));
       return;
     }
-    setResults((prev) => ({ ...prev, [g.slug]: { state: "sent", id: saved.id, number: saved.number } }));
+    setResults((prev) => ({ ...prev, [g.slug]: { state: "sent", id: saved.id, number: saved.number, payerLink: saved.payerLink } }));
   }
 
   async function sendOne(g: CollectGroup) {
@@ -857,7 +930,20 @@ function Send({ groups, onDone }: { groups: CollectGroup[]; onDone: () => void }
                 {t("collect.send.retry")}
               </button>
             ) : (
-              <span className="tab-amt">{rm(g.totalSen)}</span>
+              <div className="send-row-end">
+                <span className="tab-amt">{rm(g.totalSen)}</span>
+                {r.state === "sent" && isPayPalUrl(r.payerLink) && (
+                  <a
+                    href={r.payerLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="link-button send-paypal-link"
+                    aria-label={t("collect.send.openPayPalLabel", { name: g.customerName })}
+                  >
+                    {t("collect.send.openPayPal")}
+                  </a>
+                )}
+              </div>
             )}
           </li>
         ))}

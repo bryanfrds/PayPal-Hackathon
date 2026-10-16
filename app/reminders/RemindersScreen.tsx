@@ -5,12 +5,12 @@ import Link from "next/link";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { formatSen, todayLocal } from "@/lib/debts";
 import { ReminderStoreError } from "@/lib/reminder-store";
-import { buildSchedule, earliestMoveDay, isDay, reminderMessage, type ScheduleItem } from "@/lib/reminders";
+import { buildSchedule, earliestMoveDay, isDay, reminderMessage, settledCustomers, type ScheduleItem } from "@/lib/reminders";
 import { isPayPalUrl } from "@/lib/customer-pay";
 import { invoicesToRemind } from "@/lib/payments";
 import { remindByEmail } from "./remind-email";
 import { colourIndex, initials } from "@/lib/home";
-import { ChatIcon, MailIcon } from "../components/icons";
+import { ChatIcon, CheckIcon, MailIcon } from "../components/icons";
 import { palette } from "../components/palette";
 import { useCollect } from "../useCollect";
 import { useDebts } from "../useDebts";
@@ -30,6 +30,10 @@ const ReminderBoard = dynamic(() => import("./ReminderBoard"), {
 
 /** Wider than this, the Scheduler (one row per customer); narrower, the Calendar. */
 const WIDE_MIN = 700;
+
+/** History length: the latest sent reminders, and settled customers. Older ones are counted, not listed. */
+const HISTORY_SENT_MAX = 20;
+const HISTORY_PAID_MAX = 5;
 
 const AVATAR_COLOURS = [
   ["#f6efdc", "#8c6512"],
@@ -97,6 +101,19 @@ export default function RemindersScreen() {
     return out;
   }, [reminders]);
   const upcoming = reminders.filter((i) => !i.dueNow && !i.sent).slice(0, 6);
+  const sentReminders = useMemo(() => items.filter((i) => i.kind === "reminder" && i.sent), [items]);
+  // Whole tab paid (anything not "paid" still counts as owed), most recently paid first.
+  const paidCustomers = useMemo(() => settledCustomers(debts, invoices), [debts, invoices]);
+  // History shows the latest sent reminders first, capped so it doesn't grow forever.
+  const historySent = useMemo(
+    () =>
+      [...sentReminders]
+        .sort((a, b) => (sent[b.id] || b.day).localeCompare(sent[a.id] || a.day))
+        .slice(0, HISTORY_SENT_MAX),
+    [sentReminders, sent],
+  );
+  const historyPaid = paidCustomers.slice(0, HISTORY_PAID_MAX);
+  const historyHidden = sentReminders.length - historySent.length + (paidCustomers.length - historyPaid.length);
   const payLinks = useMemo(() => {
     const links = new Map<string, string>();
     for (const inv of invoices) if (inv.payerLink && isPayPalUrl(inv.payerLink) && !links.has(inv.slug)) links.set(inv.slug, inv.payerLink);
@@ -326,6 +343,61 @@ export default function RemindersScreen() {
               </li>
             ))}
           </ul>
+        </section>
+      )}
+
+      {ready && (sentReminders.length > 0 || paidCustomers.length > 0) && (
+        <section className="card reminder-list" aria-labelledby="reminder-history">
+          <h2 id="reminder-history">{t("reminders.history.title")}</h2>
+          <ul>
+            {historySent.map((item) => (
+              <li key={`sent-${item.id}`} className="reminder-row">
+                <span className="reminder-when reminder-when-done">
+                  <CheckIcon />
+                  <small>{dayText(sent[item.id] || item.day)}</small>
+                </span>
+                <span className="reminder-main">
+                  <span className="reminder-name">{item.customer}</span>
+                  <span className="reminder-meta">
+                    {item.label} · RM {formatSen(item.amountSen)} · {t("reminders.history.sent")}
+                  </span>
+                </span>
+                <span className="reminder-actions">
+                  <Link
+                    href={`/tab/${item.slug}`}
+                    className="button button-sm"
+                    aria-label={t("reminders.history.viewTabLabel", { name: item.customer })}
+                  >
+                    {t("reminders.history.viewTab")}
+                  </Link>
+                </span>
+              </li>
+            ))}
+            {historyPaid.map((c) => (
+              <li key={`paid-${c.slug}`} className="reminder-row">
+                <span className="reminder-when reminder-when-done">
+                  <CheckIcon />
+                  <small>{t("status.paid")}</small>
+                </span>
+                <span className="reminder-main">
+                  <span className="reminder-name">{c.customerName}</span>
+                  <span className="reminder-meta">
+                    {t("reminders.history.settled", { amount: `RM ${formatSen(c.totalPaidSen)}` })}
+                  </span>
+                </span>
+                <span className="reminder-actions">
+                  <Link
+                    href={`/tab/${c.slug}`}
+                    className="button button-sm"
+                    aria-label={t("reminders.history.viewTabLabel", { name: c.customerName })}
+                  >
+                    {t("reminders.history.viewTab")}
+                  </Link>
+                </span>
+              </li>
+            ))}
+          </ul>
+          {historyHidden > 0 && <p className="reminder-foot">{t("reminders.history.more", { count: historyHidden })}</p>}
         </section>
       )}
     </div>

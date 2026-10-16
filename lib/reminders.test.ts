@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { InvoiceRecord } from "./collect-store";
 import type { Debt } from "./debts";
-import { DEFAULT_RULES, addDays, buildSchedule, earliestMoveDay, isDay, normaliseRules, reminderMessage, sendHourOn } from "./reminders";
+import { DEFAULT_RULES, addDays, buildSchedule, earliestMoveDay, isDay, normaliseRules, reminderMessage, sendHourOn, settledCustomers } from "./reminders";
 
 function debt(over: Partial<Debt>): Debt {
   return {
@@ -206,5 +206,51 @@ describe("earliestMoveDay", () => {
     const [first, second] = reminders(items);
     expect(earliestMoveDay(items, first, TODAY)).toBe(TODAY);
     expect(earliestMoveDay(items, second, TODAY)).toBe("2026-10-14");
+  });
+});
+
+describe("settledCustomers", () => {
+  const debt = (id: string, name: string, status: Debt["status"], date: string, amountSen = 1000): Debt => ({
+    id, customerName: name, item: "Milo", amountSen, date, status, source: "manual", createdAt: `${date}T00:00:00.000Z`,
+  });
+
+  it("lists only customers whose whole tab is paid", () => {
+    const debts = [
+      debt("1", "Ali", "paid", "2026-09-01"),
+      debt("2", "Bala", "paid", "2026-09-02"),
+      debt("3", "Bala", "unpaid", "2026-09-03"),
+      debt("4", "Chong", "overdue", "2026-08-01"),
+    ];
+    expect(settledCustomers(debts).map((c) => c.customerName)).toEqual(["Ali"]);
+  });
+
+  it("treats an invoiced but unpaid (sent) debt as still owed", () => {
+    const debts = [debt("1", "Siti", "paid", "2026-09-01"), debt("2", "Siti", "sent", "2026-09-05")];
+    expect(settledCustomers(debts)).toEqual([]);
+  });
+
+  it("sums what they paid and puts the most recently paid first", () => {
+    const debts = [
+      debt("1", "Ali", "paid", "2026-08-01", 500),
+      debt("2", "Ali", "paid", "2026-08-03", 700),
+      debt("3", "Raj", "paid", "2026-09-10"),
+      debt("4", "Tan", "paid", "2026-07-01"),
+    ];
+    const rows = settledCustomers(debts);
+    expect(rows.map((c) => c.customerName)).toEqual(["Raj", "Ali", "Tan"]);
+    expect(rows[1]).toMatchObject({ totalPaidSen: 1200, lastPaid: "2026-08-03" });
+  });
+
+  it("uses PayPal's paid check when it's later than the debt dates", () => {
+    const debts = [debt("1", "Tan", "paid", "2026-07-01"), debt("2", "Raj", "paid", "2026-09-10")];
+    const invoices = [
+      { id: "INV", customerName: "Tan", slug: "tan", email: "t@x.co", debtIds: ["1"], amountSen: 1000, sentAt: "2026-07-02T00:00:00Z",
+        standing: { settlement: "paid", checkedAt: "2026-10-01T09:00:00Z" } },
+    ] as unknown as InvoiceRecord[];
+    expect(settledCustomers(debts, invoices).map((c) => c.customerName)).toEqual(["Tan", "Raj"]);
+  });
+
+  it("ignores customers who never paid anything", () => {
+    expect(settledCustomers([])).toEqual([]);
   });
 });

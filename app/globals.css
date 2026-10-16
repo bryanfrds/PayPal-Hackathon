@@ -1758,6 +1758,218 @@ a.tab-back:focus-visible,
   font-size: 0.82rem;
 }
 
+/* ---------- Scan check, Collect and Reminders history (PR #37 review fixes) ---------- */
+
+/* (A) Scan side-by-side inspect and photo viewer.
+   The side photo shows from the app's laptop width (1024px, same as useIsWide), and the
+   two-column grid only applies when there is a photo, so no empty column at 900-1023px. */
+.scan-check-split {
+  display: block;
+}
+
+.scan-photo-inspect {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .scan-check-split-photo {
+    display: grid;
+    grid-template-columns: 360px minmax(0, 1fr);
+    gap: 1.5rem;
+    align-items: start;
+  }
+
+  .scan-photo-inspect {
+    display: block;
+    position: sticky;
+    top: 1.5rem;
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 1rem;
+    box-shadow: var(--shadow);
+  }
+
+  .scan-photo-inspect img {
+    display: block;
+    width: 100%;
+    max-height: 60vh;
+    object-fit: contain;
+    border-radius: 8px;
+    background: var(--hero);
+  }
+}
+
+.scan-photo-inspect-title {
+  margin: 0 0 0.5rem;
+  font-weight: 700;
+}
+
+.scan-photo-expand {
+  display: block;
+  margin-top: 0.5rem;
+}
+
+/* The full-screen viewer: a dark surface in both themes (like the hero cards), so the
+   photo reads the same; white text and translucent white edges are on purpose. */
+.scan-photo-modal {
+  position: fixed;
+  inset: 1rem;
+  z-index: 35;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: #ffffff;
+  background: var(--hero);
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+}
+
+.scan-photo-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.scan-photo-modal-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.scan-photo-zoom {
+  min-width: 3.2em;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Sits in the header row rather than floating in the corner like other sheets. */
+.scan-photo-modal .sheet-close {
+  position: static;
+}
+
+.scan-photo-modal-body {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  touch-action: pan-x pan-y;
+}
+
+.scan-photo-modal-body img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  user-select: none;
+  transform-origin: center center;
+  transition: transform 0.15s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scan-photo-modal-body img {
+    transition: none;
+  }
+}
+
+/* (B) "Not sure" note under a scanned line: the same amber as the Not sent badge, from tokens,
+   so dark mode follows on its own. */
+.scan-unsure-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+  padding: 0.4rem 0.6rem;
+  color: var(--unpaid);
+  background: var(--unpaid-bg);
+  border: 1px solid color-mix(in srgb, var(--unpaid) 35%, transparent);
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+/* ---- NEW rules below (nothing to replace) ---- */
+
+/* Scan check: View photo + Retake beside the thumbnail. */
+.scan-thumb-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+/* Collect: customers with no email, above the To send list. */
+.collect-missing {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.85rem;
+}
+
+.collect-missing-body {
+  margin: 0.15rem 0 0;
+  font-size: 0.82rem;
+}
+
+.collect-missing-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 0.4rem;
+}
+
+.collect-missing-actions .button {
+  white-space: nowrap;
+}
+
+/* Collect Review: "Send N PayPal invoices?" confirm sheet. */
+.collect-confirm {
+  max-width: 480px;
+}
+
+.collect-confirm-title {
+  margin: 0 0 0.5rem;
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+
+.collect-confirm-body {
+  margin: 0 0 1.25rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.collect-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+/* Collect Send: amount with the PayPal link under it. */
+.send-row-end {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.2rem;
+}
+
+.send-paypal-link {
+  font-size: 0.78rem;
+}
+
+/* Reminders history: the tick and day of a reminder already sent, or a settled tab. */
+.reminder-when-done {
+  color: var(--paid);
+}
+
 .scan-who {
   display: grid;
   gap: 0.5rem;
@@ -4755,16 +4967,151 @@ body.nudge-sheet-open {
   display: block;
 }
 
+.ledger-page .ledger-chips {
+  display: flex;
+  overflow-x: auto;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.25rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.ledger-chips button {
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding: 0.45rem 0.8rem;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--ink);
+  cursor: pointer;
+  background: var(--card);
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+}
+
+.ledger-chips button b {
+  margin-left: 0.2rem;
+  color: var(--muted);
+}
+
+.ledger-chips button[aria-pressed="true"] {
+  color: var(--on-ink);
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.ledger-chips button[aria-pressed="true"] b {
+  color: var(--on-ink-muted);
+}
+
+.ledger-bulk-bar {
+  position: fixed;
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(calc(100% - 2rem), 560px);
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  padding: 0.75rem 1rem;
+  background: var(--ink);
+  color: var(--on-ink);
+  border-radius: 18px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+}
+
+.ledger-bulk-info {
+  font-weight: 700;
+  font-size: 0.88rem;
+}
+
+.ledger-bulk-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.ledger-bulk-btn {
+  padding: 0.4rem 0.75rem;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  border-radius: 999px;
+  cursor: pointer;
+  border: 0;
+  background: var(--card);
+  color: var(--ink);
+}
+
+/* Debt detail sheet */
+.debt-detail-sheet {
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.debt-detail-content {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 1rem;
+}
+
+.debt-detail-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.debt-detail-label {
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.debt-detail-value {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--ink);
+  text-align: right;
+}
+
+.debt-detail-amount {
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.debt-detail-invoice {
+  margin-top: 0.75rem;
+  padding: 0.85rem;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.debt-detail-invoice h3 {
+  margin: 0 0 0.4rem;
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+
+.debt-detail-invoice p {
+  margin: 0.2rem 0;
+  font-size: 0.82rem;
+  color: var(--ink);
+}
+
 @media (min-width: 1024px) {
   .site-main:has(.ledger-page) {
     max-width: 1180px;
   }
 
   .ledger-page .ledger-chips {
-    display: flex;
     flex-wrap: wrap;
-    gap: 0.4rem;
-    margin-bottom: 0.75rem;
+    overflow-x: visible;
   }
 
   .ledger-chips button {
@@ -7101,4 +7448,413 @@ body.nudge-sheet-open {
 /* Stays in the page (and in the accessibility tree) when empty; it just takes no space. */
 .lang-status:empty {
   margin: 0;
+}
+
+/* ---------- Ledger review fixes (PR #37) ---------- */
+/* Ledger: header buttons, debt detail sheet (dl rows, actions). Tokens only. */
+.ledger-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* The detail rows are a <dl>; drop the browser's list margins. */
+dl.debt-detail-content {
+  margin: 1rem 0 0;
+}
+
+dd.debt-detail-value {
+  margin: 0;
+}
+
+.debt-detail-paypal {
+  display: inline-block;
+  margin-top: 0.5rem;
+}
+
+.debt-detail-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.debt-detail-actions .button:last-child {
+  margin-left: auto;
+}
+
+.debt-detail-delete {
+  color: var(--error-ink);
+}
+
+.ledger-bulk-btn:focus-visible {
+  outline: 2px solid var(--on-ink);
+  outline-offset: 2px;
+}
+
+/* Go to Collect: the bar's primary action, always the opposite of the bar (the bar is --ink,
+   dark in light mode and light in dark mode), so it stands out in both themes. */
+.ledger-bulk-btn-primary {
+  background: var(--on-ink);
+  color: var(--ink);
+  font-weight: 800;
+}
+
+/* ---------- Customers (PR #37 review fixes) ---------- */
+
+/* Customers screen (app/customers/CustomersScreen.tsx). Tokens only, so dark mode follows. */
+.customers-page {
+  display: grid;
+  gap: 0;
+}
+
+.button-sm {
+  min-height: 2.25rem;
+  padding: 0 0.85rem;
+  font-size: 0.85rem;
+  border-radius: 12px;
+  gap: 0.3rem;
+}
+
+.button-sm .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.avatar-md {
+  width: 46px;
+  height: 46px;
+  font-size: 0.9rem;
+}
+
+.cust-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.cust-back .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.cust-add {
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+
+.cust-add .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.cust-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  padding: 1rem;
+  text-align: center;
+}
+
+.cust-metric-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.cust-metric-value {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.cust-metric-good {
+  color: var(--paid);
+}
+
+.cust-metric-warn {
+  color: var(--unpaid);
+}
+
+.cust-metric-quiet {
+  color: var(--muted);
+}
+
+.cust-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-bottom: 1.25rem;
+  color: var(--ink);
+}
+
+.cust-tools {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.cust-search {
+  position: relative;
+}
+
+.cust-search input {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.8rem 0.5rem 2.4rem;
+  font: inherit;
+  font-size: 1rem; /* 16px stops iOS zooming into the field */
+  color: var(--ink);
+  background: var(--card);
+  border: 1.5px solid var(--field-line);
+  border-radius: 12px;
+}
+
+.cust-search input::placeholder {
+  color: var(--muted);
+}
+
+.cust-search input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.cust-search-icon {
+  position: absolute;
+  top: 50%;
+  left: 0.75rem;
+  display: grid;
+  color: var(--muted);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.cust-search-icon .icon {
+  width: 18px;
+  height: 18px;
+}
+
+/* The ledger's filter chips, laid out the same way on this page. */
+.customers-page .ledger-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.ledger-chips button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.cust-muted {
+  color: var(--muted);
+}
+
+.cust-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.cust-card {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.cust-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.cust-who {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.cust-card h2.cust-name {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.cust-card h2.cust-name a {
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.cust-card h2.cust-name a:hover,
+.cust-card h2.cust-name a:focus-visible {
+  text-decoration: underline;
+}
+
+.cust-meta {
+  margin-top: 0.2rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.cust-owed {
+  display: grid;
+  justify-items: end;
+  gap: 0.2rem;
+  text-align: right;
+  flex: none;
+}
+
+.cust-owed-amount {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.cust-owed-paid {
+  color: var(--paid);
+}
+
+.cust-overdue {
+  font-size: 0.75rem;
+}
+
+.cust-email {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  color: var(--ink);
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.cust-email-missing {
+  background: var(--unpaid-bg);
+  border-color: transparent;
+}
+
+.cust-email-text {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.cust-email-text .icon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+
+.cust-email-text code {
+  font-size: 0.85rem;
+}
+
+.cust-email-warn {
+  font-weight: 600;
+  color: var(--unpaid);
+}
+
+.cust-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+/* Add customer and Edit email sheets: the shared .sheet look, scrollable when tall. */
+.cust-sheet {
+  max-height: 92dvh;
+  overflow-y: auto;
+  color: var(--ink);
+}
+
+.cust-sheet-title {
+  margin: 0 3rem 0.4rem 0;
+  font-size: 1.2rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.cust-sheet-intro {
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.cust-sheet .field {
+  margin-bottom: 0.75rem;
+}
+
+.cust-sheet .field input {
+  width: 100%;
+}
+
+.cust-sheet .sheet-chips {
+  margin: 0.25rem 0 0.25rem;
+}
+
+.cust-debt-box {
+  margin-bottom: 1.25rem;
+  padding: 0.75rem;
+  border: 1.5px dashed var(--line);
+  border-radius: 12px;
+}
+
+.cust-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cust-check input {
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: var(--accent);
+}
+
+.cust-debt-fields {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.cust-debt-fields .field {
+  margin-bottom: 0;
+}
+
+@media (max-width: 400px) {
+  .cust-debt-fields {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cust-conflict {
+  color: var(--ink);
+}
+
+.cust-sheet-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
 }

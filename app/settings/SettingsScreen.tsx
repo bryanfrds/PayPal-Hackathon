@@ -91,7 +91,7 @@ export default function SettingsScreen() {
   function doReset() {
     let ok = true;
     try {
-      ok = resetDemoData(window.localStorage);
+      ok = resetDemoData(window.localStorage, window.sessionStorage);
     } catch {
       ok = false; // storage blocked: the sample tabs still come back for this visit
     }

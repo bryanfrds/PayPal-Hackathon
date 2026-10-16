@@ -7,7 +7,41 @@
 import { createManualDebt, validateDebtInput, type Debt, type DebtErrors } from "./debts";
 import { translator, type T } from "./i18n";
 
-export type ScanMode = "notebook" | "receipt";
+export const SCAN_MODES = ["notebook", "receipt"] as const;
+export type ScanMode = (typeof SCAN_MODES)[number];
+
+/** Where the check screen keeps its unsaved lines (sessionStorage), one draft per scan mode. */
+export function scanDraftKey(mode: ScanMode): string {
+  return `buku.scan.draft.${mode}.v1`;
+}
+
+/** Every scan draft key, for a demo reset to clear. */
+export const SCAN_DRAFT_KEYS: readonly string[] = SCAN_MODES.map(scanDraftKey);
+
+/**
+ * A saved draft read back: the lines, or null when it's missing, unreadable, empty, or not
+ * the shape the check screen expects (an old or tampered draft is dropped, not trusted).
+ */
+export function parseScanDraft(raw: string | null | undefined): ScanLine[] | null {
+  if (!raw) return null;
+  let v: unknown;
+  try {
+    v = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(v) || v.length === 0 || v.length > 200) return null;
+  const str = (x: unknown) => typeof x === "string";
+  const ok = v.every((l) => {
+    if (typeof l !== "object" || l === null) return false;
+    const r = l as Record<string, unknown>;
+    return (
+      str(r.key) && str(r.customerName) && str(r.item) && str(r.amount) && str(r.date) &&
+      typeof r.include === "boolean" && (r.unsure === undefined || str(r.unsure))
+    );
+  });
+  return ok ? (v as ScanLine[]) : null;
+}
 
 export type ScanLine = {
   /** Local id for the check screen, not a debt id. */

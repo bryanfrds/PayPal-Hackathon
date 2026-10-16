@@ -14,11 +14,14 @@ import {
   includedTotalSen,
   isNewCustomer,
   linesToDebts,
+  parseScanDraft,
   sampleRead,
   type ScanLine,
   type ScanMode,
+  scanDraftKey,
 } from "@/lib/scan";
 import { BackIcon, BoltIcon, CheckIcon, CloseIcon, ImageIcon, NoteIcon, ReceiptIcon } from "../components/icons";
+import { useDialog } from "../components/useDialog";
 import { useDebts } from "../useDebts";
 import { useT } from "../useT";
 
@@ -34,6 +37,13 @@ function readingSteps(mode: ScanMode, t: T): string[] {
   ];
 }
 const STEP_MS = 650;
+
+/** Drops a saved check-screen draft, so a new photo or a retake starts from a fresh read. */
+function clearDraft(mode: ScanMode) {
+  try {
+    sessionStorage.removeItem(scanDraftKey(mode));
+  } catch {}
+}
 
 /** Moves focus to a screen's heading when it appears, so screen readers announce the new screen. */
 function useFocusOnMount<T extends HTMLElement>(enabled = true) {
@@ -57,6 +67,7 @@ export default function ScanFlow() {
   }, [photo]);
 
   function onPhoto(url: string) {
+    clearDraft(mode);
     setPhoto(url);
     setPhase("reading");
   }
@@ -71,6 +82,7 @@ export default function ScanFlow() {
       mode={mode}
       photo={photo}
       onRetake={() => {
+        clearDraft(mode);
         setReturned(true);
         setPhase("camera");
       }}
@@ -332,6 +344,61 @@ function Reading({ mode, photo, onDone }: { mode: ScanMode; photo: string | null
 
 const NEW_NAME = "__new__";
 
+function PhotoModal({
+  photo,
+  alt,
+  onClose,
+}: {
+  photo: string;
+  alt: string;
+  onClose: () => void;
+}) {
+  const { t, formatNumber } = useT();
+  const [zoom, setZoom] = useState(1);
+  const ref = useDialog<HTMLDivElement>(onClose);
+  return (
+    <div className="sheet-layer">
+      <div className="sheet-dim" onClick={onClose} aria-hidden="true" />
+      <div className="scan-photo-modal" ref={ref} role="dialog" aria-modal="true" aria-labelledby="scan-photo-title">
+        <h2 id="scan-photo-title" className="visually-hidden">
+          {alt}
+        </h2>
+        <div className="scan-photo-modal-header">
+          <div className="scan-photo-modal-controls">
+            <button
+              type="button"
+              className="button button-sm"
+              onClick={() => setZoom((z) => Math.max(0.75, z - 0.25))}
+              aria-label={t("scanx.viewer.zoomOut")}
+            >
+              −
+            </button>
+            <span className="scan-photo-zoom">{t("scanx.viewer.zoom", { percent: formatNumber(Math.round(zoom * 100)) })}</span>
+            <button
+              type="button"
+              className="button button-sm"
+              onClick={() => setZoom((z) => Math.min(3, z + 0.25))}
+              aria-label={t("scanx.viewer.zoomIn")}
+            >
+              +
+            </button>
+            <button type="button" className="button button-sm" aria-label={t("scanx.viewer.resetLabel")} onClick={() => setZoom(1)}>
+              {t("scanx.viewer.reset")}
+            </button>
+          </div>
+          <button type="button" className="sheet-close" aria-label={t("common.close")} onClick={onClose}>
+            <CloseIcon />
+          </button>
+        </div>
+        <div className="scan-photo-modal-body">
+          {/* eslint-disable-next-line @next/next/no-img-element -- a local photo, not a site image */}
+          <img src={photo} alt={alt} style={{ transform: `scale(${zoom})` }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Check({ mode, photo, onRetake }: { mode: ScanMode; photo: string | null; onRetake: () => void }) {
   const { t, formatDay } = useT();
   const router = useRouter();
@@ -340,12 +407,30 @@ function Check({ mode, photo, onRetake }: { mode: ScanMode; photo: string | null
   // After a refused save: the line whose first bad field gets focus once it's open.
   const [focusLine, setFocusLine] = useState<{ key: string; n: number } | null>(null);
   const [today] = useState(() => todayLocal());
-  const [lines, setLines] = useState<ScanLine[]>(() => sampleRead(mode, todayLocal(), t));
+  const draftKey = scanDraftKey(mode);
+  const [lines, setLines] = useState<ScanLine[]>(() => {
+    let saved: ScanLine[] | null = null;
+    if (typeof window !== "undefined") {
+      try {
+        // A draft in the wrong shape (old or tampered) is ignored, not trusted.
+        saved = parseScanDraft(sessionStorage.getItem(draftKey));
+      } catch {}
+    }
+    return saved ?? sampleRead(mode, todayLocal(), t);
+  });
   const [open, setOpen] = useState<string | null>(mode === "receipt" ? "r1" : null);
   const [errors, setErrors] = useState<Record<string, DebtErrors>>({});
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [pickNew, setPickNew] = useState(false);
+  const [viewPhoto, setViewPhoto] = useState(false);
+
+  // Persist draft in sessionStorage so owner edits survive navigation/failures
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(draftKey, JSON.stringify(lines));
+    } catch {}
+  }, [lines, draftKey]);
 
   const known = customerNames(debts);
   const included = lines.filter((l) => l.include);
@@ -390,6 +475,9 @@ function Check({ mode, photo, onRetake }: { mode: ScanMode; photo: string | null
     setSaving(true);
     try {
       addMany(result.debts); // one write: all of them or none
+      try {
+        sessionStorage.removeItem(draftKey);
+      } catch {}
     } catch (error) {
       setSaveError(error instanceof DebtStoreError ? error.message : t("add.saveFailed"));
       setSaving(false);
@@ -425,10 +513,25 @@ function Check({ mode, photo, onRetake }: { mode: ScanMode; photo: string | null
             {formatDay(today, { year: false })} · {t("scan.linesFound", { count: lines.length })}
           </p>
         </div>
-        <button type="button" className="link-button scan-retake" onClick={onRetake}>
-          {t("scan.retake")}
-        </button>
+        <div className="scan-thumb-actions">
+          {photo && (
+            <button type="button" className="button button-sm scan-view-photo" onClick={() => setViewPhoto(true)}>
+              {t("scanx.viewPhoto")}
+            </button>
+          )}
+          <button type="button" className="link-button scan-retake" onClick={onRetake}>
+            {t("scan.retake")}
+          </button>
+        </div>
       </section>
+
+      {viewPhoto && photo && (
+        <PhotoModal
+          photo={photo}
+          alt={mode === "notebook" ? t("scan.photoNotebook") : t("scan.photoReceipt")}
+          onClose={() => setViewPhoto(false)}
+        />
+      )}
 
       <p className="notice notice-warning scan-sample" role="note">
         {t("scan.sample")}
@@ -441,147 +544,191 @@ function Check({ mode, photo, onRetake }: { mode: ScanMode; photo: string | null
       )}
 
       {saveError && (
-        <p className="notice notice-error" role="alert">
-          {saveError}
-        </p>
+        <div className="notice notice-error" role="alert">
+          <p className="notice-text">{saveError}</p>
+          <div className="notice-actions">
+            <button type="button" className="button" onClick={save} disabled={saving}>
+              {t("scanx.retrySave")}
+            </button>
+            <button type="button" className="button" onClick={onRetake}>
+              {t("scan.retake")}
+            </button>
+          </div>
+        </div>
       )}
 
-      {receipt && (
-        <section className="card scan-who">
-          <label htmlFor="scan-customer">{t("scan.whichCustomer")}</label>
-          <select
-            id="scan-customer"
-            value={pickNew ? NEW_NAME : receipt.customerName}
-            aria-invalid={Boolean(errors[receipt.key]?.customerName) || undefined}
-            aria-describedby={errors[receipt.key]?.customerName ? "scan-customer-error" : undefined}
-            onChange={(e) => {
-              if (e.target.value === NEW_NAME) {
-                setPickNew(true);
-                update(receipt.key, "customerName", "");
-              } else {
-                setPickNew(false);
-                update(receipt.key, "customerName", e.target.value);
-              }
-            }}
-          >
-            <option value="" disabled>
-              {ready ? t("scan.pickCustomer") : t("scan.loadingCustomers")}
-            </option>
-            {known.map((name) => (
-              <option key={name} value={name}>
-                {name}
-              </option>
-            ))}
-            <option value={NEW_NAME}>{t("scan.newCustomerOption")}</option>
-          </select>
-          {pickNew && (
-            <input
-              type="text"
-              aria-label={t("scan.newCustomerName")}
-              placeholder={t("scan.customerPlaceholder")}
-              maxLength={MAX_NAME_LENGTH}
-              value={receipt.customerName}
-              aria-invalid={Boolean(errors[receipt.key]?.customerName) || undefined}
-              aria-describedby={errors[receipt.key]?.customerName ? "scan-customer-error" : undefined}
-              onChange={(e) => update(receipt.key, "customerName", e.target.value)}
-            />
-          )}
-          {errors[receipt.key]?.customerName && (
-            <p className="field-error" id="scan-customer-error">
-              {t("scan.pickWho")}
-            </p>
-          )}
-        </section>
-      )}
+      <div className={`scan-check-split${photo ? " scan-check-split-photo" : ""}`}>
+        {photo && (
+          <div className="scan-photo-inspect">
+            <p className="scan-photo-inspect-title">{t("scanx.original")}</p>
+            {/* eslint-disable-next-line @next/next/no-img-element -- a local photo, not a site image */}
+            <img src={photo} alt={mode === "notebook" ? t("scan.photoNotebook") : t("scan.photoReceipt")} />
+            <button type="button" className="link-button scan-photo-expand" onClick={() => setViewPhoto(true)}>
+              {t("scanx.expandPhoto")}
+            </button>
+          </div>
+        )}
 
-      <p className="bill-meta">
-        <span>
-          {t("scan.lines", { count: lines.length })} · {t("scan.ticked", { count: included.length })}
-        </span>
-        <span>RM {formatSen(total)}</span>
-      </p>
-
-      <ul className="tab-list scan-lines">
-        {lines.map((l) => {
-          const lineErrors = errors[l.key] ?? {};
-          const hasError = Object.values(lineErrors).some(Boolean);
-          const isOpen = open === l.key;
-          const fresh = mode === "notebook" && ready && isNewCustomer(l.customerName, known);
-          return (
-            <li key={l.key} className={`scan-row${hasError ? " scan-row-error" : ""}`}>
-              <div className="scan-row-main">
+        <div className="scan-check-main">
+          {receipt && (
+            <section className="card scan-who">
+              <label htmlFor="scan-customer">{t("scan.whichCustomer")}</label>
+              <select
+                id="scan-customer"
+                value={pickNew ? NEW_NAME : receipt.customerName}
+                aria-invalid={Boolean(errors[receipt.key]?.customerName) || undefined}
+                aria-describedby={errors[receipt.key]?.customerName ? "scan-customer-error" : undefined}
+                onChange={(e) => {
+                  if (e.target.value === NEW_NAME) {
+                    setPickNew(true);
+                    update(receipt.key, "customerName", "");
+                  } else {
+                    setPickNew(false);
+                    update(receipt.key, "customerName", e.target.value);
+                  }
+                }}
+              >
+                <option value="" disabled>
+                  {ready ? t("scan.pickCustomer") : t("scan.loadingCustomers")}
+                </option>
+                {known.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+                <option value={NEW_NAME}>{t("scan.newCustomerOption")}</option>
+              </select>
+              {pickNew && (
                 <input
-                  type="checkbox"
-                  checked={l.include}
-                  onChange={(e) => toggle(l.key, e.target.checked)}
-                  aria-label={t("scan.addLine", { name: l.customerName || t("scan.thisLine"), amount: l.amount || t("scan.noAmount") })}
+                  type="text"
+                  aria-label={t("scan.newCustomerName")}
+                  placeholder={t("scan.customerPlaceholder")}
+                  maxLength={MAX_NAME_LENGTH}
+                  value={receipt.customerName}
+                  aria-invalid={Boolean(errors[receipt.key]?.customerName) || undefined}
+                  aria-describedby={errors[receipt.key]?.customerName ? "scan-customer-error" : undefined}
+                  onChange={(e) => update(receipt.key, "customerName", e.target.value)}
                 />
-                <button
-                  type="button"
-                  className="scan-row-open"
-                  aria-expanded={isOpen}
-                  aria-controls={`scan-edit-${l.key}`}
-                  onClick={() => setOpen(isOpen ? null : l.key)}
-                >
-                  <span className="tab-who">
-                    <span className="tab-name">{l.customerName || (mode === "receipt" ? t("scan.pickAbove") : t("scan.noName"))}</span>
-                    <span className="tab-item">{l.item || t("scan.noItem")}</span>
-                    {l.unsure && <span className="badge badge-unpaid badge-text">{l.unsure}</span>}
-                    {fresh && <span className="badge badge-sent badge-text">{t("scan.newCustomer")}</span>}
-                    {hasError && <span className="badge badge-overdue badge-text">{t("scan.needsFixing")}</span>}
-                  </span>
-                  <span className="tab-amt">RM {l.amount || "—"}</span>
-                </button>
-              </div>
-              {isOpen && (
-                <div className="scan-edit" id={`scan-edit-${l.key}`}>
-                  {mode === "notebook" && (
-                    <EditField
-                      id={`${l.key}-name`}
-                      label={t("scan.customer")}
-                      value={l.customerName}
-                      max={MAX_NAME_LENGTH}
-                      error={lineErrors.customerName}
-                      onChange={(v) => update(l.key, "customerName", v)}
-                    />
-                  )}
-                  <EditField
-                    id={`${l.key}-item`}
-                    label={t("add.item")}
-                    value={l.item}
-                    max={MAX_ITEM_LENGTH}
-                    error={lineErrors.item}
-                    onChange={(v) => update(l.key, "item", v)}
-                  />
-                  <EditField
-                    id={`${l.key}-amount`}
-                    label={t("add.amount")}
-                    value={l.amount}
-                    inputMode="decimal"
-                    error={lineErrors.amount}
-                    onChange={(v) => update(l.key, "amount", v)}
-                  />
-                  {lineErrors.date && (
-                    <p className="field-error" id={`${l.key}-date-error`}>
-                      {lineErrors.date}
-                    </p>
-                  )}
-                </div>
               )}
-            </li>
-          );
-        })}
-      </ul>
+              {errors[receipt.key]?.customerName && (
+                <p className="field-error" id="scan-customer-error">
+                  {t("scan.pickWho")}
+                </p>
+              )}
+            </section>
+          )}
 
-      <button
-        type="button"
-        className="button button-primary tab-pay"
-        disabled={!ready || saving || included.length === 0}
-        onClick={save}
-      >
-        {included.length === 0 ? t("scan.tickOne") : t("scan.addToLedger", { count: included.length })}
-      </button>
-      <p className="tab-note">{t("scan.nothingSent")}</p>
+          <p className="bill-meta">
+            <span>
+              {t("scan.lines", { count: lines.length })} · {t("scan.ticked", { count: included.length })}
+            </span>
+            <span>RM {formatSen(total)}</span>
+          </p>
+
+          <ul className="tab-list scan-lines">
+            {lines.map((l) => {
+              const lineErrors = errors[l.key] ?? {};
+              const hasError = Object.values(lineErrors).some(Boolean);
+              const isOpen = open === l.key;
+              const fresh = mode === "notebook" && ready && isNewCustomer(l.customerName, known);
+              return (
+                <li key={l.key} className={`scan-row${hasError ? " scan-row-error" : ""}`}>
+                  <div className="scan-row-main">
+                    <input
+                      type="checkbox"
+                      checked={l.include}
+                      onChange={(e) => toggle(l.key, e.target.checked)}
+                      aria-label={t("scan.addLine", { name: l.customerName || t("scan.thisLine"), amount: l.amount || t("scan.noAmount") })}
+                    />
+                    <button
+                      type="button"
+                      className="scan-row-open"
+                      aria-expanded={isOpen}
+                      aria-controls={`scan-edit-${l.key}`}
+                      onClick={() => setOpen(isOpen ? null : l.key)}
+                    >
+                      <span className="tab-who">
+                        <span className="tab-name">{l.customerName || (mode === "receipt" ? t("scan.pickAbove") : t("scan.noName"))}</span>
+                        <span className="tab-item">{l.item || t("scan.noItem")}</span>
+                        {l.unsure && <span className="badge badge-unpaid badge-text">{l.unsure}</span>}
+                        {fresh && <span className="badge badge-sent badge-text">{t("scan.newCustomer")}</span>}
+                        {hasError && <span className="badge badge-overdue badge-text">{t("scan.needsFixing")}</span>}
+                      </span>
+                      <span className="tab-amt">RM {l.amount || "—"}</span>
+                    </button>
+                  </div>
+
+                  {l.unsure && (
+                    <div className="scan-unsure-banner">
+                      <span>{l.unsure}</span>
+                      <button
+                        type="button"
+                        className="link-button"
+                        aria-label={t("scanx.fixAmountLabel", { name: l.customerName || t("scan.thisLine") })}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpen(l.key);
+                          setTimeout(() => {
+                            document.getElementById(`${l.key}-amount`)?.focus();
+                          }, 50);
+                        }}
+                      >
+                        {t("scanx.fixAmount")}
+                      </button>
+                    </div>
+                  )}
+
+                  {isOpen && (
+                    <div className="scan-edit" id={`scan-edit-${l.key}`}>
+                      {mode === "notebook" && (
+                        <EditField
+                          id={`${l.key}-name`}
+                          label={t("scan.customer")}
+                          value={l.customerName}
+                          max={MAX_NAME_LENGTH}
+                          error={lineErrors.customerName}
+                          onChange={(v) => update(l.key, "customerName", v)}
+                        />
+                      )}
+                      <EditField
+                        id={`${l.key}-item`}
+                        label={t("add.item")}
+                        value={l.item}
+                        max={MAX_ITEM_LENGTH}
+                        error={lineErrors.item}
+                        onChange={(v) => update(l.key, "item", v)}
+                      />
+                      <EditField
+                        id={`${l.key}-amount`}
+                        label={t("add.amount")}
+                        value={l.amount}
+                        inputMode="decimal"
+                        error={lineErrors.amount}
+                        onChange={(v) => update(l.key, "amount", v)}
+                      />
+                      {lineErrors.date && (
+                        <p className="field-error" id={`${l.key}-date-error`}>
+                          {lineErrors.date}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+
+          <button
+            type="button"
+            className="button button-primary tab-pay"
+            disabled={!ready || saving || included.length === 0}
+            onClick={save}
+          >
+            {included.length === 0 ? t("scan.tickOne") : t("scan.addToLedger", { count: included.length })}
+          </button>
+          <p className="tab-note">{t("scan.nothingSent")}</p>
+        </div>
+      </div>
     </div>
   );
 }

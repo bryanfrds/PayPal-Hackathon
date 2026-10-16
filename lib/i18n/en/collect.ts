@@ -91,6 +91,21 @@ export const collect = {
   "collect.send.ofSent": "{sent} of {total} sent",
   "collect.send.retryCount": "Retry {count}",
   "collect.send.done": "Done",
+  "collect.send.openPayPal": "Open in PayPal",
+  "collect.send.openPayPalLabel": "Open {name}'s invoice in PayPal, in a new tab",
+  // Customers with no email, above the To send list
+  "collect.missingEmail.title_one": "{count} customer has no email",
+  "collect.missingEmail.title_other": "{count} customers have no email",
+  "collect.missingEmail.body": "Their invoices can't be sent until you add an email for PayPal to send to.",
+  "collect.missingEmail.directory": "Customers",
+  "collect.missingEmail.next": "Add next email",
+  "collect.missingEmail.nextLabel": "Add {name}'s email",
+  // Confirm before sending from Review
+  "collect.confirm.title_one": "Send {count} PayPal invoice?",
+  "collect.confirm.title_other": "Send {count} PayPal invoices?",
+  "collect.confirm.body_one": "PayPal will email {count} customer an itemised invoice for {amount}, with a link to pay securely.",
+  "collect.confirm.body_other": "PayPal will email {count} customers their own itemised invoices, {amount} in all, each with a link to pay securely.",
+  "collect.confirm.send": "Confirm and send",
 
   // The paper invoice (Review and the laptop pane)
   "invoice.via": "Invoice via PayPal",
@@ -222,4 +237,12 @@ export const collect = {
   "reminders.emailSentNotice": "PayPal emailed {name} a reminder with their Pay button. The next one is planned from today.",
   "reminders.markedMaybe": "Marked {name}'s {label} as sent, since it may have gone out. If you know it didn't, undo and try again later.",
   "reminders.emailSaveFailed": "PayPal emailed {name}, but this device couldn't save that. Don't send it again today.",
+  // History: reminders already sent and tabs settled
+  "reminders.history.title": "History",
+  "reminders.history.sent": "Sent",
+  "reminders.history.settled": "{amount} received · reminders stopped, tab settled",
+  "reminders.history.viewTab": "View tab",
+  "reminders.history.viewTabLabel": "View {name}'s tab",
+  "reminders.history.more_one": "{count} older entry not shown.",
+  "reminders.history.more_other": "{count} older entries not shown.",
 } as const;

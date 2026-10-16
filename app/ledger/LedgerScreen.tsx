@@ -2,23 +2,40 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { DebtStoreError } from "@/lib/debt-store";
 import { formatSen, type Debt, type DebtStatus } from "@/lib/debts";
+import Avatar from "../components/Avatar";
 import StatusBadge from "../components/StatusBadge";
-import { SendIcon } from "../components/icons";
+import { CloseIcon, SendIcon } from "../components/icons";
+import { useDialog } from "../components/useDialog";
 import { useDebts } from "../useDebts";
 import { useCollect } from "../useCollect";
-import { useIsWide } from "../useIsWide";
 import { useT } from "../useT";
 import { collectGroups } from "@/lib/collect";
-import { LEDGER_FILTERS, filterByStatus, ledgerTotals, type LedgerFilter } from "@/lib/ledger";
-import LedgerGrid from "./LedgerGrid";
+import { customerSlug } from "@/lib/customer-tab";
+import { isPayPalUrl } from "@/lib/customer-pay";
+import type { InvoiceRecord } from "@/lib/collect-store";
+import { LEDGER_FILTERS, debtsToCsv, filterByStatus, ledgerTotals, type LedgerFilter } from "@/lib/ledger";
+import LedgerGrid, { type LedgerGridHandle } from "./LedgerGrid";
 
 type Notice =
   | { kind: "deleted"; debt: Debt }
   | { kind: "error"; message: string };
 
+function downloadCsv(content: string, filename: string) {
+  const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.setAttribute("href", url);
+  link.setAttribute("download", filename);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  // Some browsers start the download after click() returns: let go of the file a moment later.
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 
 function describe(debt: Debt) {
   return `${debt.customerName} · RM ${formatSen(debt.amountSen)}`;
@@ -28,6 +45,127 @@ function describe(debt: Debt) {
 export function LedgerLoading() {
   const { t } = useT();
   return <p className="card loading">{t("ledger.loading")}</p>;
+}
+
+/** The local calendar day ("2026-10-15") of an ISO timestamp, for formatDay. */
+function localDay(iso: string): string | null {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function DebtDetailSheet({
+  debt,
+  invoice,
+  onClose,
+  onDelete,
+}: {
+  debt: Debt;
+  invoice?: InvoiceRecord;
+  onClose: () => void;
+  onDelete: (debt: Debt) => void;
+}) {
+  const { t, formatDay } = useT();
+  const sheetRef = useDialog<HTMLDivElement>(onClose);
+  const slug = customerSlug(debt.customerName);
+  const sentDay = invoice ? localDay(invoice.sentAt) : null;
+
+  // Rendered at the end of <body>, so no sticky or layered part of the page can sit on top.
+  return createPortal(
+    <div className="sheet-layer">
+      <div className="sheet-dim" onClick={onClose} aria-hidden="true" />
+      <div
+        ref={sheetRef}
+        className="sheet debt-detail-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="debt-detail-title"
+      >
+        <button type="button" className="sheet-close" aria-label={t("common.close")} onClick={onClose}>
+          <CloseIcon />
+        </button>
+        <div className="sheet-who">
+          <Avatar name={debt.customerName} className="avatar avatar-lg" />
+          <h2 id="debt-detail-title">{debt.customerName}</h2>
+          <p>
+            <Link href={`/tab/${slug}`} className="link-button" onClick={onClose}>
+              {t("ledger.detail.viewTab")}
+            </Link>
+          </p>
+        </div>
+
+        <dl className="debt-detail-content">
+          <div className="debt-detail-row">
+            <dt className="debt-detail-label">{t("ledger.detail.amount")}</dt>
+            <dd className="debt-detail-value debt-detail-amount">RM {formatSen(debt.amountSen)}</dd>
+          </div>
+          <div className="debt-detail-row">
+            <dt className="debt-detail-label">{t("ledger.detail.status")}</dt>
+            <dd className="debt-detail-value">
+              <StatusBadge status={debt.status} />
+            </dd>
+          </div>
+          <div className="debt-detail-row">
+            <dt className="debt-detail-label">{t("ledger.detail.item")}</dt>
+            <dd className="debt-detail-value">{debt.item || t("ledger.noItem")}</dd>
+          </div>
+          <div className="debt-detail-row">
+            <dt className="debt-detail-label">{t("ledger.detail.date")}</dt>
+            <dd className="debt-detail-value">{formatDay(debt.date)}</dd>
+          </div>
+          <div className="debt-detail-row">
+            <dt className="debt-detail-label">{t("ledger.detail.source")}</dt>
+            <dd className="debt-detail-value">
+              {debt.source === "scan" ? t("ledger.detail.sourceScan") : t("ledger.detail.sourceManual")}
+            </dd>
+          </div>
+        </dl>
+
+        {invoice && (
+          <div className="debt-detail-invoice">
+            <h3>{t("ledger.detail.invoiceTitle")}</h3>
+            <p>
+              <strong>{t("ledger.detail.invoiceId")}:</strong> {invoice.id}
+              {invoice.number && ` (#${invoice.number})`}
+            </p>
+            {sentDay && (
+              <p>
+                <strong>{t("ledger.detail.invoiceSent")}:</strong> {formatDay(sentDay)}
+              </p>
+            )}
+            {isPayPalUrl(invoice.payerLink) && (
+              <a
+                href={invoice.payerLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="button button-primary debt-detail-paypal"
+              >
+                {t("ledger.detail.openPaypal")}
+              </a>
+            )}
+          </div>
+        )}
+
+        <div className="debt-detail-actions">
+          <button
+            type="button"
+            className="button debt-detail-delete"
+            onClick={() => {
+              onDelete(debt);
+              onClose();
+            }}
+          >
+            {t("ledger.delete")}
+          </button>
+          <button type="button" className="button" onClick={onClose}>
+            {t("common.close")}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
 }
 
 export default function LedgerScreen() {
@@ -41,14 +179,33 @@ export default function LedgerScreen() {
   const scannedParam = searchParams.get("scanned") ?? "";
   const scanned = /^[1-9]\d{0,3}$/.test(scannedParam) ? Number(scannedParam) : 0;
   const [notice, setNotice] = useState<Notice | null>(null);
-  // Laptop: filter chips by status. The phone has no chips, so the filter only applies when wide.
-  const wide = useIsWide();
   const [filter, setFilter] = useState<LedgerFilter>("all");
+  const [selectedDebts, setSelectedDebts] = useState<Debt[]>([]);
+  const [detailDebt, setDetailDebt] = useState<Debt | null>(null);
+  const gridRef = useRef<LedgerGridHandle>(null);
   const { counts, sen: totals, owedSen } = ledgerTotals(debts);
-  const shown = filterByStatus(debts, wide ? filter : "all");
+  const shown = filterByStatus(debts, filter);
   // Same list as Collect's "To send": customers with tabs not invoiced yet.
-  const { emails, pending } = useCollect();
+  const { emails, invoices, pending } = useCollect();
   const toInvoice = collectGroups(debts, emails, pending).length;
+
+  const invoiceRecordMap = useMemo(() => {
+    const map: Record<string, InvoiceRecord> = {};
+    for (const inv of invoices) {
+      for (const id of inv.debtIds) {
+        map[id] = inv;
+      }
+    }
+    return map;
+  }, [invoices]);
+
+  const invoiceIdMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const [id, inv] of Object.entries(invoiceRecordMap)) {
+      map[id] = inv.id;
+    }
+    return map;
+  }, [invoiceRecordMap]);
 
   function clearAdded() {
     router.replace("/ledger", { scroll: false });
@@ -58,7 +215,7 @@ export default function LedgerScreen() {
     try {
       action();
     } catch (error) {
-      const message = error instanceof DebtStoreError ? error.message : t("common.tryAgain");
+      const message = error instanceof DebtStoreError ? t("ledger.saveFailed") : t("common.tryAgain");
       setNotice({ kind: "error", message });
       return false;
     }
@@ -69,6 +226,7 @@ export default function LedgerScreen() {
     if (run(() => remove(debt.id))) {
       setNotice({ kind: "deleted", debt });
       if (debt.id === addedId) clearAdded();
+      if (detailDebt?.id === debt.id) setDetailDebt(null);
     }
   }
 
@@ -87,9 +245,26 @@ export default function LedgerScreen() {
           <h1 className="page-title">{t("ledger.title")}</h1>
           <p className="page-intro">{t("ledger.intro")}</p>
         </div>
-        <Link href="/add" className="button button-primary">
-          {t("ledger.addDebt")}
-        </Link>
+        <div className="ledger-head-actions">
+          <Link href="/customers" className="button">
+            {t("ledger.customers")}
+          </Link>
+          {debts.length > 0 && (
+            <button
+              type="button"
+              className="button"
+              onClick={() => {
+                const csv = debtsToCsv(shown, invoiceIdMap);
+                downloadCsv(csv, `buku-555-ledger-${new Date().toISOString().slice(0, 10)}.csv`);
+              }}
+            >
+              {t("ledger.exportCsv")}
+            </button>
+          )}
+          <Link href="/add" className="button button-primary">
+            {t("ledger.addDebt")}
+          </Link>
+        </div>
       </div>
 
       {ready && unreadable && (
@@ -161,7 +336,7 @@ export default function LedgerScreen() {
         </div>
       ) : (
         <>
-          <div className="ledger-chips ledger-wide-only" role="group" aria-label={t("ledger.filterGroup")}>
+          <div className="ledger-chips" role="group" aria-label={t("ledger.filterGroup")}>
             {LEDGER_FILTERS.map((f) => (
               <button key={f} type="button" aria-pressed={filter === f} onClick={() => setFilter(f)}>
                 {f === "all" ? t("ledger.filterAll") : t(`status.${f}`)} <b>{counts[f]}</b>
@@ -169,7 +344,13 @@ export default function LedgerScreen() {
             ))}
           </div>
           <div className="ledger-cols">
-            <LedgerGrid rows={shown} onDelete={onDelete} />
+            <LedgerGrid
+              ref={gridRef}
+              rows={shown}
+              onDelete={onDelete}
+              onRowClick={(debt) => setDetailDebt(debt)}
+              onSelectionChange={(selected) => setSelectedDebts(selected)}
+            />
             <aside className="card ledger-summary ledger-wide-only" aria-label={t("ledger.totalsLabel")}>
               <p className="ledger-summary-k">{t("ledger.stillOwed")}</p>
               <p className="ledger-summary-v">RM {formatSen(owedSen)}</p>
@@ -190,6 +371,62 @@ export default function LedgerScreen() {
             </aside>
           </div>
         </>
+      )}
+
+      {detailDebt && (
+        <DebtDetailSheet
+          debt={detailDebt}
+          invoice={invoiceRecordMap[detailDebt.id]}
+          onClose={() => setDetailDebt(null)}
+          onDelete={onDelete}
+        />
+      )}
+
+      {selectedDebts.length > 0 && (
+        <div className="ledger-bulk-bar" role="toolbar" aria-label={t("ledger.bulk.label")}>
+          <div className="ledger-bulk-info">
+            {t("ledger.bulk.selected", {
+              count: selectedDebts.length,
+              amount: formatSen(selectedDebts.reduce((sum, d) => sum + d.amountSen, 0)),
+            })}
+          </div>
+          <div className="ledger-bulk-actions">
+            <button
+              type="button"
+              className="ledger-bulk-btn ledger-bulk-btn-primary"
+              onClick={() => {
+                // Collect has its own picker; this only checks there's something left to invoice.
+                if (!selectedDebts.some((d) => d.status === "unpaid" || d.status === "overdue")) {
+                  setNotice({ kind: "error", message: t("ledger.bulk.nothingToInvoice") });
+                  return;
+                }
+                router.push("/collect");
+              }}
+            >
+              {t("ledger.bulk.goToCollect")}
+            </button>
+            <button
+              type="button"
+              className="ledger-bulk-btn"
+              onClick={() => {
+                const csv = debtsToCsv(selectedDebts, invoiceIdMap);
+                downloadCsv(csv, `buku-555-selected-${new Date().toISOString().slice(0, 10)}.csv`);
+              }}
+            >
+              {t("ledger.exportCsv")}
+            </button>
+            <button
+              type="button"
+              className="ledger-bulk-btn"
+              onClick={() => {
+                gridRef.current?.clearSelection();
+                setSelectedDebts([]);
+              }}
+            >
+              {t("ledger.bulk.clear")}
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
