@@ -139,6 +139,39 @@ export function invoicesToCheck(records: InvoiceRecord[], limit: number, now: Da
     .slice(0, limit);
 }
 
+/**
+ * Invoices worth reading from the payments database, newest first: those still waiting or in
+ * doubt. Paid and cancelled ones are left to the app's own PayPal check (paid ones hourly, for
+ * refunds), so with nothing outstanding the app stops asking and the database can sleep.
+ */
+export function invoicesToRead(records: InvoiceRecord[], limit: number): InvoiceRecord[] {
+  return records
+    .filter((r) => r.standing?.settlement !== "closed" && r.standing?.settlement !== "paid")
+    .sort((a, b) => b.sentAt.localeCompare(a.sentAt))
+    .slice(0, limit);
+}
+
+/** One answer the payments database holds (see /api/invoices/standings). */
+export type StoredAnswer = InvoiceFacts & { id: string; billedCurrency: string; checkedAt: string };
+
+/**
+ * The database's answers as standings for the device's own invoices, judged against what the
+ * device billed, exactly like its own PayPal check. Unknown ids and malformed rows are skipped.
+ */
+export function standingsFromStored(answers: StoredAnswer[], records: InvoiceRecord[]): Record<string, InvoiceStanding> {
+  const byId = new Map(records.map((r) => [r.id, r]));
+  const out: Record<string, InvoiceStanding> = {};
+  for (const a of answers) {
+    const record = byId.get(a.id);
+    if (!record || typeof a.status !== "string" || typeof a.checkedAt !== "string" || Number.isNaN(Date.parse(a.checkedAt))) continue;
+    const { id: _id, checkedAt, billedCurrency, ...facts } = a;
+    const standing = standingFrom({ ok: true, ...facts }, record.amountSen, billedCurrency, checkedAt);
+    // Only answers newer than what the device has: an unchanged one isn't saved again.
+    if (standing && (!record.standing || checkedAt > record.standing.checkedAt)) out[a.id] = standing;
+  }
+  return out;
+}
+
 export type DebtChanges = {
   /** Sent debts whose invoice PayPal reports paid in full. */
   toPaid: string[];

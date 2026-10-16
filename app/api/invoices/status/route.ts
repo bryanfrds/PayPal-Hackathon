@@ -63,7 +63,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: failure.message }, { status: failure.status });
   }
   await saveToDb(results, checkedAt);
-  return NextResponse.json({ currency: shopCurrency(), results });
+  // The server's time of the check, so every answer the device saves is on one clock.
+  return NextResponse.json({ currency: shopCurrency(), checkedAt: checkedAt.toISOString(), results });
 }
 
 /** Keeps the payments database up to date with what PayPal just said. Never fails the check. */
