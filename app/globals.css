@@ -5046,11 +5046,6 @@ body.nudge-sheet-open {
   color: var(--ink);
 }
 
-.ledger-bulk-btn-primary {
-  background: var(--accent);
-  color: var(--accent-ink);
-}
-
 /* Debt detail sheet */
 .debt-detail-sheet {
   max-height: 85vh;
@@ -7497,10 +7492,12 @@ dd.debt-detail-value {
   outline-offset: 2px;
 }
 
-/* The bar is --ink, and --accent is the same colour as --ink, so the main button vanished. */
+/* Go to Collect: the bar's primary action, always the opposite of the bar (the bar is --ink,
+   dark in light mode and light in dark mode), so it stands out in both themes. */
 .ledger-bulk-btn-primary {
   background: var(--on-ink);
   color: var(--ink);
+  font-weight: 800;
 }
 
 /* ---------- Customers (PR #37 review fixes) ---------- */
