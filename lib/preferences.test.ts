@@ -23,17 +23,18 @@ const throwing = {
 
 describe("parsePrefs", () => {
   it("defaults to light, friendly, pay link on", () => {
-    expect(DEFAULT_PREFS).toEqual({ theme: "light", defaultTone: "friendly", payLink: true, language: "en" });
+    expect(DEFAULT_PREFS).toEqual({ theme: "light", defaultTone: "friendly", payLink: true, language: "en", tourSeen: false });
     expect(parsePrefs(null)).toEqual(DEFAULT_PREFS);
     expect(parsePrefs("")).toEqual(DEFAULT_PREFS);
   });
 
   it("reads good values", () => {
-    expect(parsePrefs(JSON.stringify({ theme: "dark", defaultTone: "firm", payLink: false, language: "ms" }))).toEqual({
+    expect(parsePrefs(JSON.stringify({ theme: "dark", defaultTone: "firm", payLink: false, language: "ms", tourSeen: true }))).toEqual({
       theme: "dark",
       defaultTone: "firm",
       payLink: false,
       language: "ms",
+      tourSeen: true,
     });
   });
 
@@ -65,13 +66,47 @@ describe("language", () => {
   });
 });
 
+describe("tourSeen", () => {
+  it("defaults to not seen and falls back to it on bad values", () => {
+    expect(parsePrefs(null).tourSeen).toBe(false);
+    for (const tourSeen of ["yes", "true", 1, 0, null, {}, []]) {
+      expect(parsePrefs(JSON.stringify({ tourSeen })).tourSeen).toBe(false);
+    }
+  });
+
+  it("keeps true and false", () => {
+    expect(parsePrefs(JSON.stringify({ tourSeen: true })).tourSeen).toBe(true);
+    expect(parsePrefs(JSON.stringify({ tourSeen: false })).tourSeen).toBe(false);
+  });
+
+  it("is saved without touching the other settings", () => {
+    const s = memory();
+    writePrefs(s, { theme: "dark", language: "zh" });
+    expect(writePrefs(s, { tourSeen: true })).toEqual({ ...DEFAULT_PREFS, theme: "dark", language: "zh", tourSeen: true });
+    expect(readPrefs(s).tourSeen).toBe(true);
+    // Changing another setting later keeps it seen.
+    expect(writePrefs(s, { payLink: false })?.tourSeen).toBe(true);
+  });
+
+  it("an older saved value without the field reads as not seen", () => {
+    const s = memory({ [PREFS_KEY]: JSON.stringify({ theme: "dark", defaultTone: "polite", payLink: true, language: "ms" }) });
+    expect(readPrefs(s)).toEqual({ theme: "dark", defaultTone: "polite", payLink: true, language: "ms", tourSeen: false });
+  });
+
+  it("private mode: saving fails quietly and reading stays not seen", () => {
+    expect(writePrefs(throwing, { tourSeen: true })).toBeNull();
+    expect(readPrefs(throwing).tourSeen).toBe(false);
+    expect(writePrefs(null, { tourSeen: true })).toBeNull();
+  });
+});
+
 describe("readPrefs / writePrefs", () => {
   it("round-trips and merges a patch with what's saved", () => {
     const s = memory();
     expect(writePrefs(s, { theme: "dark" })).toEqual({ ...DEFAULT_PREFS, theme: "dark" });
     expect(writePrefs(s, { payLink: false })).toEqual({ ...DEFAULT_PREFS, theme: "dark", payLink: false });
     expect(readPrefs(s)).toEqual({ ...DEFAULT_PREFS, theme: "dark", payLink: false });
-    expect(JSON.parse(s.data[PREFS_KEY])).toEqual({ theme: "dark", defaultTone: "friendly", payLink: false, language: "en" });
+    expect(JSON.parse(s.data[PREFS_KEY])).toEqual({ theme: "dark", defaultTone: "friendly", payLink: false, language: "en", tourSeen: false });
   });
 
   it("doesn't save bad values", () => {
