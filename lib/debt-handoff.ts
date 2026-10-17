@@ -23,11 +23,6 @@ export async function approveDebtsForInvoicing(
       continue;
     }
 
-    if (!entry.included) {
-      rejected.push({ entryId, reason: "Entry was excluded or marked crossed out." });
-      continue;
-    }
-
     if (entry.classification === "crossed_out") {
       rejected.push({ entryId, reason: "Crossed out debts cannot be approved for invoicing." });
       continue;
@@ -43,6 +38,11 @@ export async function approveDebtsForInvoicing(
         entryId,
         reason: `Ambiguous entry must be clarified before approval: ${entry.ambiguityReason || "Unclear handwriting"}.`,
       });
+      continue;
+    }
+
+    if (!entry.included) {
+      rejected.push({ entryId, reason: "Entry was excluded or marked crossed out." });
       continue;
     }
 
