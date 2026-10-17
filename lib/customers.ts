@@ -4,7 +4,7 @@
 
 import { isValidEmail } from "./collect";
 import { customerSlug } from "./customer-tab";
-import { createManualDebt, validateDebtInput, type Debt } from "./debts";
+import { createManualDebt, outstanding, validateDebtInput, type Debt } from "./debts";
 import { translator, type T } from "./i18n";
 
 /** What the owner types into the Add customer form. */
@@ -107,4 +107,83 @@ export function saveAddCustomer(plan: Exclude<AddCustomerPlan, { kind: "invalid"
     }
   }
   return { ok: true };
+}
+
+export type CustomerRow = {
+  name: string;
+  slug: string;
+  email?: string;
+  totalDebts: number;
+  /** Not invoiced yet ("Not sent"). */
+  unpaidCount: number;
+  /** Invoiced, not paid yet ("Invoice sent"). */
+  sentCount: number;
+  overdueCount: number;
+  /** Everything not paid, the same rule as Home's "Still owed" (outstanding() in lib/debts). */
+  owedSen: number;
+  lastDate?: string;
+};
+
+/** "kak-lina" → "Kak Lina", for a customer known only by a saved email. */
+export function nameFromSlug(slug: string): string {
+  return slug
+    .split("-")
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+/**
+ * One row per customer, from their debts plus any saved email. Customers known only by an
+ * email are named from `knownNames` (e.g. their last invoice), else from the slug. Biggest
+ * balance first.
+ */
+export function customerRows(debts: Debt[], emails: Record<string, string>, knownNames: Map<string, string> = new Map()): CustomerRow[] {
+  const map = new Map<string, CustomerRow>();
+  for (const d of debts) {
+    const slug = customerSlug(d.customerName);
+    let row = map.get(slug);
+    if (!row) {
+      row = { name: d.customerName, slug, email: emails[slug], totalDebts: 0, unpaidCount: 0, sentCount: 0, overdueCount: 0, owedSen: 0, lastDate: d.date };
+      map.set(slug, row);
+    }
+    row.totalDebts += 1;
+    if (d.status === "unpaid") row.unpaidCount += 1;
+    else if (d.status === "sent") row.sentCount += 1;
+    else if (d.status === "overdue") row.overdueCount += 1;
+    if (!row.lastDate || d.date > row.lastDate) row.lastDate = d.date;
+  }
+  for (const row of map.values()) {
+    row.owedSen = outstanding(debts.filter((d) => customerSlug(d.customerName) === row.slug)).totalSen;
+  }
+  for (const [slug, email] of Object.entries(emails)) {
+    const row = map.get(slug);
+    if (row) row.email = email;
+    else map.set(slug, { name: knownNames.get(slug) ?? nameFromSlug(slug), slug, email, totalDebts: 0, unpaidCount: 0, sentCount: 0, overdueCount: 0, owedSen: 0 });
+  }
+  return [...map.values()].sort((a, b) => b.owedSen - a.owedSen || a.name.localeCompare(b.name));
+}
+
+export type CustomerTotals = {
+  /** Still owed across every customer: matches Home's total. */
+  owedSen: number;
+  /** Customers who owe anything. */
+  owing: number;
+  missingEmail: number;
+  /** Have an email and a tab Collect can invoice now (isInvoiceable: not sent yet, or overdue). */
+  readyToInvoice: number;
+};
+
+export function customerTotals(rows: CustomerRow[]): CustomerTotals {
+  let owedSen = 0;
+  let owing = 0;
+  let missingEmail = 0;
+  let readyToInvoice = 0;
+  for (const r of rows) {
+    owedSen += r.owedSen;
+    if (r.owedSen > 0) owing += 1;
+    if (!r.email) missingEmail += 1;
+    if (r.email && r.unpaidCount + r.overdueCount > 0) readyToInvoice += 1;
+  }
+  return { owedSen, owing, missingEmail, readyToInvoice };
 }

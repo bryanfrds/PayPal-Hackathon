@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { planAddCustomer, saveAddCustomer, type AddCustomerInput } from "./customers";
-import { MAX_ITEM_LENGTH, MAX_NAME_LENGTH, type Debt } from "./debts";
+import { customerRows, customerTotals, nameFromSlug, planAddCustomer, saveAddCustomer, type AddCustomerInput } from "./customers";
+import { MAX_ITEM_LENGTH, MAX_NAME_LENGTH, outstanding, type Debt } from "./debts";
 
 const TODAY = "2026-10-16";
 
@@ -125,5 +125,41 @@ describe("saveAddCustomer", () => {
     if (withDebt.kind === "invalid" || noDebt.kind === "invalid") throw new Error("expected valid plans");
     expect(saveAddCustomer(withDebt, d)).toEqual({ ok: false, saved: "debtOnly" });
     expect(saveAddCustomer(noDebt, d)).toEqual({ ok: false, saved: "nothing" });
+  });
+});
+
+describe("customerRows and customerTotals", () => {
+  const mk = (id: string, name: string, status: Debt["status"], amountSen: number, date = "2026-10-01"): Debt => ({
+    id, customerName: name, item: "Milo", amountSen, date, status, source: "manual", createdAt: `${date}T00:00:00.000Z`,
+  });
+  const debts = [
+    mk("1", "Kak Lina", "sent", 2240),
+    mk("2", "Kak Lina", "unpaid", 480),
+    mk("3", "Puan Rosnah", "sent", 920),
+    mk("4", "Mak Cik Siti", "overdue", 4850),
+    mk("5", "Nurul", "paid", 1660),
+  ];
+
+  it("counts invoiced-but-unpaid tabs as owed, so the total matches Home's outstanding()", () => {
+    const rows = customerRows(debts, {});
+    const totals = customerTotals(rows);
+    expect(totals.owedSen).toBe(outstanding(debts).totalSen);
+    expect(totals.owedSen).toBe(2240 + 480 + 920 + 4850);
+    expect(totals.owing).toBe(3);
+    expect(rows.find((r) => r.slug === "puan-rosnah")).toMatchObject({ owedSen: 920, sentCount: 1 });
+    expect(rows.find((r) => r.slug === "nurul")?.owedSen).toBe(0);
+  });
+
+  it("ready to invoice means an email and something Collect can still invoice", () => {
+    const rows = customerRows(debts, { "kak-lina": "lina@x.co", "puan-rosnah": "r@x.co", nurul: "n@x.co" });
+    // Kak Lina has a not-sent tab; Puan Rosnah's only tab is already invoiced; Nurul paid up.
+    expect(customerTotals(rows).readyToInvoice).toBe(1);
+    expect(customerTotals(rows).missingEmail).toBe(1);
+  });
+
+  it("names a customer known only by email from a known name, else from the slug", () => {
+    const rows = customerRows([], { "kak-lina": "a@x.co", "uncle-tan": "b@x.co" }, new Map([["kak-lina", "Kak Lina"]]));
+    expect(rows.map((r) => r.name).sort()).toEqual(["Kak Lina", "Uncle Tan"]);
+    expect(nameFromSlug("pak-ali-bengkel")).toBe("Pak Ali Bengkel");
   });
 });
