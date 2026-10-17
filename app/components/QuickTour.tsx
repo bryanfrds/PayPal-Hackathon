@@ -56,10 +56,19 @@ export default function QuickTour() {
   const [phase, setPhase] = useState<Phase | null>(null);
   const decided = useRef(false);
 
+  // Finished or skipped. If this browser can't save (private mode), it still stays closed for this visit.
+  const close = useCallback(() => {
+    markTourClosed();
+    setPrefs({ tourSeen: true });
+    setPhase(null);
+  }, [setPrefs]);
+
+  // Nothing the tour points at is on screen: close it (and count it as seen) rather than show an empty tour.
   const begin = useCallback(() => {
     const state = startTour(currentLayout(), has);
-    setPhase(state ? { kind: "tour", state, dir: 1 } : null);
-  }, []);
+    if (state) setPhase({ kind: "tour", state, dir: 1 });
+    else close();
+  }, [close]);
 
   // Once prefs are read: a replay from Settings starts at step 1; a first visit gets the welcome.
   useEffect(() => {
@@ -68,13 +77,6 @@ export default function QuickTour() {
     if (takeTourReplay()) begin();
     else if (!prefs.tourSeen && !tourClosedThisVisit()) setPhase({ kind: "welcome" });
   }, [ready, prefs.tourSeen, begin]);
-
-  // Finished or skipped. If this browser can't save (private mode), it still stays closed for this visit.
-  const close = useCallback(() => {
-    markTourClosed();
-    setPrefs({ tourSeen: true });
-    setPhase(null);
-  }, [setPrefs]);
 
   if (!phase) return null;
   return <TourLayer phase={phase} setPhase={setPhase} begin={begin} close={close} />;
@@ -129,15 +131,17 @@ function TourLayer({
     return () => document.removeEventListener("keydown", onKey);
   }, [phase.kind, next, back]);
 
-  // Each new step puts focus on its Next (or Done) button; the live region reads the step out.
-  useEffect(() => {
-    ref.current?.querySelector<HTMLElement>("[data-qt-primary]")?.focus({ preventScroll: true });
-  }, [ref, phase.kind, index]);
-
   // ----- Spotlight and tooltip position -----
   const [rect, setRect] = useState<(Rect & { radius: string }) | null>(null);
   const [place, setPlace] = useState<TipPlacement | null>(null);
   const tipRef = useRef<HTMLDivElement>(null);
+  const placed = place !== null;
+
+  // Each new step puts focus on its Next (or Done) button; the live region reads the step out.
+  // Runs again once the tooltip is placed, so step 1 gets focus on Start and on a replay too.
+  useEffect(() => {
+    ref.current?.querySelector<HTMLElement>("[data-qt-primary]")?.focus({ preventScroll: true });
+  }, [ref, phase.kind, index, placed]);
 
   useLayoutEffect(() => {
     if (phase.kind !== "tour") return;
@@ -233,7 +237,8 @@ function TourLayer({
             ref={tipRef}
             className="qt-tip"
             data-side={place?.side ?? "below"}
-            style={(place ? { top: place.top, left: place.left, "--qt-arrow": `${place.arrowX}px` } : { visibility: "hidden" }) as CSSProperties}
+            data-placed={placed || undefined}
+            style={place ? ({ top: place.top, left: place.left, "--qt-arrow": `${place.arrowX}px` } as CSSProperties) : undefined}
           >
             <p className="qt-step">{stepOf}</p>
             <h2 id={`${ids}-title`}>{title}</h2>
