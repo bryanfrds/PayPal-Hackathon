@@ -892,4 +892,7 @@ export const fil: Dictionary = {
   "share.sending": "Binubuksan ang WhatsApp…",
   "tab.sharedByLink": "Mabubuksan ni {name} ang utang na ito sa sarili niyang phone gamit ang link.",
   "tab.turnOffLink": "Patayin ang link",
+  "share.openFailed": "Hindi mabuksan ang WhatsApp. Kopyahin ang mensahe at ikaw na ang mag-send.",
+  "tab.confirmTurnOff": "Patayin ang link na ito? Hindi na gagana ang link ng customer.",
+  "tab.renameNote": "Kapag pinalitan ang pangalan ng customer, papatayin ang luma niyang link.",
 };

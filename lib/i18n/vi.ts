@@ -879,4 +879,7 @@ export const vi: Dictionary = {
   "share.sending": "Đang mở WhatsApp…",
   "tab.sharedByLink": "{name} có thể mở khoản nợ này trên điện thoại của mình bằng liên kết.",
   "tab.turnOffLink": "Tắt liên kết",
+  "share.openFailed": "Không mở được WhatsApp. Hãy sao chép tin nhắn rồi tự gửi.",
+  "tab.confirmTurnOff": "Tắt liên kết này? Liên kết của khách sẽ không dùng được nữa.",
+  "tab.renameNote": "Đổi tên khách sẽ tắt liên kết cũ của họ.",
 };

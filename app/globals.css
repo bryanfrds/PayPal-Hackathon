@@ -8031,3 +8031,23 @@ dd.debt-detail-value {
   justify-content: space-between;
   gap: 0.5rem;
 }
+
+.share-tab-manage small,
+.tab-link-notice .notice-text small {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.tab-link-confirm {
+  flex-basis: 100%;
+}
+
+.tab-link-confirm p {
+  margin: 0 0 0.4rem;
+  font-weight: 700;
+}
+
+.tab-link-off {
+  color: var(--overdue);
+}

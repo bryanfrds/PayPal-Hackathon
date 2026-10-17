@@ -51,6 +51,7 @@ export default function ShareSheet({
   const [addTab, setAddTab] = useState(true);
   const [sending, setSending] = useState(false);
   const [linkNote, setLinkNote] = useState<"off" | "offFailed" | null>(null);
+  const [openFailed, setOpenFailed] = useState(false);
   const wantTab = addTab && tabLink.available !== false;
   const sheetRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
@@ -152,10 +153,15 @@ export default function ShareSheet({
     const win = window.open("about:blank", "_blank");
     if (win) win.opener = null;
     setSending(true);
+    setOpenFailed(false);
     try {
       const href = whatsappUrl(await finalText());
+      // The new tab was blocked: go to WhatsApp in this tab instead.
       if (win) win.location.href = href;
-      else window.open(href, "_blank", "noopener,noreferrer");
+      else window.location.href = href;
+    } catch {
+      win?.close();
+      setOpenFailed(true);
     } finally {
       setSending(false);
     }
@@ -257,6 +263,7 @@ export default function ShareSheet({
             <button type="button" className="link-button" onClick={turnOffLink}>
               {t("share.tabLink.turnOff")}
             </button>
+            <small>{t("tab.renameNote")}</small>
           </p>
         )}
         {tabLink.failed && <p className="share-note share-note-quiet">{t("share.tabLink.failed")}</p>}
@@ -306,6 +313,11 @@ export default function ShareSheet({
             {sending ? t("share.sending") : t("share.send")}
           </button>
         </div>
+        {openFailed && (
+          <p className="share-note" role="alert">
+            {t("share.openFailed")}
+          </p>
+        )}
         <p className="visually-hidden" role="status">
           {copied === "done" ? t("share.copiedStatus") : copied === "failed" ? t("share.copyFailedStatus") : ""}
         </p>

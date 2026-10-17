@@ -169,13 +169,40 @@ function OwnerLinkNotice({ slug, name }: { slug: string; name: string }) {
   const link = useTabLink(slug);
   const { t } = useT();
   const [failed, setFailed] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   if (shared || !link.url) return null;
   return (
     <div className="notice tab-link-notice">
-      <p className="notice-text">{t("tab.sharedByLink", { name })}</p>
-      <button type="button" className="button button-sm" onClick={async () => setFailed(!(await revokeTabLink(slug)))}>
-        {t("tab.turnOffLink")}
-      </button>
+      <p className="notice-text">
+        {t("tab.sharedByLink", { name })}
+        <small>{t("tab.renameNote")}</small>
+      </p>
+      {confirming ? (
+        // A second step: turning a link off can't be undone (sharing again makes a new link).
+        <div className="tab-link-confirm" role="group" aria-label={t("tab.turnOffLink")}>
+          <p>{t("tab.confirmTurnOff")}</p>
+          <div className="notice-actions">
+            <button type="button" className="button button-sm" onClick={() => setConfirming(false)}>
+              {t("common.cancel")}
+            </button>
+            <button
+              type="button"
+              className="button button-sm tab-link-off"
+              onClick={async () => {
+                const ok = await revokeTabLink(slug);
+                setFailed(!ok);
+                setConfirming(false);
+              }}
+            >
+              {t("tab.turnOffLink")}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button type="button" className="button button-sm" onClick={() => setConfirming(true)}>
+          {t("tab.turnOffLink")}
+        </button>
+      )}
       {failed && (
         <p className="field-error" role="alert">
           {t("share.tabLink.turnOffFailed")}

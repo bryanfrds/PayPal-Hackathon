@@ -81,4 +81,5 @@ export const settings = {
   "share.tabLink.turnedOff": "Link turned off. The old link won't open any more.",
   "share.tabLink.turnOffFailed": "Couldn't turn the link off just now. Try again.",
   "share.sending": "Opening WhatsApp…",
+  "share.openFailed": "Couldn't open WhatsApp. Copy the message and send it yourself instead.",
 } as const;

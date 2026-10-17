@@ -70,4 +70,6 @@ export const tab = {
   "tab.sentOn": "{amount} · sent {date}",
   "tab.sharedByLink": "{name} can open this tab on their own phone with a link.",
   "tab.turnOffLink": "Turn off link",
+  "tab.confirmTurnOff": "Turn off this link? The customer's link will stop working.",
+  "tab.renameNote": "Renaming a customer turns off their old link.",
 } as const;

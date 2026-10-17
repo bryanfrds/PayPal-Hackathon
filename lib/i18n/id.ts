@@ -874,4 +874,7 @@ export const id: Dictionary = {
   "share.sending": "Membuka WhatsApp…",
   "tab.sharedByLink": "{name} bisa membuka utang ini di ponselnya sendiri lewat link.",
   "tab.turnOffLink": "Matikan link",
+  "share.openFailed": "WhatsApp tidak bisa dibuka. Salin pesannya lalu kirim sendiri.",
+  "tab.confirmTurnOff": "Matikan link ini? Link pelanggan tidak akan bisa dipakai lagi.",
+  "tab.renameNote": "Mengganti nama pelanggan akan mematikan link lamanya.",
 };

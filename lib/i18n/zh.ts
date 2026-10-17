@@ -873,4 +873,7 @@ export const zh: Dictionary = {
   "share.sending": "正在打开 WhatsApp…",
   "tab.sharedByLink": "{name} 可以用链接在自己的手机上查看这笔赊账。",
   "tab.turnOffLink": "关闭链接",
+  "share.openFailed": "无法打开 WhatsApp。请复制消息后自己发送。",
+  "tab.confirmTurnOff": "要关闭这个链接吗？顾客的链接将无法再使用。",
+  "tab.renameNote": "更改顾客名字会关闭他们的旧链接。",
 };

@@ -892,4 +892,7 @@ export const bn: Dictionary = {
   "share.sending": "WhatsApp খোলা হচ্ছে…",
   "tab.sharedByLink": "{name} লিংক দিয়ে নিজের ফোনে এই বাকি দেখতে পারবেন।",
   "tab.turnOffLink": "লিংক বন্ধ করুন",
+  "share.openFailed": "WhatsApp খোলা গেল না। বার্তাটি কপি করে নিজে পাঠান।",
+  "tab.confirmTurnOff": "এই লিংকটি বন্ধ করবেন? গ্রাহকের লিংক আর কাজ করবে না।",
+  "tab.renameNote": "গ্রাহকের নাম বদলালে তাঁর পুরনো লিংক বন্ধ হয়ে যায়।",
 };

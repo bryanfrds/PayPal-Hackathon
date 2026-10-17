@@ -879,4 +879,7 @@ export const th: Dictionary = {
   "share.sending": "กำลังเปิด WhatsApp…",
   "tab.sharedByLink": "{name} เปิดยอดค้างนี้ได้จากโทรศัพท์ของตัวเองผ่านลิงก์",
   "tab.turnOffLink": "ปิดลิงก์",
+  "share.openFailed": "เปิด WhatsApp ไม่ได้ คัดลอกข้อความแล้วส่งเองแทน",
+  "tab.confirmTurnOff": "ปิดลิงก์นี้ไหม ลิงก์ของลูกค้าจะใช้ไม่ได้อีก",
+  "tab.renameNote": "การเปลี่ยนชื่อลูกค้าจะปิดลิงก์เดิมของลูกค้า",
 };
