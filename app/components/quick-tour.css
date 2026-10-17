@@ -1,0 +1,321 @@
+/* ---------- Quick tour (first visit on Home, replayed from Settings) ---------- */
+/* Mock: "555 Buku - Quick Tour Mock.html". Kept out of globals.css so the tour stays in one place. */
+
+.qt {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  --qt-scrim: rgba(10, 10, 10, 0.55);
+}
+
+:root[data-theme="dark"] .qt {
+  --qt-scrim: rgba(0, 0, 0, 0.7);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="auto"] .qt {
+    --qt-scrim: rgba(0, 0, 0, 0.7);
+  }
+}
+
+.qt h2,
+.qt p {
+  margin: 0;
+}
+
+.qt-dim,
+.qt-catch {
+  position: absolute;
+  inset: 0;
+}
+
+.qt-dim {
+  background: var(--qt-scrim);
+  animation: qt-fade 0.2s ease-out;
+}
+
+/* The lit-up part: a hole in the dimmed page, ringed in white. */
+.qt-spot {
+  position: fixed;
+  pointer-events: none;
+  border-radius: 16px;
+  box-shadow:
+    0 0 0 3px #ffffff,
+    0 0 0 9999px var(--qt-scrim);
+  transition:
+    top 0.25s ease,
+    left 0.25s ease,
+    width 0.25s ease,
+    height 0.25s ease,
+    border-radius 0.25s ease;
+}
+
+/* ----- Buttons ----- */
+.qt-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.5rem;
+  padding: 0 1rem;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--ink);
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.qt-btn-primary {
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.qt-btn-ghost {
+  padding: 0 0.4rem;
+  color: var(--muted);
+  background: none;
+  border-color: transparent;
+}
+
+.qt-btn:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.qt-btn-ghost:hover {
+  color: var(--ink);
+}
+
+/* ----- Welcome card: a bottom card on phones, centred low on laptops ----- */
+.qt-welcome {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  max-width: 420px;
+  max-height: calc(100dvh - 32px);
+  margin: 0 auto;
+  overflow-y: auto;
+  padding: 1.4rem 1.15rem 1.15rem;
+  text-align: center;
+  color: var(--ink);
+  background: var(--card);
+  border-radius: 28px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.3);
+  animation: qt-rise 0.25s ease-out;
+}
+
+@media (min-width: 1024px) {
+  .qt-welcome {
+    bottom: 48px;
+  }
+}
+
+.qt-art {
+  display: block;
+  width: 72px;
+  margin: 0 auto 0.75rem;
+}
+
+.qt-art .logo-mark {
+  font-size: 1.35rem;
+  border-radius: 22px;
+}
+
+.qt-welcome h2 {
+  font-size: 1.3rem;
+  letter-spacing: -0.02em;
+}
+
+.qt-welcome > p {
+  margin: 0.4rem 0 1rem;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.qt-list {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+  text-align: start;
+}
+
+.qt-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.qt-ic {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+}
+
+.qt-ic .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.qt-ic-scan {
+  color: var(--sent);
+  background: var(--sent-bg);
+}
+
+.qt-ic-collect {
+  color: var(--paid);
+  background: var(--paid-bg);
+}
+
+.qt-ic-remind {
+  color: var(--unpaid);
+  background: var(--unpaid-bg);
+}
+
+.qt-welcome-btns {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.qt-welcome-btns .qt-btn {
+  width: 100%;
+  min-height: 3rem;
+  font-size: 0.9rem;
+}
+
+.qt-welcome small {
+  display: block;
+  margin-top: 0.65rem;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+/* ----- A step's tooltip ----- */
+.qt-tip {
+  position: fixed;
+  width: min(380px, calc(100vw - 32px));
+  padding: 1rem;
+  color: var(--ink);
+  background: var(--card);
+  border-radius: 22px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.3);
+  transition:
+    top 0.25s ease,
+    left 0.25s ease;
+}
+
+@media (min-width: 1024px) {
+  .qt-tip {
+    width: 340px;
+  }
+}
+
+/* The arrow toward the lit-up part: on top when the tooltip is below it, underneath when above. */
+.qt-tip::after {
+  content: "";
+  position: absolute;
+  left: var(--qt-arrow, 50%);
+  width: 14px;
+  height: 14px;
+  background: var(--card);
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.qt-tip[data-side="below"]::after {
+  top: -7px;
+}
+
+.qt-tip[data-side="above"]::after {
+  bottom: -7px;
+}
+
+.qt-step {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.qt-tip h2 {
+  margin: 0.25rem 0;
+  font-size: 1.05rem;
+  letter-spacing: -0.02em;
+}
+
+.qt-tip > p:not(.qt-step) {
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.qt-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.9rem;
+}
+
+.qt-dots {
+  display: flex;
+  gap: 5px;
+  margin-inline-end: auto;
+}
+
+.qt-dots i {
+  width: 7px;
+  height: 7px;
+  background: var(--dot);
+  border-radius: 50%;
+}
+
+.qt-dots i.on {
+  width: 18px;
+  background: var(--ink);
+  border-radius: 9px;
+}
+
+.qt-bar-btns {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-inline-start: auto;
+}
+
+@keyframes qt-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes qt-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qt-dim,
+  .qt-welcome {
+    animation: none;
+  }
+
+  .qt-spot,
+  .qt-tip {
+    transition: none;
+  }
+}
