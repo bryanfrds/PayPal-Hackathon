@@ -1,7 +1,6 @@
 // English words for the first-visit quick tour and its "Replay quick tour" row in Settings.
 // Mock: "555 Buku - Quick Tour Mock.html".
 export const tour = {
-  "tour.label": "Quick tour",
   "tour.welcome.title": "Welcome to 555 Buku",
   "tour.welcome.sub": "A 1-minute tour of how your notebook becomes PayPal invoices.",
   "tour.welcome.scan": "Snap your 555 notebook",

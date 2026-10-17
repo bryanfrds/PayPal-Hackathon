@@ -9,7 +9,6 @@ type TourWords = Record<keyof typeof tour, string>;
 
 export const tourWords: Record<Exclude<Language, "en">, TourWords> = {
   ms: {
-    "tour.label": "Lawatan ringkas",
     "tour.welcome.title": "Selamat datang ke 555 Buku",
     "tour.welcome.sub": "Lawatan 1 minit: bagaimana buku nota anda menjadi invois PayPal.",
     "tour.welcome.scan": "Ambil gambar buku 555 anda",
@@ -38,7 +37,6 @@ export const tourWords: Record<Exclude<Language, "en">, TourWords> = {
     "settings.replayTourHint": "Lawatan 1 minit melalui app",
   },
   zh: {
-    "tour.label": "快速导览",
     "tour.welcome.title": "欢迎使用 555 Buku",
     "tour.welcome.sub": "1 分钟了解你的账本如何变成 PayPal 发票。",
     "tour.welcome.scan": "拍下你的 555 账本",
@@ -67,7 +65,6 @@ export const tourWords: Record<Exclude<Language, "en">, TourWords> = {
     "settings.replayTourHint": "1 分钟了解这个应用",
   },
   ta: {
-    "tour.label": "விரைவுச் சுற்றுலா",
     "tour.welcome.title": "555 Buku-க்கு வரவேற்கிறோம்",
     "tour.welcome.sub": "உங்கள் குறிப்பேடு PayPal விலைப்பட்டியலாக எப்படி மாறுகிறது என 1 நிமிடச் சுற்றுலா.",
     "tour.welcome.scan": "உங்கள் 555 குறிப்பேட்டைப் படம் எடுங்கள்",
@@ -96,7 +93,6 @@ export const tourWords: Record<Exclude<Language, "en">, TourWords> = {
     "settings.replayTourHint": "ஆப்பின் 1 நிமிட அறிமுகம்",
   },
   id: {
-    "tour.label": "Tur singkat",
     "tour.welcome.title": "Selamat datang di 555 Buku",
     "tour.welcome.sub": "Tur 1 menit: bagaimana buku catatan Anda menjadi invoice PayPal.",
     "tour.welcome.scan": "Foto buku 555 Anda",
@@ -125,7 +121,6 @@ export const tourWords: Record<Exclude<Language, "en">, TourWords> = {
     "settings.replayTourHint": "Tur 1 menit keliling aplikasi",
   },
   th: {
-    "tour.label": "ทัวร์สั้นๆ",
     "tour.welcome.title": "ยินดีต้อนรับสู่ 555 Buku",
     "tour.welcome.sub": "ทัวร์ 1 นาที ดูว่าสมุดของคุณกลายเป็นใบแจ้งหนี้ PayPal ได้อย่างไร",
     "tour.welcome.scan": "ถ่ายรูปสมุด 555 ของคุณ",
@@ -154,7 +149,6 @@ export const tourWords: Record<Exclude<Language, "en">, TourWords> = {
     "settings.replayTourHint": "ทัวร์ 1 นาทีรอบแอป",
   },
   vi: {
-    "tour.label": "Hướng dẫn nhanh",
     "tour.welcome.title": "Chào mừng đến với 555 Buku",
     "tour.welcome.sub": "1 phút xem sổ ghi nợ của bạn trở thành hóa đơn PayPal như thế nào.",
     "tour.welcome.scan": "Chụp sổ 555 của bạn",
@@ -183,7 +177,6 @@ export const tourWords: Record<Exclude<Language, "en">, TourWords> = {
     "settings.replayTourHint": "1 phút làm quen với ứng dụng",
   },
   fil: {
-    "tour.label": "Mabilis na tour",
     "tour.welcome.title": "Maligayang pagdating sa 555 Buku",
     "tour.welcome.sub": "1 minutong tour kung paano nagiging PayPal invoice ang iyong kuwaderno.",
     "tour.welcome.scan": "Kunan ng litrato ang 555 notebook mo",
@@ -212,7 +205,6 @@ export const tourWords: Record<Exclude<Language, "en">, TourWords> = {
     "settings.replayTourHint": "1 minutong pasyal sa app",
   },
   bn: {
-    "tour.label": "সংক্ষিপ্ত পরিচিতি",
     "tour.welcome.title": "555 Buku-তে স্বাগতম",
     "tour.welcome.sub": "আপনার খাতা কীভাবে PayPal ইনভয়েস হয়ে যায়, তার ১ মিনিটের পরিচিতি।",
     "tour.welcome.scan": "আপনার 555 খাতার ছবি তুলুন",

@@ -1,6 +1,7 @@
 // The owner's app preferences on this device: theme, the WhatsApp message's default tone,
 // whether to add the PayPal pay link, and whether the quick tour has been seen. Pure functions
-// so reading, writing and theme choice can be tested in Node. Every storage call is wrapped: private modes can throw on access.
+// so reading, writing and theme choice can be tested in Node. Every storage call is wrapped:
+// private modes can throw on access.
 
 import { DEFAULT_LANGUAGE, isLanguage, LANGUAGES, type Language } from "./i18n/languages";
 import { TONES, type Tone } from "./share";

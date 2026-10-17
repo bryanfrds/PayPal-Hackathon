@@ -1,7 +1,8 @@
 "use client";
 
-// The owner's preferences on this device (theme, default tone, pay link), shared by every
-// screen and re-rendering when they change here or in another tab. See lib/preferences.ts.
+// The owner's preferences on this device (theme, default tone, pay link, language, and whether
+// the quick tour has been seen), shared by every screen and re-rendering when they change here
+// or in another tab. See lib/preferences.ts.
 
 import { useCallback, useSyncExternalStore } from "react";
 import { browserStorage } from "@/lib/debt-store";
