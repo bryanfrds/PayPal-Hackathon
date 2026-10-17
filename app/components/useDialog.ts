@@ -6,6 +6,25 @@
 
 import { useEffect, useRef, type RefObject } from "react";
 
+// The page behind stays still while any dialog is open. A count, not a saved-and-restored
+// value per dialog, so it's right whatever order stacked dialogs close in: the first to open
+// saves the page's own setting and locks it, the last to close puts it back.
+let openDialogs = 0;
+let savedOverflow = "";
+
+function lockPage() {
+  if (openDialogs === 0) {
+    savedOverflow = document.documentElement.style.overflow;
+    document.documentElement.style.overflow = "hidden";
+  }
+  openDialogs += 1;
+}
+
+function unlockPage() {
+  openDialogs = Math.max(0, openDialogs - 1);
+  if (openDialogs === 0) document.documentElement.style.overflow = savedOverflow;
+}
+
 const FOCUSABLE = "button, a[href], input, select, textarea, [tabindex]:not([tabindex='-1'])";
 
 function focusables(root: HTMLElement): HTMLElement[] {
@@ -32,10 +51,7 @@ export function useDialog<T extends HTMLElement>(
   useEffect(() => {
     const root = ref.current;
     const opener = returnTo ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
-    // Lock the page behind (restored on close; nested dialogs restore in order).
-    const html = document.documentElement;
-    const previousOverflow = html.style.overflow;
-    html.style.overflow = "hidden";
+    lockPage();
     if (root) {
       const first = (initialFocus ? root.querySelector<HTMLElement>(initialFocus) : null) ?? focusables(root)[0] ?? root;
       if (first === root && !root.hasAttribute("tabindex")) root.setAttribute("tabindex", "-1");
@@ -69,7 +85,7 @@ export function useDialog<T extends HTMLElement>(
     document.addEventListener("keydown", onKey);
     return () => {
       document.removeEventListener("keydown", onKey);
-      html.style.overflow = previousOverflow;
+      unlockPage();
       // After React finishes removing the dialog, so the opener is focusable again.
       window.setTimeout(() => {
         if (opener?.isConnected) opener.focus({ preventScroll: true });
