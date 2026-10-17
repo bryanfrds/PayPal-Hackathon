@@ -31,7 +31,7 @@ describe("proxy", () => {
   });
 
   it("leaves customers, sign-in and one invoice's status open", async () => {
-    for (const path of ["/sign-in", "/tab/mak-cik-siti", "/tab/mak-cik-siti/pay", "/api/auth/email/start", "/api/invoices/INV2-ABCD"]) {
+    for (const path of ["/sign-in", "/tab/mak-cik-siti", "/tab/mak-cik-siti/pay", "/t/AbCdEfGhIjKlMnOpQrStUv", "/t/AbCdEfGhIjKlMnOpQrStUv/pay", "/api/auth/email/start", "/api/invoices/INV2-ABCD"]) {
       const res = await proxy(req(path));
       expect(res.headers.get("x-middleware-next"), path).toBe("1");
     }

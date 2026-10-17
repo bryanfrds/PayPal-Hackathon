@@ -33,3 +33,18 @@ export function filterLanguages(query: string): LanguageInfo[] {
   if (!q) return [...LANGUAGES];
   return LANGUAGES.filter((l) => fold(l.name).includes(q) || fold(l.english).includes(q) || l.code === q);
 }
+
+/**
+ * The best of our languages for a browser's preferred list (navigator.languages), else English.
+ * Matches by the language part: "ms-MY" → Malay, "zh-Hans-CN" / "zh-CN" → Chinese,
+ * "tl" (Tagalog) → Filipino, "in" (old code) → Indonesian.
+ */
+export function pickLanguage(preferred: readonly string[] | undefined): Language {
+  const alias: Record<string, Language> = { tl: "fil", in: "id" };
+  for (const tag of preferred ?? []) {
+    const base = tag.toLowerCase().split(/[-_]/)[0];
+    const code = alias[base] ?? base;
+    if (isLanguage(code)) return code;
+  }
+  return DEFAULT_LANGUAGE;
+}

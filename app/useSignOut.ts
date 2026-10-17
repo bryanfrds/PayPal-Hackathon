@@ -4,6 +4,7 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
+import { clearTabLinks } from "./tabLinks";
 import { useT } from "./useT";
 
 export function useSignOut() {
@@ -18,6 +19,8 @@ export function useSignOut() {
     try {
       const res = await fetch("/api/auth/sign-out", { method: "POST" });
       if (!res.ok) throw new Error();
+      // The shared tab links on this device belong to this owner.
+      clearTabLinks();
       router.replace("/sign-in");
       router.refresh();
     } catch {

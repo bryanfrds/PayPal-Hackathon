@@ -13,7 +13,7 @@ import { th } from "./th";
 import { vi } from "./vi";
 import { zh } from "./zh";
 
-export { DEFAULT_LANGUAGE, LANGUAGES, filterLanguages, isLanguage, languageInfo, type Language, type LanguageInfo } from "./languages";
+export { DEFAULT_LANGUAGE, LANGUAGES, filterLanguages, isLanguage, languageInfo, pickLanguage, type Language, type LanguageInfo } from "./languages";
 export type { Dictionary, MessageKey } from "./en";
 
 export const DICTIONARIES: Record<Language, Partial<Dictionary>> = { en, ms, zh, ta, id, th, vi, fil, bn };

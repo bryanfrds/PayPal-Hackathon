@@ -1,5 +1,7 @@
 // English words for the tab screens. Keys are "area.thing"; English is the source of keys.
 export const tab = {
+  "sharedTab.inactiveTitle": "This link isn't active",
+  "sharedTab.inactiveBody": "It may be old or turned off. Ask the shop to send you a new link to your tab.",
   "tab.loading": "Loading your tab…",
   "tab.unreadableTitle": "Your tab couldn't be loaded",
   "tab.unreadableBody": "Something went wrong reading the saved tabs. Ask {shop} to check the app.",
@@ -66,4 +68,8 @@ export const tab = {
   "tab.invoiceNumber": "Invoice {number}",
   "tab.paypalInvoice": "PayPal invoice",
   "tab.sentOn": "{amount} · sent {date}",
+  "tab.sharedByLink": "{name} can open this tab on their own phone with a link.",
+  "tab.turnOffLink": "Turn off link",
+  "tab.confirmTurnOff": "Turn off this link? The customer's link will stop working.",
+  "tab.renameNote": "Renaming a customer turns off their old link.",
 } as const;

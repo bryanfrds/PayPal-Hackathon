@@ -19,7 +19,8 @@ export default function SiteHeader({ links }: { links: NavLink[] }) {
   const { name } = useShop();
   const { t } = useT();
   const [accountOpen, setAccountOpen] = useState(false);
-  if (pathname.startsWith("/tab/") || pathname === "/scan" || pathname.startsWith("/sign-in")) return null;
+  // Also hidden on a customer's shared tab (/t/...), which is theirs, not the owner's.
+  if (pathname.startsWith("/tab/") || pathname.startsWith("/t/") || pathname === "/scan" || pathname.startsWith("/sign-in")) return null;
   return (
     <header className="site-header">
       <Link href="/" className="brand">

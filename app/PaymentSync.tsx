@@ -9,6 +9,7 @@
 // Both run when the app opens and when the owner comes back to it. Renders nothing.
 // The rules are in lib/payments.ts; this is only the timing and the saving.
 
+import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef } from "react";
 import { createCollectStore } from "@/lib/collect-store";
 import { browserStorage } from "@/lib/debt-store";
@@ -22,6 +23,8 @@ import {
   type StatusResult,
   type StoredAnswer,
 } from "@/lib/payments";
+import { customerSlug } from "@/lib/customer-tab";
+import { refreshPublishedTabs } from "./tabLinks";
 import { useCollect } from "./useCollect";
 import { useDebts } from "./useDebts";
 
@@ -34,7 +37,14 @@ const READ_BATCH = 100;
 // A hung request mustn't stop every later check.
 const TIMEOUT_MS = 20_000;
 
+/** Not on a customer's shared tab (/t/...): that's the customer's phone, with no ledger to sync. */
 export default function PaymentSync() {
+  const pathname = usePathname();
+  if (pathname.startsWith("/t/")) return null;
+  return <PaymentSyncOnOwnerDevice />;
+}
+
+function PaymentSyncOnOwnerDevice() {
   const { debts, ready: debtsReady, updateMany } = useDebts();
   const { invoices, ready: invoicesReady, setStandings } = useCollect();
   const ready = debtsReady && invoicesReady;
@@ -51,6 +61,9 @@ export default function PaymentSync() {
       if (toPaid.length > 0) updateMany(toPaid, { status: "paid" });
       if (toUnpaid.length > 0) updateMany(toUnpaid, { status: "unpaid" });
       if (toSent.length > 0) updateMany(toSent, { status: "sent" });
+      // A payment came in (or was reversed): refresh those customers' shared tabs, if published.
+      const changed = new Set([...toPaid, ...toUnpaid, ...toSent]);
+      if (changed.size > 0) refreshPublishedTabs(debts.filter((d) => changed.has(d.id)).map((d) => customerSlug(d.customerName)));
     } catch {
       // Storage full or unreadable: the ledger shows what it knew; nothing is lost.
     }

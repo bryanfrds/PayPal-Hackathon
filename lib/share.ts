@@ -130,7 +130,21 @@ export type ShareInput = {
   pay?: PayLink;
   /** The message's language; English when left out. */
   language?: Language;
+  /** The customer's shared tab page (…/t/<token>), when the owner adds it. Anything else is left out. */
+  tabLink?: string;
 };
+
+/** Only a link to one of our shared tab pages goes in a message as "See your tab". */
+export function isTabLink(value: string | undefined): value is string {
+  if (!value) return false;
+  try {
+    const url = new URL(value);
+    const local = url.hostname === "localhost" || url.hostname === "127.0.0.1";
+    return (url.protocol === "https:" || (local && url.protocol === "http:")) && /^\/t\/[A-Za-z0-9_-]{22,64}$/.test(url.pathname) && !url.search && !url.hash;
+  } catch {
+    return false;
+  }
+}
 
 export type ShareMessage = {
   /** First paragraph. The amount is wrapped in *asterisks*, WhatsApp's bold. */
@@ -140,6 +154,8 @@ export type ShareMessage = {
   link?: string;
   /** What the link's invoice asks for, in sen, when there's a link. */
   linkSen?: number;
+  /** "See your tab: <url>", when a tab link is added. */
+  tabLine?: string;
   closing: string;
   /** Everything above as one message, paragraphs separated by a blank line. */
   text: string;
@@ -161,15 +177,18 @@ export function buildShareMessage(input: ShareInput): ShareMessage {
   const payLine =
     pay && !pay.full ? t("msg.partialPayLine", { amount: `RM ${formatSen(pay.amountSen)}` }) : t(`msg.${input.tone}.payLine`);
   const closing = t("msg.closing");
+  const tabLine = isTabLink(input.tabLink) ? t("msg.tabLine", { url: input.tabLink }) : undefined;
 
   const parts = [intro];
   if (link) parts.push(`${payLine} ${link}`);
+  if (tabLine) parts.push(tabLine);
   parts.push(closing);
   return {
     intro,
     payLine: link ? payLine : undefined,
     link,
     linkSen: pay?.amountSen,
+    tabLine,
     closing,
     text: parts.join("\n\n"),
   };

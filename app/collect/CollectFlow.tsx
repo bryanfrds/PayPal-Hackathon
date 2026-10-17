@@ -17,6 +17,7 @@ import {
   type PendingSend,
 } from "@/lib/collect";
 import { CollectStoreError } from "@/lib/collect-store";
+import { refreshPublishedTabs } from "../tabLinks";
 import { isPayPalUrl } from "@/lib/customer-pay";
 import { customerSlug, tabPath } from "@/lib/customer-tab";
 import { DebtStoreError } from "@/lib/debt-store";
@@ -792,6 +793,8 @@ function Send({ groups, onDone }: { groups: CollectGroup[]; onDone: () => void }
       });
       updateMany(request.debtIds, { status: "sent" });
       clearPending(request.slug);
+      // Their shared tab (if published) now shows the new invoice and its pay link.
+      refreshPublishedTabs([request.slug]);
     } catch (e) {
       if (!(e instanceof CollectStoreError || e instanceof DebtStoreError)) throw e;
       setResults((prev) => ({ ...prev, [g.slug]: { state: "saveFailed", saved, request } }));

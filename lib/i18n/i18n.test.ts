@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { en } from "./en";
-import { DICTIONARIES, LANGUAGES, filterLanguages, formatDayIn, formatMonthIn, isLanguage, translate, translator } from "./index";
+import { DICTIONARIES, LANGUAGES, filterLanguages, formatDayIn, formatMonthIn, isLanguage, pickLanguage, translate, translator } from "./index";
 
 const EN_KEYS = Object.keys(en).sort();
 
@@ -107,5 +107,18 @@ describe("counts in the language's digits", () => {
 
   it("leaves other numbers as passed", () => {
     expect(translate("bn", "settings.nameTooLong", { max: 40 })).toContain("40");
+  });
+});
+
+describe("pickLanguage (a customer's shared tab)", () => {
+  it("picks the first of the browser's languages we have, else English", () => {
+    expect(pickLanguage(["ms-MY", "en-US"])).toBe("ms");
+    expect(pickLanguage(["zh-Hans-CN"])).toBe("zh");
+    expect(pickLanguage(["zh-CN"])).toBe("zh");
+    expect(pickLanguage(["de-DE", "ta-IN"])).toBe("ta");
+    expect(pickLanguage(["tl-PH"])).toBe("fil");
+    expect(pickLanguage(["fr", "de"])).toBe("en");
+    expect(pickLanguage([])).toBe("en");
+    expect(pickLanguage(undefined)).toBe("en");
   });
 });
