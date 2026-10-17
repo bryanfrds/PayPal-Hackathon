@@ -1,7 +1,10 @@
 import type { Dictionary } from "./en";
+import { tourWords } from "./tour";
 
 // Bahasa Melayu: machine-written; needs checking by a speaker.
 export const ms: Dictionary = {
+  // The quick tour's words live in ./tour.ts.
+  ...tourWords.ms,
   // common
   "status.overdue": "Lewat bayar",
   "status.sent": "Invois dihantar",

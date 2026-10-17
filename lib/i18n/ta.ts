@@ -1,6 +1,9 @@
 import type { Dictionary } from "./en";
+import { tourWords } from "./tour";
 // Tamil (Malaysia): machine-written; needs checking by a speaker.
 export const ta: Dictionary = {
+  // The quick tour's words live in ./tour.ts.
+  ...tourWords.ta,
   // common
   "status.overdue": "தாமதம்",
   "status.sent": "இன்வாய்ஸ் அனுப்பப்பட்டது",

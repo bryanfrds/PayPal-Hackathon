@@ -10,8 +10,9 @@ import { scan } from "./en/scan";
 import { share } from "./en/share";
 import { shell } from "./en/shell";
 import { tab } from "./en/tab";
+import { tour } from "./en/tour";
 
-export const en = { ...common, ...shell, ...ledger, ...collect, ...insights, ...tab, ...settings, ...share, ...customers, ...scan } as const;
+export const en = { ...common, ...shell, ...ledger, ...collect, ...insights, ...tab, ...settings, ...share, ...customers, ...scan, ...tour } as const;
 
 export type MessageKey = keyof typeof en;
 export type Dictionary = Record<MessageKey, string>;

@@ -1,7 +1,10 @@
 import type { Dictionary } from "./en";
+import { tourWords } from "./tour";
 
 // Bengali: machine-written; needs checking by a speaker.
 export const bn: Dictionary = {
+  // The quick tour's words live in ./tour.ts.
+  ...tourWords.bn,
   // common
   "status.overdue": "মেয়াদ পেরিয়েছে",
   "status.sent": "ইনভয়েস পাঠানো হয়েছে",

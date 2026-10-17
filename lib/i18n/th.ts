@@ -1,7 +1,10 @@
 import type { Dictionary } from "./en";
+import { tourWords } from "./tour";
 
 // Thai: machine-written; needs checking by a speaker.
 export const th: Dictionary = {
+  // The quick tour's words live in ./tour.ts.
+  ...tourWords.th,
   // common
   "status.overdue": "เลยกำหนด",
   "status.sent": "ส่งใบแจ้งหนี้แล้ว",

@@ -1,7 +1,10 @@
 import type { Dictionary } from "./en";
+import { tourWords } from "./tour";
 
 // Vietnamese: machine-written; needs checking by a speaker.
 export const vi: Dictionary = {
+  // The quick tour's words live in ./tour.ts.
+  ...tourWords.vi,
   // common
   "status.overdue": "Quá hạn",
   "status.sent": "Đã gửi hóa đơn",
