@@ -18,9 +18,11 @@ import { buildTabSnapshot } from "@/lib/tab-snapshot";
 
 export const TAB_LINKS_KEY = "buku.tabLinks.v1";
 export const DEBOUNCE_MS = 1500;
-const LINK = /^https?:\/\/[^/\s]+\/t\/[A-Za-z0-9_-]{22,64}$/;
+// Same rule as isTabLink in lib/share.ts: https, or http only on this computer (development).
+const LINK = /^(?:https:\/\/[^/\s?#]+|http:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?)\/t\/[A-Za-z0-9_-]{22,64}$/;
 
-type Data = { debts: Debt[]; invoices: InvoiceRecord[]; shopName: string };
+/** `ready`: the ledger has loaded and could be read. Nothing is published or revoked until it is. */
+type Data = { debts: Debt[]; invoices: InvoiceRecord[]; shopName: string; ready: boolean };
 type State = { links: Record<string, string>; available: boolean | null; failed: Record<string, boolean> };
 
 function storage(): Storage | null {
@@ -84,7 +86,8 @@ async function post(path: string, body: unknown): Promise<Response> {
  */
 export async function publishTab(slug: string): Promise<string | undefined> {
   if (!getData || state.available === false) return undefined;
-  const { debts, invoices, shopName } = getData();
+  const { debts, invoices, shopName, ready } = getData();
+  if (!ready) return state.links[slug];
   const snapshot = buildTabSnapshot(slug, debts, invoices, shopName);
   if (!snapshot) {
     // Nothing left to show: a link that was published for them is turned off.
@@ -140,7 +143,9 @@ async function runRefresh() {
   refreshSlugs.clear();
   if (!getData) return;
   for (const slug of slugs) {
-    const { debts, invoices, shopName } = getData();
+    const { debts, invoices, shopName, ready } = getData();
+    // Not loaded, or unreadable: never revoke (or send) on a ledger that only looks empty.
+    if (!ready) return;
     const snapshot = buildTabSnapshot(slug, debts, invoices, shopName);
     if (!snapshot) await revokeTabLink(slug);
     else if (lastSent.get(slug) !== JSON.stringify(snapshot)) await publishTab(slug);

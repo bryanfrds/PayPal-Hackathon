@@ -24,7 +24,9 @@ function json(status: number, body: unknown) {
 }
 
 /** A fresh copy of the module (its state is module-level), with this device's saved links. */
-async function load(saved: Record<string, string> = {}, data = { debts: [debt("T-1", "Kak Lina")], invoices: [], shopName: "Kedai" }) {
+type TestData = { debts: Debt[]; invoices: never[]; shopName: string; ready: boolean };
+
+async function load(saved: Record<string, string> = {}, data: TestData = { debts: [debt("T-1", "Kak Lina")], invoices: [], shopName: "Kedai", ready: true }) {
   store = Object.keys(saved).length ? { [KEY]: JSON.stringify(saved) } : {};
   vi.stubGlobal("window", { localStorage: memoryStorage(), location: { origin: "https://buku.example.com" } });
   vi.resetModules();
@@ -47,8 +49,15 @@ afterEach(() => {
 
 describe("readLinks", () => {
   it("keeps only links that look like ours", async () => {
-    const { mod } = await load({ "kak-lina": URL1, "mr-raj": "javascript:alert(1)", tan: "https://buku.example.com/tab/tan", bad: 42 as unknown as string });
-    expect(mod.readLinks()).toEqual({ "kak-lina": URL1 });
+    const { mod } = await load({
+      "kak-lina": URL1,
+      dev: "http://localhost:3000/t/AbCdEfGhIjKlMnOpQrStUv",
+      "mr-raj": "javascript:alert(1)",
+      tan: "https://buku.example.com/tab/tan",
+      plain: "http://buku.example.com/t/AbCdEfGhIjKlMnOpQrStUv",
+      bad: 42 as unknown as string,
+    });
+    expect(mod.readLinks()).toEqual({ "kak-lina": URL1, dev: "http://localhost:3000/t/AbCdEfGhIjKlMnOpQrStUv" });
   });
 
   it("copes with garbage in storage", async () => {
@@ -98,7 +107,7 @@ describe("publishTab (the deliberate step)", () => {
 
 describe("refreshPublishedTabs", () => {
   it("waits for a pause, then sends only tabs that already have a link and changed", async () => {
-    const { mod, setData } = await load({ "kak-lina": URL1 }, { debts: [debt("T-1", "Kak Lina"), debt("T-2", "Mr Raj")], invoices: [], shopName: "Kedai" });
+    const { mod, setData } = await load({ "kak-lina": URL1 }, { debts: [debt("T-1", "Kak Lina"), debt("T-2", "Mr Raj")], invoices: [], shopName: "Kedai", ready: true });
     fetchMock.mockImplementation(() => json(200, { url: URL1 }));
     mod.refreshPublishedTabs(["kak-lina", "mr-raj"]);
     mod.refreshPublishedTabs(["kak-lina"]);
@@ -113,20 +122,40 @@ describe("refreshPublishedTabs", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
     // Her tab changed: sent again.
-    setData({ debts: [debt("T-1", "Kak Lina", 2500), debt("T-2", "Mr Raj")], invoices: [], shopName: "Kedai" });
+    setData({ debts: [debt("T-1", "Kak Lina", 2500), debt("T-2", "Mr Raj")], invoices: [], shopName: "Kedai", ready: true });
     mod.refreshPublishedTabs();
     await vi.advanceTimersByTimeAsync(mod.DEBOUNCE_MS);
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("turns off the link of a customer with no debts left (deleted or renamed)", async () => {
-    const { mod } = await load({ "kak-lina": URL1 }, { debts: [debt("T-1", "Kak Lina Binti Ali")], invoices: [], shopName: "Kedai" });
+    const { mod } = await load({ "kak-lina": URL1 }, { debts: [debt("T-1", "Kak Lina Binti Ali")], invoices: [], shopName: "Kedai", ready: true });
     fetchMock.mockImplementation(() => json(200, { revoked: true }));
     mod.refreshPublishedTabs();
     await vi.advanceTimersByTimeAsync(mod.DEBOUNCE_MS);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock.mock.calls[0][0]).toBe("/api/tabs/revoke");
     expect(JSON.parse(store[KEY])).toEqual({});
+  });
+});
+
+describe("a ledger that hasn't loaded or couldn't be read", () => {
+  it("never revokes or sends anything", async () => {
+    const empty: TestData = { debts: [], invoices: [], shopName: "Kedai", ready: false };
+    const { mod, setData } = await load({ "kak-lina": URL1 }, empty);
+    fetchMock.mockImplementation(() => json(200, { revoked: true }));
+    mod.refreshPublishedTabs();
+    await vi.advanceTimersByTimeAsync(mod.DEBOUNCE_MS);
+    await expect(mod.publishTab("kak-lina")).resolves.toBe(URL1);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(JSON.parse(store[KEY])).toEqual({ "kak-lina": URL1 });
+
+    // Once it loads (and her debts are there), refreshing works as usual.
+    setData({ debts: [debt("T-1", "Kak Lina")], invoices: [], shopName: "Kedai", ready: true });
+    fetchMock.mockImplementation(() => json(200, { url: URL1 }));
+    mod.refreshPublishedTabs();
+    await vi.advanceTimersByTimeAsync(mod.DEBOUNCE_MS);
+    expect(fetchMock.mock.calls.map((c) => c[0])).toEqual(["/api/tabs/publish"]);
   });
 });
 

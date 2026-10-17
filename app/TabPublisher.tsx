@@ -19,19 +19,22 @@ export default function TabPublisher() {
 }
 
 function Registrar() {
-  const { debts } = useDebts();
-  const { invoices } = useCollect();
+  const { debts, ready: debtsReady, unreadable } = useDebts();
+  const { invoices, ready: invoicesReady } = useCollect();
   const { name } = useShop();
-  const latest = useRef({ debts, invoices, shopName: name });
+  // Only a loaded, readable ledger counts: an empty list from storage that couldn't be read must
+  // never look like "every customer's debts were deleted" (which would turn every link off).
+  const ready = debtsReady && invoicesReady && !unreadable;
+  const latest = useRef({ debts, invoices, shopName: name, ready });
   useEffect(() => {
-    latest.current = { debts, invoices, shopName: name };
+    latest.current = { debts, invoices, shopName: name, ready };
   });
   useEffect(() => {
     registerTabData(() => latest.current);
     return () => registerTabData(null);
   }, []);
   useEffect(() => {
-    refreshPublishedTabs();
-  }, [debts, invoices, name]);
+    if (ready) refreshPublishedTabs();
+  }, [ready, debts, invoices, name]);
   return null;
 }
