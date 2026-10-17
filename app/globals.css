@@ -1734,6 +1734,14 @@ a.tab-back:focus-visible,
   margin: 0;
 }
 
+/* The words may wrap or shrink, so the card never pushes the page wider than the phone
+   (the text block's default min-content width did, by a pixel). */
+.scan-thumb-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .scan-thumb img,
 .scan-thumb-empty {
   width: 54px;
@@ -1772,9 +1780,14 @@ a.tab-back:focus-visible,
 }
 
 @media (min-width: 1024px) {
+  /* With a photo, the check page widens so the photo and the lines each get a real column. */
+  .site-main:has(.scan-check-split-photo) {
+    max-width: 1040px;
+  }
+
   .scan-check-split-photo {
     display: grid;
-    grid-template-columns: 360px minmax(0, 1fr);
+    grid-template-columns: minmax(300px, 400px) minmax(420px, 1fr);
     gap: 1.5rem;
     align-items: start;
   }
@@ -1852,29 +1865,29 @@ a.tab-back:focus-visible,
   position: static;
 }
 
+/* The photo is centred with margin: auto rather than flex centring, so when it's zoomed past
+   the box every edge can still be scrolled to (flex centring pushes the top out of reach). */
 .scan-photo-modal-body {
   flex: 1;
   overflow: auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
   padding: 1rem;
   touch-action: pan-x pan-y;
 }
 
 .scan-photo-modal-body img {
+  display: block;
+  margin: auto;
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
   user-select: none;
-  transform-origin: center center;
-  transition: transform 0.15s ease;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .scan-photo-modal-body img {
-    transition: none;
-  }
+/* Once measured, the photo has an exact size for the zoom level; the fit limits no longer apply. */
+.scan-photo-modal-body img.scan-photo-sized {
+  max-width: none;
+  max-height: none;
 }
 
 /* (B) "Not sure" note under a scanned line: the same amber as the Not sent badge, from tokens,
@@ -1967,7 +1980,33 @@ a.tab-back:focus-visible,
 
 /* Reminders history: the tick and day of a reminder already sent, or a settled tab. */
 .reminder-when-done {
+  align-content: center;
+  gap: 0.15rem;
   color: var(--paid);
+}
+
+/* The tick is a small mark, not a picture: 20px, like the other inline icons. */
+.reminder-when-done .icon {
+  width: 20px;
+  height: 20px;
+}
+
+/* Phones: the date box (Coming up) and the View tab button (History) drop to a second line
+   under the name, so the name and details keep a sensible width instead of a word per line. */
+@media (max-width: 600px) {
+  .reminder-list .reminder-row:has(> .reminder-when) {
+    flex-wrap: wrap;
+  }
+
+  /* A real minimum width, so the box wraps to the next line instead of squeezing the name. */
+  .reminder-list .reminder-row:has(> .reminder-when) > .reminder-main {
+    flex: 1 1 10rem;
+  }
+
+  .reminder-list .reminder-row:has(> .reminder-when) > .reminder-date,
+  .reminder-list .reminder-row:has(> .reminder-when) > .reminder-actions {
+    margin-left: calc(5.5rem + 0.75rem);
+  }
 }
 
 .scan-who {
@@ -4974,6 +5013,12 @@ body.nudge-sheet-open {
   margin-bottom: 0.75rem;
   padding-bottom: 0.25rem;
   -webkit-overflow-scrolling: touch;
+  /* Still scrolls sideways; just no grey bar under the chips. */
+  scrollbar-width: none;
+}
+
+.ledger-page .ledger-chips::-webkit-scrollbar {
+  display: none;
 }
 
 .ledger-chips button {
@@ -7857,4 +7902,75 @@ dd.debt-detail-value {
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 0.5rem;
+}
+
+/* Ledger grid: the delete button sits centred in its narrow column, not overflowing it. */
+.ag-cell.ledger-delete-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+/* Scan check: long words in the "not sure" note wrap instead of widening the line. */
+.scan-unsure-banner > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.scan-unsure-banner > button {
+  flex: none;
+}
+
+.scan-check-main {
+  min-width: 0;
+}
+
+/* Keeps its space in the layout but isn't seen or reached. */
+.scan-hidden {
+  visibility: hidden;
+}
+
+.debt-detail-note {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+/* Ledger bulk bar on phones: sits above the floating bottom menu (about 5.5rem tall with its
+   gap), and the words shrink before the buttons wrap. */
+@media (max-width: 1023px) {
+  .ledger-bulk-bar {
+    bottom: calc(6rem + env(safe-area-inset-bottom));
+    gap: 0.5rem;
+    padding: 0.6rem 0.75rem;
+  }
+}
+
+.ledger-bulk-info {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ledger-bulk-actions {
+  flex: none;
+}
+
+.ledger-bulk-btn {
+  white-space: nowrap;
+}
+
+/* Customers' sheets on a laptop: a centred dialog, not a sheet stuck to the bottom edge. */
+@media (min-width: 1024px) {
+  .sheet.cust-sheet {
+    top: 50%;
+    bottom: auto;
+    width: min(calc(100% - 2rem), 460px);
+    max-height: calc(100vh - 3rem);
+    overflow-y: auto;
+    padding-bottom: 1.5rem;
+    border-radius: 26px;
+    transform: translate(-50%, -50%);
+  }
 }

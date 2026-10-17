@@ -4,7 +4,7 @@
 export const collect = {
   // Collect list
   "collect.title": "Collect",
-  "collect.heroLabel": "Ready to collect",
+  "collect.heroLabel": "Ready to invoice",
   "collect.notInvoiced_one": "{count} customer not invoiced yet",
   "collect.notInvoiced_other": "{count} customers not invoiced yet",
   "collect.tabsLabel": "Invoices",

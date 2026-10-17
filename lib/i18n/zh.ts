@@ -298,7 +298,7 @@ export const zh: Dictionary = {
 
   // collect: Collect list
   "collect.title": "收款",
-  "collect.heroLabel": "可以收款",
+  "collect.heroLabel": "可以开账单",
   "collect.notInvoiced_one": "{count} 位顾客还没开账单",
   "collect.notInvoiced_other": "{count} 位顾客还没开账单",
   "collect.tabsLabel": "账单",
@@ -859,4 +859,5 @@ export const zh: Dictionary = {
   "scanx.expandPhoto": "展开照片",
   "scanx.fixAmount": "修正金额",
   "scanx.fixAmountLabel": "修正 {name} 的金额",
+  "ledger.detail.invoiceNotHere": "这笔赊账已标记为已开账单，但这台设备上没有账单详情。可能是从另一部手机发送的。",
 };

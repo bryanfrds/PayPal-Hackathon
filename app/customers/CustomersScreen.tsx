@@ -4,8 +4,16 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { EMAIL_DOMAINS, isValidEmail, withDomain } from "@/lib/collect";
-import { customerSlug } from "@/lib/customer-tab";
-import { planAddCustomer, saveAddCustomer, type AddCustomerErrors, type AddCustomerPlan } from "@/lib/customers";
+import {
+  customerRows,
+  customerTotals,
+  isReadyToInvoice,
+  planAddCustomer,
+  saveAddCustomer,
+  type AddCustomerErrors,
+  type AddCustomerPlan,
+  type CustomerRow,
+} from "@/lib/customers";
 import { newDebtId } from "@/lib/debt-store";
 import { formatSen, todayLocal } from "@/lib/debts";
 import Avatar from "../components/Avatar";
@@ -17,25 +25,6 @@ import { useT } from "../useT";
 
 type FilterTab = "all" | "owed" | "missing_email" | "ready";
 
-type CustomerRow = {
-  name: string;
-  slug: string;
-  email?: string;
-  totalDebts: number;
-  unpaidCount: number;
-  overdueCount: number;
-  owedSen: number;
-  lastDate?: string;
-};
-
-/** "kak-lina" → "Kak Lina", for a customer known only by a saved email. */
-function nameFromSlug(slug: string): string {
-  return slug
-    .split("-")
-    .filter(Boolean)
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
-}
 
 export default function CustomersScreen() {
   const { t, formatDay, formatNumber } = useT();
@@ -47,62 +36,13 @@ export default function CustomersScreen() {
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<CustomerRow | null>(null);
 
-  // Derive unique customers from debts and emails map
+  // One row per customer (lib/customers.ts). "Owed" counts everything not paid, invoice sent
+  // included, so the total matches Home.
   const customers = useMemo(() => {
-    const map = new Map<string, CustomerRow>();
-
-    for (const d of debts) {
-      const slug = customerSlug(d.customerName);
-      let row = map.get(slug);
-      if (!row) {
-        row = {
-          name: d.customerName,
-          slug,
-          email: emails[slug],
-          totalDebts: 0,
-          unpaidCount: 0,
-          overdueCount: 0,
-          owedSen: 0,
-          lastDate: d.date,
-        };
-        map.set(slug, row);
-      }
-      row.totalDebts += 1;
-      if (d.status === "unpaid") {
-        row.unpaidCount += 1;
-        row.owedSen += d.amountSen;
-      } else if (d.status === "overdue") {
-        row.overdueCount += 1;
-        row.owedSen += d.amountSen;
-      }
-      if (!row.lastDate || d.date > row.lastDate) {
-        row.lastDate = d.date;
-      }
-    }
-
-    // Include any saved emails for customers who might not have active debts, named as they
-    // were last written (on a sent invoice or an unfinished send), else from the slug.
     const knownNames = new Map<string, string>();
     for (const inv of invoices) if (!knownNames.has(inv.slug)) knownNames.set(inv.slug, inv.customerName);
     for (const p of Object.values(pending)) if (!knownNames.has(p.slug)) knownNames.set(p.slug, p.customerName);
-    for (const [slug, email] of Object.entries(emails)) {
-      if (!map.has(slug)) {
-        map.set(slug, {
-          name: knownNames.get(slug) ?? nameFromSlug(slug),
-          slug,
-          email,
-          totalDebts: 0,
-          unpaidCount: 0,
-          overdueCount: 0,
-          owedSen: 0,
-        });
-      } else {
-        const row = map.get(slug)!;
-        row.email = email;
-      }
-    }
-
-    return Array.from(map.values()).sort((a, b) => b.owedSen - a.owedSen || a.name.localeCompare(b.name));
+    return customerRows(debts, emails, knownNames, pending);
   }, [debts, emails, invoices, pending]);
 
   // Filtered customer list
@@ -114,16 +54,17 @@ export default function CustomersScreen() {
 
       if (filter === "owed") return c.owedSen > 0;
       if (filter === "missing_email") return !c.email;
-      if (filter === "ready") return !!c.email && c.owedSen > 0;
+      if (filter === "ready") return isReadyToInvoice(c);
       return true;
     });
   }, [customers, query, filter]);
 
   // Summary counts
-  const totalOwedSen = useMemo(() => customers.reduce((sum, c) => sum + c.owedSen, 0), [customers]);
-  const owedCount = useMemo(() => customers.filter((c) => c.owedSen > 0).length, [customers]);
-  const missingEmailCount = useMemo(() => customers.filter((c) => !c.email).length, [customers]);
-  const readyCount = useMemo(() => customers.filter((c) => !!c.email && c.owedSen > 0).length, [customers]);
+  const totals = useMemo(() => customerTotals(customers), [customers]);
+  const totalOwedSen = totals.owedSen;
+  const owedCount = totals.owing;
+  const missingEmailCount = totals.missingEmail;
+  const readyCount = totals.readyToInvoice;
 
   const chips: { id: FilterTab; label: string; count: number }[] = [
     { id: "all", label: t("customers.filter.all"), count: customers.length },
@@ -279,7 +220,8 @@ export default function CustomersScreen() {
                 <Link href={`/tab/${c.slug}`} className="button button-sm">
                   {t("customers.row.viewTab")}
                 </Link>
-                {c.owedSen > 0 && (
+                {/* Only when Collect has something to send them, so "Invoice sent" tabs get no dead button. */}
+                {isReadyToInvoice(c) && (
                   <Link href="/collect" className="button button-sm button-primary cust-invoice">
                     <SendIcon /> {t("customers.row.invoice")}
                   </Link>

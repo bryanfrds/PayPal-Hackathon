@@ -298,7 +298,7 @@ export const th: Dictionary = {
 
   // collect list
   "collect.title": "เก็บเงิน",
-  "collect.heroLabel": "พร้อมเก็บเงิน",
+  "collect.heroLabel": "พร้อมส่งใบแจ้งหนี้",
   "collect.notInvoiced_one": "ลูกค้า {count} คนยังไม่ได้ออกใบแจ้งหนี้",
   "collect.notInvoiced_other": "ลูกค้า {count} คนยังไม่ได้ออกใบแจ้งหนี้",
   "collect.tabsLabel": "ใบแจ้งหนี้",
@@ -865,4 +865,5 @@ export const th: Dictionary = {
   "scanx.expandPhoto": "ขยายรูป",
   "scanx.fixAmount": "แก้จำนวนเงิน",
   "scanx.fixAmountLabel": "แก้จำนวนเงินของ {name}",
+  "ledger.detail.invoiceNotHere": "ยอดค้างนี้ถูกทำเครื่องหมายว่าส่งใบแจ้งหนี้แล้ว แต่ไม่มีรายละเอียดใบแจ้งหนี้ในอุปกรณ์นี้ อาจส่งจากโทรศัพท์เครื่องอื่น",
 };

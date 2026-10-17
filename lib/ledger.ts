@@ -1,5 +1,6 @@
 // Figures for the ledger's laptop chips and totals panel. Pure functions so they can be tested in Node.
 
+import type { InvoiceRecord } from "./collect-store";
 import { formatSen, type Debt, type DebtStatus } from "./debts";
 import { translator, type T } from "./i18n";
 
@@ -56,4 +57,19 @@ export function debtsToCsv(debts: Debt[], invoiceMap: Record<string, string> = {
     invoiceMap[d.id] || "",
   ]);
   return "﻿" + [headers, ...rows].map((r) => r.map(csvCell).join(",")).join("\r\n");
+}
+
+/**
+ * Each debt's invoice: the newest record that covers it (if a tab was invoiced again, the new
+ * invoice is the live one, as in payPlan and reconcileDebts).
+ */
+export function latestInvoiceByDebt(invoices: InvoiceRecord[]): Record<string, InvoiceRecord> {
+  const map: Record<string, InvoiceRecord> = {};
+  for (const inv of invoices) {
+    for (const id of inv.debtIds) {
+      const current = map[id];
+      if (!current || inv.sentAt > current.sentAt) map[id] = inv;
+    }
+  }
+  return map;
 }

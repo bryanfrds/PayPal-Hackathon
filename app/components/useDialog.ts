@@ -1,10 +1,29 @@
 "use client";
 
 // Shared behaviour for the app's dialogs and sheets (the same pattern as AccountSheet and
-// ShareSheet): focus moves in, Tab stays inside, Escape closes, and focus goes back to
-// whatever opened it. Put role="dialog" aria-modal="true" and a label on the element itself.
+// ShareSheet): focus moves in, Tab stays inside, Escape closes, focus goes back to
+// whatever opened it, and the page behind doesn't scroll while it's open. Put role="dialog" aria-modal="true" and a label on the element itself.
 
 import { useEffect, useRef, type RefObject } from "react";
+
+// The page behind stays still while any dialog is open. A count, not a saved-and-restored
+// value per dialog, so it's right whatever order stacked dialogs close in: the first to open
+// saves the page's own setting and locks it, the last to close puts it back.
+let openDialogs = 0;
+let savedOverflow = "";
+
+function lockPage() {
+  if (openDialogs === 0) {
+    savedOverflow = document.documentElement.style.overflow;
+    document.documentElement.style.overflow = "hidden";
+  }
+  openDialogs += 1;
+}
+
+function unlockPage() {
+  openDialogs = Math.max(0, openDialogs - 1);
+  if (openDialogs === 0) document.documentElement.style.overflow = savedOverflow;
+}
 
 const FOCUSABLE = "button, a[href], input, select, textarea, [tabindex]:not([tabindex='-1'])";
 
@@ -32,6 +51,7 @@ export function useDialog<T extends HTMLElement>(
   useEffect(() => {
     const root = ref.current;
     const opener = returnTo ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
+    lockPage();
     if (root) {
       const first = (initialFocus ? root.querySelector<HTMLElement>(initialFocus) : null) ?? focusables(root)[0] ?? root;
       if (first === root && !root.hasAttribute("tabindex")) root.setAttribute("tabindex", "-1");
@@ -65,6 +85,7 @@ export function useDialog<T extends HTMLElement>(
     document.addEventListener("keydown", onKey);
     return () => {
       document.removeEventListener("keydown", onKey);
+      unlockPage();
       // After React finishes removing the dialog, so the opener is focusable again.
       window.setTimeout(() => {
         if (opener?.isConnected) opener.focus({ preventScroll: true });

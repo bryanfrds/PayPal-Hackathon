@@ -299,7 +299,7 @@ export const id: Dictionary = {
 
   // collect list
   "collect.title": "Tagih",
-  "collect.heroLabel": "Siap ditagih",
+  "collect.heroLabel": "Siap dibuatkan invoice",
   "collect.notInvoiced_one": "{count} pelanggan belum dikirimi invoice",
   "collect.notInvoiced_other": "{count} pelanggan belum dikirimi invoice",
   "collect.tabsLabel": "Invoice",
@@ -860,4 +860,5 @@ export const id: Dictionary = {
   "scanx.expandPhoto": "Buka foto penuh",
   "scanx.fixAmount": "Perbaiki jumlah",
   "scanx.fixAmountLabel": "Perbaiki jumlah untuk {name}",
+  "ledger.detail.invoiceNotHere": "Utang ini sudah ditandai ada invoice-nya, tapi detail invoice tidak ada di perangkat ini. Mungkin dikirim dari ponsel lain.",
 };

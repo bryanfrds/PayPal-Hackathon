@@ -298,7 +298,7 @@ export const vi: Dictionary = {
 
   // collect list
   "collect.title": "Thu tiền",
-  "collect.heroLabel": "Sẵn sàng thu",
+  "collect.heroLabel": "Sẵn sàng gửi hóa đơn",
   "collect.notInvoiced_one": "{count} khách chưa có hóa đơn",
   "collect.notInvoiced_other": "{count} khách chưa có hóa đơn",
   "collect.tabsLabel": "Hóa đơn",
@@ -865,4 +865,5 @@ export const vi: Dictionary = {
   "scanx.expandPhoto": "Mở rộng ảnh",
   "scanx.fixAmount": "Sửa số tiền",
   "scanx.fixAmountLabel": "Sửa số tiền của {name}",
+  "ledger.detail.invoiceNotHere": "Khoản này đã được đánh dấu là có hóa đơn, nhưng chi tiết hóa đơn không có trên thiết bị này. Có thể nó đã được gửi từ điện thoại khác.",
 };

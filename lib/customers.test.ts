@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import { planAddCustomer, saveAddCustomer, type AddCustomerInput } from "./customers";
-import { MAX_ITEM_LENGTH, MAX_NAME_LENGTH, type Debt } from "./debts";
+import { collectGroups, type PendingSend } from "./collect";
+import { customerRows, customerTotals, isReadyToInvoice, nameFromSlug, planAddCustomer, saveAddCustomer, type AddCustomerInput } from "./customers";
+import { MAX_ITEM_LENGTH, MAX_NAME_LENGTH, outstanding, type Debt } from "./debts";
 
 const TODAY = "2026-10-16";
 
@@ -125,5 +126,74 @@ describe("saveAddCustomer", () => {
     if (withDebt.kind === "invalid" || noDebt.kind === "invalid") throw new Error("expected valid plans");
     expect(saveAddCustomer(withDebt, d)).toEqual({ ok: false, saved: "debtOnly" });
     expect(saveAddCustomer(noDebt, d)).toEqual({ ok: false, saved: "nothing" });
+  });
+});
+
+describe("customerRows and customerTotals", () => {
+  const mk = (id: string, name: string, status: Debt["status"], amountSen: number, date = "2026-10-01"): Debt => ({
+    id, customerName: name, item: "Milo", amountSen, date, status, source: "manual", createdAt: `${date}T00:00:00.000Z`,
+  });
+  const debts = [
+    mk("1", "Kak Lina", "sent", 2240),
+    mk("2", "Kak Lina", "unpaid", 480),
+    mk("3", "Puan Rosnah", "sent", 920),
+    mk("4", "Mak Cik Siti", "overdue", 4850),
+    mk("5", "Nurul", "paid", 1660),
+  ];
+
+  it("counts invoiced-but-unpaid tabs as owed, so the total matches Home's outstanding()", () => {
+    const rows = customerRows(debts, {});
+    const totals = customerTotals(rows);
+    expect(totals.owedSen).toBe(outstanding(debts).totalSen);
+    expect(totals.owedSen).toBe(2240 + 480 + 920 + 4850);
+    expect(totals.owing).toBe(3);
+    expect(rows.find((r) => r.slug === "puan-rosnah")).toMatchObject({ owedSen: 920, sentCount: 1 });
+    expect(rows.find((r) => r.slug === "nurul")?.owedSen).toBe(0);
+  });
+
+  it("ready to invoice means an email and something Collect can still invoice", () => {
+    const rows = customerRows(debts, { "kak-lina": "lina@x.co", "puan-rosnah": "r@x.co", nurul: "n@x.co" });
+    // Kak Lina has a not-sent tab; Puan Rosnah's only tab is already invoiced; Nurul paid up.
+    expect(customerTotals(rows).readyToInvoice).toBe(1);
+    expect(customerTotals(rows).missingEmail).toBe(1);
+  });
+
+  it("names a customer known only by email from a known name, else from the slug", () => {
+    const rows = customerRows([], { "kak-lina": "a@x.co", "uncle-tan": "b@x.co" }, new Map([["kak-lina", "Kak Lina"]]));
+    expect(rows.map((r) => r.name).sort()).toEqual(["Kak Lina", "Uncle Tan"]);
+    expect(nameFromSlug("pak-ali-bengkel")).toBe("Pak Ali Bengkel");
+  });
+});
+
+describe("isReadyToInvoice", () => {
+  const mk = (id: string, name: string, status: Debt["status"]): Debt => ({
+    id, customerName: name, item: "Milo", amountSen: 1000, date: "2026-10-01", status, source: "manual", createdAt: "2026-10-01T00:00:00.000Z",
+  });
+  const row = (slug: string, rows: ReturnType<typeof customerRows>) => rows.find((r) => r.slug === slug)!;
+
+  it("matches what Collect can send: a not-sent or overdue tab, plus an email", () => {
+    const debts = [mk("1", "Ali", "unpaid"), mk("2", "Bala", "overdue"), mk("3", "Chong", "sent"), mk("4", "Dev", "paid"), mk("5", "Esah", "unpaid")];
+    const rows = customerRows(debts, { ali: "a@x.co", bala: "b@x.co", chong: "c@x.co", dev: "d@x.co" });
+    expect(isReadyToInvoice(row("ali", rows))).toBe(true);
+    expect(isReadyToInvoice(row("bala", rows))).toBe(true);
+    expect(isReadyToInvoice(row("chong", rows))).toBe(false); // only an "Invoice sent" tab: nothing to send
+    expect(isReadyToInvoice(row("dev", rows))).toBe(false); // paid up
+    expect(isReadyToInvoice(row("esah", rows))).toBe(false); // no email yet
+    // The same customers collectGroups would put in "To send" with an address.
+    const ready = rows.filter(isReadyToInvoice).map((r) => r.slug).sort();
+    const groups = collectGroups(debts, { ali: "a@x.co", bala: "b@x.co", chong: "c@x.co", dev: "d@x.co" }).filter((g) => g.email).map((g) => g.slug).sort();
+    expect(ready).toEqual(groups);
+  });
+
+  it("uses an unfinished send's email, like Collect does", () => {
+    const debts = [mk("1", "Esah", "unpaid")];
+    const pending = { esah: { slug: "esah", customerName: "Esah", email: "esah@x.co", debtIds: ["1"], lines: [], amountSen: 1000, requestId: "r", startedAt: "2026-10-01T00:00:00Z" } } as unknown as Record<string, PendingSend>;
+    const rows = customerRows(debts, {}, new Map(), pending);
+    expect(rows[0].invoiceEmail).toBe("esah@x.co");
+    expect(isReadyToInvoice(rows[0])).toBe(true);
+    expect(customerTotals(rows).readyToInvoice).toBe(1);
+    // A stale send that no longer holds an invoiceable tab doesn't count.
+    const stale = customerRows([mk("1", "Esah", "sent")], {}, new Map(), pending);
+    expect(isReadyToInvoice(stale[0])).toBe(false);
   });
 });

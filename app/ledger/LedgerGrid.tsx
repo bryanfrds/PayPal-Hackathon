@@ -40,10 +40,14 @@ const ledgerTheme = themeQuartz.withParams({
 
 const ledgerDarkTheme = ledgerTheme.withParams({ ...DARK_GRID_COLOURS, headerBackgroundColor: "#1d1d1c" });
 
+// Phones: half the side padding in each cell, so name, amount and the status badge all fit.
+const PHONE_PADDING = { cellHorizontalPaddingScale: 0.5 } as const;
+const ledgerPhoneTheme = ledgerTheme.withParams(PHONE_PADDING);
+const ledgerPhoneDarkTheme = ledgerDarkTheme.withParams(PHONE_PADDING);
+
 // Narrow grids hide Item and Date; medium ones hide Date; wide ones show every column.
-// Measured on the grid itself, since the app is a phone-width column even on a laptop.
-// The column caps the grid at about 448px, so today it is always "phone"; the wider
-// modes stay for if the ledger ever gets a wider layout.
+// Measured on the grid itself: on a phone it's about 340px wide ("phone"); on a laptop the
+// ledger page is wider and the grid is about 730px at a 1280px window ("desktop").
 const PHONE_MAX_WIDTH = 460;
 const TABLET_MAX_WIDTH = 700;
 
@@ -84,19 +88,20 @@ function DeleteButton(props: CustomCellRendererProps<LedgerRow, unknown, DeleteC
   );
 }
 
-// Minimum widths are set so the visible columns fit: phone columns total about
-// 320px with the delete button (fits a 360px phone), tablet about 550px (fits a 700px screen).
+// Minimum widths are set so the visible columns fit without cutting the status badge or the
+// date: phone columns (with the 34px tick box) total about 332px, under the ~340px grid on a
+// 390px phone; laptop columns total about 710px, under the ~730px grid at 1280px.
 function buildColumnDefs(mode: LayoutMode, t: T): ColDef<LedgerRow>[] {
   const phone = mode === "phone";
   const label = (status: DebtStatus) => t(`status.${status}`);
   return [
-    { field: "customerName", headerName: t("ledger.colName"), flex: 1.2, minWidth: phone ? 90 : 120 },
-    { field: "item", headerName: t("ledger.colItem"), flex: 2, minWidth: 150, hide: phone },
+    { field: "customerName", headerName: t("ledger.colName"), flex: 1.3, minWidth: phone ? 88 : 130, tooltipField: "customerName" },
+    { field: "item", headerName: t("ledger.colItem"), flex: 2, minWidth: 120, hide: phone, tooltipField: "item" },
     {
       field: "amountSen",
       headerName: mode === "desktop" ? t("ledger.colAmount") : "RM",
       flex: 1,
-      minWidth: phone ? 75 : 130,
+      minWidth: phone ? 62 : 110,
       type: "rightAligned",
       // Right-aligned headers put the filter button before the label, where it looks like an empty column.
       suppressHeaderFilterButton: true,
@@ -105,8 +110,9 @@ function buildColumnDefs(mode: LayoutMode, t: T): ColDef<LedgerRow>[] {
     {
       field: "date",
       headerName: t("ledger.colDate"),
-      flex: 1,
-      minWidth: 110,
+      // Fixed: a YYYY-MM-DD date and the filter button need about 120px, and never more.
+      width: 124,
+      minWidth: 124,
       hide: mode !== "desktop",
       getQuickFilterText: (p) => p.data?.date ?? "",
     },
@@ -114,7 +120,7 @@ function buildColumnDefs(mode: LayoutMode, t: T): ColDef<LedgerRow>[] {
       field: "status",
       headerName: t("ledger.colStatus"),
       flex: 1,
-      minWidth: phone ? 100 : 120,
+      minWidth: phone ? 112 : 132,
       cellRenderer: StatusCell,
       // Search and filter by the words on the badge ("Invoice sent"), not the stored value ("sent").
       getQuickFilterText: (p) => (p.value ? label(p.value as DebtStatus) : ""),
@@ -126,9 +132,10 @@ function buildColumnDefs(mode: LayoutMode, t: T): ColDef<LedgerRow>[] {
     {
       colId: "delete",
       headerName: "",
-      width: 38,
-      minWidth: 38,
-      maxWidth: 38,
+      width: phone ? 36 : 44,
+      minWidth: phone ? 36 : 44,
+      maxWidth: phone ? 36 : 44,
+      cellClass: "ledger-delete-cell",
       sortable: false,
       filter: false,
       resizable: false,
@@ -151,13 +158,17 @@ const ROW_SELECTION: RowSelectionOptions<LedgerRow> = {
 };
 
 const SELECTION_COLUMN: SelectionColumnDef = {
-  width: 38,
-  minWidth: 38,
-  maxWidth: 38,
+  // The tick box (16px) plus the cell's side padding.
+  width: 48,
+  minWidth: 48,
+  maxWidth: 48,
   resizable: false,
   sortable: false,
   suppressHeaderMenuButton: true,
 };
+
+// Phones use half the side padding, so the tick box column can be narrower.
+const SELECTION_COLUMN_PHONE: SelectionColumnDef = { ...SELECTION_COLUMN, width: 34, minWidth: 34, maxWidth: 34 };
 
 /** What the ledger screen can ask of the grid. */
 export type LedgerGridHandle = {
@@ -321,13 +332,15 @@ export default function LedgerGrid({
           pinnedBottomRowData={pinnedTotals}
           quickFilterText={quickFilter}
           onModelUpdated={onModelUpdated}
-          theme={dark ? ledgerDarkTheme : ledgerTheme}
+          theme={layout === "phone" ? (dark ? ledgerPhoneDarkTheme : ledgerPhoneTheme) : dark ? ledgerDarkTheme : ledgerTheme}
           rowHeight={ROW_HEIGHT}
           headerHeight={HEADER_HEIGHT}
           getRowId={(params) => params.data.id}
           context={gridContext}
+          // A cut-off name or item shows in full on hover; full ones don't get a tooltip.
+          tooltipShowMode="whenTruncated"
           rowSelection={ROW_SELECTION}
-          selectionColumnDef={SELECTION_COLUMN}
+          selectionColumnDef={layout === "phone" ? SELECTION_COLUMN_PHONE : SELECTION_COLUMN}
           onGridReady={(event) => {
             apiRef.current = event.api;
             // A remount (language change) starts with nothing ticked, so the bulk bar follows.

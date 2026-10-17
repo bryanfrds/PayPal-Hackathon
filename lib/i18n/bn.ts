@@ -300,7 +300,7 @@ export const bn: Dictionary = {
 
   // collect list
   "collect.title": "টাকা তুলুন",
-  "collect.heroLabel": "আদায়ের জন্য তৈরি",
+  "collect.heroLabel": "ইনভয়েস পাঠানোর জন্য তৈরি",
   "collect.notInvoiced_one": "{count} জন কাস্টমারের এখনও ইনভয়েস হয়নি",
   "collect.notInvoiced_other": "{count} জন কাস্টমারের এখনও ইনভয়েস হয়নি",
   "collect.tabsLabel": "ইনভয়েস",
@@ -878,4 +878,5 @@ export const bn: Dictionary = {
   "scanx.expandPhoto": "ছবি বড় করে দেখুন",
   "scanx.fixAmount": "পরিমাণ ঠিক করুন",
   "scanx.fixAmountLabel": "{name}-এর পরিমাণ ঠিক করুন",
+  "ledger.detail.invoiceNotHere": "এই বাকির ইনভয়েস পাঠানো হয়েছে বলে চিহ্নিত, কিন্তু ইনভয়েসের বিবরণ এই ডিভাইসে নেই। হয়তো অন্য ফোন থেকে পাঠানো হয়েছে।",
 };

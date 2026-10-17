@@ -282,11 +282,13 @@ function Camera({
               <b />
             </button>
           ) : (
-            <span className="scan-shutter scan-shutter-off" aria-hidden="true">
+            // Starting up: a dimmed shutter. No camera at all: no shutter (the buttons above take
+            // or choose a photo instead); the space stays so Gallery doesn't jump.
+            <span className={`scan-shutter scan-shutter-off${state === "unavailable" ? " scan-hidden" : ""}`} aria-hidden="true">
               <b />
             </span>
           )}
-          <span className="scan-gallery" aria-hidden="true" style={{ visibility: "hidden" }} />
+          <span className="scan-gallery scan-hidden" aria-hidden="true" />
         </div>
       </div>
 
@@ -356,6 +358,30 @@ function PhotoModal({
   const { t, formatNumber } = useT();
   const [zoom, setZoom] = useState(1);
   const ref = useDialog<HTMLDivElement>(onClose);
+  // Zoom changes the photo's real size (not a CSS transform), so a zoomed photo makes the box
+  // scroll and every edge, top included, can be reached.
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const [box, setBox] = useState<{ w: number; h: number } | null>(null);
+  const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (!el) return;
+    const measure = () => {
+      const style = getComputedStyle(el);
+      const padX = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+      const padY = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+      // The box's outer size, which scrollbars appearing at high zoom don't change (so no
+      // resize loop), minus its padding, rounded down so the fitted photo never overflows by a pixel.
+      const rect = el.getBoundingClientRect();
+      setBox({ w: Math.max(0, Math.floor(rect.width - padX)), h: Math.max(0, Math.floor(rect.height - padY)) });
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  const fit = box && natural ? Math.min(box.w / natural.w, box.h / natural.h, 1) : null;
+  const size = fit && natural ? { width: natural.w * fit * zoom, height: natural.h * fit * zoom } : undefined;
   return (
     <div className="sheet-layer">
       <div className="sheet-dim" onClick={onClose} aria-hidden="true" />
@@ -390,9 +416,15 @@ function PhotoModal({
             <CloseIcon />
           </button>
         </div>
-        <div className="scan-photo-modal-body">
+        <div className="scan-photo-modal-body" ref={bodyRef}>
           {/* eslint-disable-next-line @next/next/no-img-element -- a local photo, not a site image */}
-          <img src={photo} alt={alt} style={{ transform: `scale(${zoom})` }} />
+          <img
+            src={photo}
+            alt={alt}
+            className={size ? "scan-photo-sized" : undefined}
+            style={size}
+            onLoad={(e) => setNatural({ w: e.currentTarget.naturalWidth || 1, h: e.currentTarget.naturalHeight || 1 })}
+          />
         </div>
       </div>
     </div>
@@ -507,7 +539,7 @@ function Check({ mode, photo, onRetake }: { mode: ScanMode; photo: string | null
         ) : (
           <span className="scan-thumb-empty" aria-hidden="true" />
         )}
-        <div>
+        <div className="scan-thumb-text">
           <p className="tab-name">{mode === "notebook" ? t("scan.notebookPage") : t("scan.receipt")}</p>
           <p className="tab-item">
             {formatDay(today, { year: false })} · {t("scan.linesFound", { count: lines.length })}
@@ -650,7 +682,6 @@ function Check({ mode, photo, onRetake }: { mode: ScanMode; photo: string | null
                       <span className="tab-who">
                         <span className="tab-name">{l.customerName || (mode === "receipt" ? t("scan.pickAbove") : t("scan.noName"))}</span>
                         <span className="tab-item">{l.item || t("scan.noItem")}</span>
-                        {l.unsure && <span className="badge badge-unpaid badge-text">{l.unsure}</span>}
                         {fresh && <span className="badge badge-sent badge-text">{t("scan.newCustomer")}</span>}
                         {hasError && <span className="badge badge-overdue badge-text">{t("scan.needsFixing")}</span>}
                       </span>
