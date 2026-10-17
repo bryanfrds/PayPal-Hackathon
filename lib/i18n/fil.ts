@@ -1,7 +1,10 @@
 import type { Dictionary } from "./en";
+import { tourWords } from "./tour";
 
 // Filipino: machine-written; needs checking by a speaker.
 export const fil: Dictionary = {
+  // The quick tour's words live in ./tour.ts.
+  ...tourWords.fil,
   // common
   "status.overdue": "Lampas na",
   "status.sent": "Na-send ang invoice",

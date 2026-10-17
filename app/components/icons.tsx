@@ -197,3 +197,10 @@ export const SignOutIcon = (p: IconProps) => (
     <path d="M14 4h5v16h-5M10 8l-4 4 4 4M6 12h10" />
   </Svg>
 );
+
+export const PlayIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M10 8.5l5 3.5-5 3.5z" />
+  </Svg>
+);

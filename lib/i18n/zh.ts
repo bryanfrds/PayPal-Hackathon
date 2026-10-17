@@ -1,7 +1,10 @@
 import type { Dictionary } from "./en";
+import { tourWords } from "./tour";
 
 // Chinese (Simplified): machine-written; needs checking by a speaker.
 export const zh: Dictionary = {
+  // The quick tour's words live in ./tour.ts.
+  ...tourWords.zh,
   // common
   "status.overdue": "逾期",
   "status.sent": "已发账单",

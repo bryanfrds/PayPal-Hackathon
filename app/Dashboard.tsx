@@ -13,6 +13,7 @@ import { greeting, homeOverview, initials, lateLabel, monthTotals, owedBoard, ty
 import { buildSchedule } from "@/lib/reminders";
 import AccountSheet from "./components/AccountSheet";
 import Avatar from "./components/Avatar";
+import QuickTour from "./components/QuickTour";
 import { ShareButton, ShareTip, useShareTip } from "./components/ShareButton";
 import ShareSheet from "./components/ShareSheet";
 import { BellIcon, ChartIcon, CheckIcon, ChevronIcon, PlusIcon, ReceiptIcon, ScanIcon, SendIcon, SparkIcon } from "./components/icons";
@@ -128,6 +129,7 @@ export default function Dashboard() {
             className="avatar avatar-me home-phone-only home-acct"
             aria-label={t("nav.account", { name: shopName })}
             onClick={() => setAccountOpen(true)}
+            data-tour="settings-phone"
           >
             {initials(shopName)}
           </button>
@@ -135,7 +137,7 @@ export default function Dashboard() {
       </div>
 
       <div className="home-top">
-        <section className="home-hero" aria-labelledby="owed-label" aria-busy={!ready}>
+        <section className="home-hero" aria-labelledby="owed-label" aria-busy={!ready} data-tour="home-hero">
           <p className="home-hero-label" id="owed-label">
             {t("home.stillOwed")}
           </p>
@@ -217,7 +219,7 @@ export default function Dashboard() {
           </span>
           {t("home.collect")}
         </Link>
-        <Link href="/reminders" className="home-act">
+        <Link href="/reminders" className="home-act" data-tour="home-reminders">
           <span>
             <BellIcon />
           </span>
@@ -368,6 +370,8 @@ export default function Dashboard() {
       <p className="powered">{t("common.poweredBy")}</p>
       {accountOpen && <AccountSheet onClose={() => setAccountOpen(false)} />}
       {share && <ShareSheet slug={share.slug} returnFocusTo={share.opener} onClose={() => setShare(null)} />}
+      {/* First visit only (or replayed from Settings). Home only: never on /tab, sign-in or the scanner. */}
+      <QuickTour />
     </div>
   );
 }

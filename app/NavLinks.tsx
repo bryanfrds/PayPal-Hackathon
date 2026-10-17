@@ -23,7 +23,8 @@ export default function NavLinks({ links }: { links: NavLink[] }) {
         const Icon = ICONS[link.icon];
         return (
           <li key={link.href} className={link.wideOnly ? "nav-wide-only" : undefined}>
-            <Link href={link.href} aria-current={active ? "page" : undefined}>
+            {/* data-tour: the quick tour points at these tabs (lib/tour.ts). */}
+            <Link href={link.href} aria-current={active ? "page" : undefined} data-tour={`nav-${link.icon}`}>
               <Icon />
               <span>{t(link.label)}</span>
             </Link>

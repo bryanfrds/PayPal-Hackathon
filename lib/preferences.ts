@@ -1,6 +1,7 @@
-// The owner's app preferences on this device: theme, the WhatsApp message's default tone, and
-// whether to add the PayPal pay link. Pure functions so reading, writing and theme choice can
-// be tested in Node. Every storage call is wrapped: private modes can throw on access.
+// The owner's app preferences on this device: theme, the WhatsApp message's default tone,
+// whether to add the PayPal pay link, and whether the quick tour has been seen. Pure functions
+// so reading, writing and theme choice can be tested in Node. Every storage call is wrapped:
+// private modes can throw on access.
 
 import { DEFAULT_LANGUAGE, isLanguage, LANGUAGES, type Language } from "./i18n/languages";
 import { TONES, type Tone } from "./share";
@@ -15,12 +16,14 @@ export type Prefs = {
   payLink: boolean;
   /** The app's language (and the WhatsApp message's starting language). */
   language: Language;
+  /** The first-visit quick tour was finished or skipped on this device, so it doesn't show on its own again. */
+  tourSeen: boolean;
 };
 
 export const PREFS_KEY = "buku.prefs.v1";
 
 /** Light by default, so nothing changes for anyone until they pick Dark or Auto. */
-export const DEFAULT_PREFS: Prefs = { theme: "light", defaultTone: "friendly", payLink: true, language: DEFAULT_LANGUAGE };
+export const DEFAULT_PREFS: Prefs = { theme: "light", defaultTone: "friendly", payLink: true, language: DEFAULT_LANGUAGE, tourSeen: false };
 
 export const THEME_CHOICES: ThemeChoice[] = ["light", "dark", "auto"];
 
@@ -50,6 +53,7 @@ export function parsePrefs(raw: string | null | undefined): Prefs {
     defaultTone: isTone(p.defaultTone) ? p.defaultTone : DEFAULT_PREFS.defaultTone,
     payLink: typeof p.payLink === "boolean" ? p.payLink : DEFAULT_PREFS.payLink,
     language: isLanguage(p.language) ? p.language : DEFAULT_PREFS.language,
+    tourSeen: typeof p.tourSeen === "boolean" ? p.tourSeen : DEFAULT_PREFS.tourSeen,
   };
 }
 

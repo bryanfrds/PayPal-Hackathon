@@ -37,7 +37,12 @@ export default function SiteHeader({ links }: { links: NavLink[] }) {
         <span>{t("nav.nudgeQuestion")}</span>
       </Link>
       {/* Laptop sidebar only. On phones Settings is reached from the account sheet. */}
-      <Link href="/settings" className="side-settings" aria-current={pathname === "/settings" ? "page" : undefined}>
+      <Link
+        href="/settings"
+        className="side-settings"
+        aria-current={pathname === "/settings" ? "page" : undefined}
+        data-tour="settings-wide"
+      >
         <GearIcon />
         {t("nav.settings")}
       </Link>
