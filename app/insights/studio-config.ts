@@ -27,10 +27,12 @@ import {
   NUDGE_PANEL_WIDTH,
   ROW_HEIGHT,
   TABS_COLUMN_WIDTH,
+  VALUE_FONT_SIZE,
   WIDGET_PADDING,
   widgetLayout,
   type LayoutKind,
   type TabsGrid,
+  type ValueTilesPerRow,
   type WidgetId,
 } from "./tiles";
 type ScoreboardDefinition = AgWidgetDefinition<"scoreboard", ScoreboardWidget>;
@@ -240,12 +242,16 @@ const f = (
 ): AgWidgetFieldReference =>
   aggregation ? { id: `tabs.${id}`, aggregation } : { id: `tabs.${id}` };
 const title = (text: string) => ({ title: { enabled: true, text } });
+// Studio cuts a value wider than its tile ("RM 197…", or just "…"). The layout gives each money
+// tile room for "RM 12,345.60" at full size (valueTilesFor in tiles.ts); textScaling, Studio's own
+// fit-to-tile option, shrinks anything wider still (down to half size) instead of cutting it.
 const kpi = (text: string) => ({
   ...title(text),
   style: {
-    typography: { fontSize: 28, fontWeight: 800 },
+    typography: { fontSize: VALUE_FONT_SIZE, fontWeight: 800 },
     textAlign: "left",
     verticalAlign: "top",
+    textScaling: { enabled: true },
   },
 });
 const legend = {
@@ -314,8 +320,11 @@ const widgetsFor = (t: T, tabs: TabsGrid) => ({
   },
 }) as const satisfies Record<WidgetId, unknown>;
 
-/** Insights' starting dashboard; `tabs` sizes the "Every tab" grid for the tile it gets. */
-export function initialStateFor(kind: LayoutKind, tabs: TabsGrid, t: T = translator()): AgReportState<BukuRegistry> {
+/**
+ * Insights' starting dashboard; `tabs` sizes the "Every tab" grid for the tile it gets and
+ * `values` is how many value tiles share a row (see valueTilesFor).
+ */
+export function initialStateFor(kind: LayoutKind, tabs: TabsGrid, t: T = translator(), values?: ValueTilesPerRow): AgReportState<BukuRegistry> {
   // Cast: AgReportState's widget union is keyed by the registry's widget ids and can't check
   // our "scoreboard" widget state. The shapes were checked against AG Studio's .d.ts files.
   return {
@@ -324,7 +333,7 @@ export function initialStateFor(kind: LayoutKind, tabs: TabsGrid, t: T = transla
       {
         id: "insights",
         widgets: widgetsFor(t, tabs),
-        widgetLayout: widgetLayout(kind),
+        widgetLayout: widgetLayout(kind, values),
         layout: {
           columns: COLUMNS,
           minWidth: 300,

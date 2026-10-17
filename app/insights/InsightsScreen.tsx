@@ -15,7 +15,7 @@ import { useDebts } from "../useDebts";
 import { useIsWide } from "../useIsWide";
 import { useReminders } from "../useReminders";
 import { useShop } from "../useShop";
-import { canvasHeight, layoutKind, studioCanvasWidth, tabsGridFor } from "./tiles";
+import { canvasHeight, layoutKind, studioCanvasWidth, tabsGridFor, valueTilesFor } from "./tiles";
 import { AgStudio, FILL, VIEW_PANELS, manropeFamily } from "./studio-loader";
 import {
   dataFor,
@@ -92,8 +92,8 @@ export default function InsightsScreen() {
   const today = todayLocal();
   // New rows reach Studio through the `data` prop without a remount (Studio takes changes to
   // inline data), so Nudge's chat and any tiles it added survive a ledger edit or PaymentSync.
-  // Only crossing between the phone and wide layouts, or a change in the grid sizing below,
-  // remounts it (via key), since the starting layout is read once; the chat then comes back
+  // Only crossing between the phone and wide layouts, or a change in the grid sizing or the
+  // value-tile rows below, remounts it (via key), since the starting layout is read once; the chat then comes back
   // from nudge-history.ts.
   const data = useMemo(
     () => dataFor(toInsightRows(debts, today), t, lang),
@@ -108,14 +108,17 @@ export default function InsightsScreen() {
   const tabsColumns = tabs?.columns;
   const tabsColumnWidth = tabs?.columnWidth;
   const tabsCellPadding = tabs?.cellPadding;
-  // Tile titles and the grid's columns are read once per mount, so a language change or a new
-  // column count or width remounts Studio (see the key).
+  // How many value tiles share a row, so amounts like "RM 12,345.60" show in full (Studio cuts
+  // them with "…" otherwise); from the same measured canvas width. See valueTilesFor.
+  const values = kind === null || canvasWidth === null ? null : valueTilesFor(canvasWidth, kind);
+  // Tile titles, the grid's columns and the tiles' places are read once per mount, so a language
+  // change, a new column count or width, or a new value-tile row remounts Studio (see the key).
   const initialState = useMemo(
     () =>
-      kind === null || tabsColumns === undefined || tabsColumnWidth === undefined || tabsCellPadding === undefined
+      kind === null || values === null || tabsColumns === undefined || tabsColumnWidth === undefined || tabsCellPadding === undefined
         ? null
-        : initialStateFor(kind, { columns: tabsColumns, columnWidth: tabsColumnWidth, cellPadding: tabsCellPadding }, t),
-    [kind, tabsColumns, tabsColumnWidth, tabsCellPadding, t],
+        : initialStateFor(kind, { columns: tabsColumns, columnWidth: tabsColumnWidth, cellPadding: tabsCellPadding }, t, values),
+    [kind, values, tabsColumns, tabsColumnWidth, tabsCellPadding, t],
   );
   const localeText = useMemo(() => nudgeLocaleText(t), [t]);
   // A light/dark switch remounts Studio (see the key below) so it restyles reliably; Nudge's
@@ -194,7 +197,7 @@ export default function InsightsScreen() {
     };
   }, [sheetOpen, closeSlot, closeSheet]);
 
-  const height = kind === null ? undefined : isWide && fillHeight !== null ? fillHeight : canvasHeight(kind);
+  const height = kind === null || values === null ? undefined : isWide && fillHeight !== null ? fillHeight : canvasHeight(kind, values);
 
   return (
     <div className={`insights${isWide ? " insights-wide" : ""}${sheetOpen ? " insights-asking" : ""}`}>
@@ -242,7 +245,7 @@ export default function InsightsScreen() {
           )}
         {ready && initialState && (
           <AgStudio
-            key={`${kind}-${tabsColumns}x${tabsColumnWidth}p${tabsCellPadding}-${mode}-${lang}`}
+            key={`${kind}-v${values}-${tabsColumns}x${tabsColumnWidth}p${tabsCellPadding}-${mode}-${lang}`}
             data={data}
             mode="view"
             theme={theme}
