@@ -370,7 +370,10 @@ function PhotoModal({
       const style = getComputedStyle(el);
       const padX = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
       const padY = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
-      setBox({ w: el.clientWidth - padX, h: el.clientHeight - padY });
+      // The box's outer size, which scrollbars appearing at high zoom don't change (so no
+      // resize loop), minus its padding, rounded down so the fitted photo never overflows by a pixel.
+      const rect = el.getBoundingClientRect();
+      setBox({ w: Math.max(0, Math.floor(rect.width - padX)), h: Math.max(0, Math.floor(rect.height - padY)) });
     };
     measure();
     const observer = new ResizeObserver(measure);

@@ -46,9 +46,8 @@ const ledgerPhoneTheme = ledgerTheme.withParams(PHONE_PADDING);
 const ledgerPhoneDarkTheme = ledgerDarkTheme.withParams(PHONE_PADDING);
 
 // Narrow grids hide Item and Date; medium ones hide Date; wide ones show every column.
-// Measured on the grid itself, since the app is a phone-width column even on a laptop.
-// The column caps the grid at about 448px, so today it is always "phone"; the wider
-// modes stay for if the ledger ever gets a wider layout.
+// Measured on the grid itself: on a phone it's about 340px wide ("phone"); on a laptop the
+// ledger page is wider and the grid is about 730px at a 1280px window ("desktop").
 const PHONE_MAX_WIDTH = 460;
 const TABLET_MAX_WIDTH = 700;
 
@@ -89,14 +88,13 @@ function DeleteButton(props: CustomCellRendererProps<LedgerRow, unknown, DeleteC
   );
 }
 
-// Minimum widths are set so the visible columns fit: phone columns total about
-// 320px with the delete button (fits a 360px phone), tablet about 550px (fits a 700px screen).
+// Minimum widths are set so the visible columns fit without cutting the status badge or the
+// date: phone columns (with the 34px tick box) total about 332px, under the ~340px grid on a
+// 390px phone; laptop columns total about 710px, under the ~730px grid at 1280px.
 function buildColumnDefs(mode: LayoutMode, t: T): ColDef<LedgerRow>[] {
   const phone = mode === "phone";
   const label = (status: DebtStatus) => t(`status.${status}`);
   return [
-    // Widths fit a 390px phone (about 340px of grid) and a 1280px laptop (about 730px) without
-    // cutting the status badge or the date.
     { field: "customerName", headerName: t("ledger.colName"), flex: 1.3, minWidth: phone ? 88 : 130, tooltipField: "customerName" },
     { field: "item", headerName: t("ledger.colItem"), flex: 2, minWidth: 120, hide: phone, tooltipField: "item" },
     {
@@ -339,6 +337,8 @@ export default function LedgerGrid({
           headerHeight={HEADER_HEIGHT}
           getRowId={(params) => params.data.id}
           context={gridContext}
+          // A cut-off name or item shows in full on hover; full ones don't get a tooltip.
+          tooltipShowMode="whenTruncated"
           rowSelection={ROW_SELECTION}
           selectionColumnDef={layout === "phone" ? SELECTION_COLUMN_PHONE : SELECTION_COLUMN}
           onGridReady={(event) => {
