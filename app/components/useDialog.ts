@@ -1,8 +1,8 @@
 "use client";
 
 // Shared behaviour for the app's dialogs and sheets (the same pattern as AccountSheet and
-// ShareSheet): focus moves in, Tab stays inside, Escape closes, and focus goes back to
-// whatever opened it. Put role="dialog" aria-modal="true" and a label on the element itself.
+// ShareSheet): focus moves in, Tab stays inside, Escape closes, focus goes back to
+// whatever opened it, and the page behind doesn't scroll while it's open. Put role="dialog" aria-modal="true" and a label on the element itself.
 
 import { useEffect, useRef, type RefObject } from "react";
 
@@ -32,6 +32,10 @@ export function useDialog<T extends HTMLElement>(
   useEffect(() => {
     const root = ref.current;
     const opener = returnTo ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
+    // Lock the page behind (restored on close; nested dialogs restore in order).
+    const html = document.documentElement;
+    const previousOverflow = html.style.overflow;
+    html.style.overflow = "hidden";
     if (root) {
       const first = (initialFocus ? root.querySelector<HTMLElement>(initialFocus) : null) ?? focusables(root)[0] ?? root;
       if (first === root && !root.hasAttribute("tabindex")) root.setAttribute("tabindex", "-1");
@@ -65,6 +69,7 @@ export function useDialog<T extends HTMLElement>(
     document.addEventListener("keydown", onKey);
     return () => {
       document.removeEventListener("keydown", onKey);
+      html.style.overflow = previousOverflow;
       // After React finishes removing the dialog, so the opener is focusable again.
       window.setTimeout(() => {
         if (opener?.isConnected) opener.focus({ preventScroll: true });
