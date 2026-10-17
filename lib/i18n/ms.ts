@@ -868,4 +868,11 @@ export const ms: Dictionary = {
   "share.tabLink.failed": "Pautan hutang mereka tidak dapat dikemas kini sekarang, jadi ia mungkin menunjukkan salinan lama.",
   "sharedTab.inactiveTitle": "Pautan ini tidak aktif",
   "sharedTab.inactiveBody": "Mungkin ia sudah lama atau telah dimatikan. Minta kedai hantar pautan baharu untuk hutang anda.",
+  "share.tabLink.pending": "Pautan ditambah apabila anda hantar atau salin",
+  "share.tabLink.turnOff": "Matikan pautan",
+  "share.tabLink.turnedOff": "Pautan dimatikan. Pautan lama tidak akan terbuka lagi.",
+  "share.tabLink.turnOffFailed": "Pautan tidak dapat dimatikan sekarang. Cuba lagi.",
+  "share.sending": "Membuka WhatsApp…",
+  "tab.sharedByLink": "{name} boleh buka hutang ini di telefon sendiri melalui pautan.",
+  "tab.turnOffLink": "Matikan pautan",
 };

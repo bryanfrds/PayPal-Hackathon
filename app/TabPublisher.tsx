@@ -1,11 +1,13 @@
 "use client";
 
-// Gives app/tabLinks.ts the latest ledger, so a debounced publish sends current data.
+// Gives app/tabLinks.ts the latest ledger, so a publish sends current data, and refreshes
+// already-shared tabs when the ledger or invoices change (debounced; only changed ones are sent,
+// and a customer with no debts left loses their link). Never shares a tab by itself.
 // Renders nothing. Not on a customer's shared tab (/t/...), which isn't the owner's device.
 
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
-import { registerTabData } from "./tabLinks";
+import { refreshPublishedTabs, registerTabData } from "./tabLinks";
 import { useCollect } from "./useCollect";
 import { useDebts } from "./useDebts";
 import { useShop } from "./useShop";
@@ -28,5 +30,8 @@ function Registrar() {
     registerTabData(() => latest.current);
     return () => registerTabData(null);
   }, []);
+  useEffect(() => {
+    refreshPublishedTabs();
+  }, [debts, invoices, name]);
   return null;
 }

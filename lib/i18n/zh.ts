@@ -866,4 +866,11 @@ export const zh: Dictionary = {
   "share.tabLink.failed": "暂时无法更新他们的赊账链接，所以可能显示的是旧的内容。",
   "sharedTab.inactiveTitle": "这个链接已失效",
   "sharedTab.inactiveBody": "链接可能已过期或已被关闭。请让店家给你发新的赊账链接。",
+  "share.tabLink.pending": "发送或复制时会附上链接",
+  "share.tabLink.turnOff": "关闭链接",
+  "share.tabLink.turnedOff": "链接已关闭，旧链接将无法再打开。",
+  "share.tabLink.turnOffFailed": "暂时无法关闭链接，请再试一次。",
+  "share.sending": "正在打开 WhatsApp…",
+  "tab.sharedByLink": "{name} 可以用链接在自己的手机上查看这笔赊账。",
+  "tab.turnOffLink": "关闭链接",
 };

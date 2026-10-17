@@ -8008,3 +8008,26 @@ dd.debt-detail-value {
 .share-note-quiet {
   color: var(--muted);
 }
+
+.share-tabline-pending {
+  opacity: 0.6;
+}
+
+.share-tab-manage {
+  margin: 0.4rem 0.15rem 0;
+  font-size: 0.82rem;
+}
+
+.share-send:disabled {
+  opacity: 0.7;
+  cursor: progress;
+}
+
+/* The owner's own tab page: shared by link, with the way to turn it off. */
+.tab-link-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}

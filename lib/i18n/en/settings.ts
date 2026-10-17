@@ -76,4 +76,9 @@ export const settings = {
   "share.tabLink.hint": "They can see their bills and pay on their own phone.",
   "share.tabLink.failed": "Their tab link couldn't be updated just now, so it may show an older copy.",
   "share.noLink.off": "Pay links are turned off in Settings, so the message has no link.",
+  "share.tabLink.pending": "Link added when you send or copy",
+  "share.tabLink.turnOff": "Turn off link",
+  "share.tabLink.turnedOff": "Link turned off. The old link won't open any more.",
+  "share.tabLink.turnOffFailed": "Couldn't turn the link off just now. Try again.",
+  "share.sending": "Opening WhatsApp…",
 } as const;

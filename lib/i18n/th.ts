@@ -872,4 +872,11 @@ export const th: Dictionary = {
   "share.tabLink.failed": "อัปเดตลิงก์ยอดค้างของลูกค้าไม่ได้ในตอนนี้ จึงอาจยังแสดงข้อมูลเก่า",
   "sharedTab.inactiveTitle": "ลิงก์นี้ใช้งานไม่ได้",
   "sharedTab.inactiveBody": "ลิงก์อาจเก่าหรือถูกปิดแล้ว ขอให้ร้านส่งลิงก์ใหม่ของยอดค้างให้คุณ",
+  "share.tabLink.pending": "จะแนบลิงก์ให้เมื่อส่งหรือคัดลอก",
+  "share.tabLink.turnOff": "ปิดลิงก์",
+  "share.tabLink.turnedOff": "ปิดลิงก์แล้ว ลิงก์เดิมจะเปิดไม่ได้อีก",
+  "share.tabLink.turnOffFailed": "ปิดลิงก์ไม่ได้ในตอนนี้ ลองอีกครั้ง",
+  "share.sending": "กำลังเปิด WhatsApp…",
+  "tab.sharedByLink": "{name} เปิดยอดค้างนี้ได้จากโทรศัพท์ของตัวเองผ่านลิงก์",
+  "tab.turnOffLink": "ปิดลิงก์",
 };

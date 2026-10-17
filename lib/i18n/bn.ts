@@ -885,4 +885,11 @@ export const bn: Dictionary = {
   "share.tabLink.failed": "তাঁদের বাকির লিংক এখন আপডেট করা গেল না, তাই হয়তো পুরনো তথ্য দেখাচ্ছে।",
   "sharedTab.inactiveTitle": "এই লিংকটি সক্রিয় নেই",
   "sharedTab.inactiveBody": "হয়তো এটি পুরনো বা বন্ধ করা হয়েছে। আপনার বাকির নতুন লিংক পাঠাতে দোকানকে বলুন।",
+  "share.tabLink.pending": "পাঠালে বা কপি করলে লিংক যোগ হবে",
+  "share.tabLink.turnOff": "লিংক বন্ধ করুন",
+  "share.tabLink.turnedOff": "লিংক বন্ধ করা হয়েছে। পুরনো লিংক আর খুলবে না।",
+  "share.tabLink.turnOffFailed": "এখন লিংক বন্ধ করা গেল না। আবার চেষ্টা করুন।",
+  "share.sending": "WhatsApp খোলা হচ্ছে…",
+  "tab.sharedByLink": "{name} লিংক দিয়ে নিজের ফোনে এই বাকি দেখতে পারবেন।",
+  "tab.turnOffLink": "লিংক বন্ধ করুন",
 };

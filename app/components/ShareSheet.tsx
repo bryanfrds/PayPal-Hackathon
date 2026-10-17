@@ -16,7 +16,7 @@ import { buildShareMessage, chooseLink, payLinkFor, TONES, unpaidItems, whatsapp
 import { useCollect } from "../useCollect";
 import { useDebts } from "../useDebts";
 import { usePrefs } from "../usePrefs";
-import { publishTabSoon, useTabLink } from "../tabLinks";
+import { publishTab, revokeTabLink, useTabLink, withinMs } from "../tabLinks";
 import { useT } from "../useT";
 import { useShop } from "../useShop";
 import Avatar from "./Avatar";
@@ -46,12 +46,12 @@ export default function ShareSheet({
   const [tone, setTone] = useState<Tone>(prefs.defaultTone);
   const [msgLang, setMsgLang] = useState<Language>(lang);
   const [copied, setCopied] = useState<"idle" | "done" | "failed">("idle");
-  // Their shared tab: published when the sheet opens, so the link is ready to add.
+  // Their shared tab: published only when the owner sends or copies with this ticked.
   const tabLink = useTabLink(slug);
   const [addTab, setAddTab] = useState(true);
-  useEffect(() => {
-    publishTabSoon(slug, 0);
-  }, [slug]);
+  const [sending, setSending] = useState(false);
+  const [linkNote, setLinkNote] = useState<"off" | "offFailed" | null>(null);
+  const wantTab = addTab && tabLink.available !== false;
   const sheetRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const today = todayLocal();
@@ -61,18 +61,20 @@ export default function ShareSheet({
   const lookup = useMemo(() => payLinkFor(invoices, debts, slug), [invoices, debts, slug]);
   const { pay, note } = chooseLink(lookup, prefs.payLink, t);
   const since = mine.reduce((min, d) => (d.date < min ? d.date : min), mine[0]?.date ?? today);
-  const message = row
-    ? buildShareMessage({
-        customerName: row.customerName,
-        shopName,
-        owedSen: row.owedSen,
-        items: unpaidItems(mine),
-        tone,
-        pay,
-        language: msgLang,
-        tabLink: addTab ? tabLink.url : undefined,
-      })
-    : null;
+  const messageWith = (tabUrl: string | undefined) =>
+    row
+      ? buildShareMessage({
+          customerName: row.customerName,
+          shopName,
+          owedSen: row.owedSen,
+          items: unpaidItems(mine),
+          tone,
+          pay,
+          language: msgLang,
+          tabLink: tabUrl,
+        })
+      : null;
+  const message = messageWith(wantTab ? tabLink.url : undefined);
 
   // Focus moves in, stays in, Escape closes, and focus goes back to the opener afterwards.
   const onCloseRef = useRef(onClose);
@@ -117,14 +119,50 @@ export default function ShareSheet({
 
   if (!row || !message) return null;
 
+  /** Publishes their tab first when the link is wanted (the deliberate step), then gives the text. */
+  async function finalText(): Promise<string> {
+    const url = wantTab ? await withinMs(publishTab(slug), 6000).catch(() => tabLink.url) : undefined;
+    return messageWith(url)?.text ?? "";
+  }
+
   async function copy() {
     if (!message) return;
     try {
-      await navigator.clipboard.writeText(message.text);
+      if (wantTab && typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
+        // Safari only allows copying during the tap, so the text is handed over as a promise.
+        const blob = finalText().then((text) => new Blob([text], { type: "text/plain" }));
+        await navigator.clipboard.write([new ClipboardItem({ "text/plain": blob })]);
+      } else {
+        await navigator.clipboard.writeText(await finalText());
+      }
       setCopied("done");
     } catch {
       setCopied("failed");
     }
+  }
+
+  async function send() {
+    if (!message) return;
+    if (!wantTab) {
+      window.open(whatsappUrl(message.text), "_blank", "noopener,noreferrer");
+      return;
+    }
+    // Open the tab during the tap (so it isn't blocked), then point it at WhatsApp once the
+    // link is ready. Cut off from this page, like a noopener link.
+    const win = window.open("about:blank", "_blank");
+    if (win) win.opener = null;
+    setSending(true);
+    try {
+      const href = whatsappUrl(await finalText());
+      if (win) win.location.href = href;
+      else window.open(href, "_blank", "noopener,noreferrer");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function turnOffLink() {
+    setLinkNote((await revokeTabLink(slug)) ? "off" : "offFailed");
   }
 
   function pickTone(next: Tone) {
@@ -193,6 +231,10 @@ export default function ShareSheet({
                 </p>
               )}
               {message.tabLine && <p className="share-tabline">{message.tabLine}</p>}
+              {/* Not shared yet: the link is made when the owner sends or copies. */}
+              {wantTab && !message.tabLine && (
+                <p className="share-tabline share-tabline-pending">{translate(msgLang, "msg.tabLine", { url: "…" })}</p>
+              )}
               <p>{message.closing}</p>
             </div>
           </div>
@@ -200,17 +242,27 @@ export default function ShareSheet({
 
         {!message.link && note && <p className="share-note">{note}</p>}
 
-        {/* Only once the database has given them a link: with none, the message is as before. */}
-        {tabLink.url && (
+        {/* Hidden once the server says sharing isn't set up: the message is then exactly as before. */}
+        {tabLink.available !== false && (
           <label className="share-tab-option">
             <input type="checkbox" checked={addTab} onChange={(e) => { setAddTab(e.target.checked); setCopied("idle"); }} />
             <span>
               {t("share.tabLink.option")}
-              <small>{t("share.tabLink.hint")}</small>
+              <small>{tabLink.url ? t("share.tabLink.hint") : t("share.tabLink.pending")}</small>
             </span>
           </label>
         )}
-        {tabLink.url && tabLink.failed && <p className="share-note share-note-quiet">{t("share.tabLink.failed")}</p>}
+        {tabLink.url && (
+          <p className="share-tab-manage">
+            <button type="button" className="link-button" onClick={turnOffLink}>
+              {t("share.tabLink.turnOff")}
+            </button>
+          </p>
+        )}
+        {tabLink.failed && <p className="share-note share-note-quiet">{t("share.tabLink.failed")}</p>}
+        <p className="share-note share-note-quiet" role="status">
+          {linkNote === "off" ? t("share.tabLink.turnedOff") : linkNote === "offFailed" ? t("share.tabLink.turnOffFailed") : ""}
+        </p>
 
         <div className="share-label-row">
           <p className="share-label" id={`${titleId}-tone`}>
@@ -249,10 +301,10 @@ export default function ShareSheet({
             <CopyIcon />
             {copied !== "idle" && <span>{copied === "done" ? t("share.copied") : t("share.copyFailed")}</span>}
           </button>
-          <a className="share-send" href={whatsappUrl(message.text)} target="_blank" rel="noopener noreferrer">
+          <button type="button" className="share-send" onClick={send} disabled={sending} aria-busy={sending}>
             <ChatIcon />
-            {t("share.send")}
-          </a>
+            {sending ? t("share.sending") : t("share.send")}
+          </button>
         </div>
         <p className="visually-hidden" role="status">
           {copied === "done" ? t("share.copiedStatus") : copied === "failed" ? t("share.copyFailedStatus") : ""}

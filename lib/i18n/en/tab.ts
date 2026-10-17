@@ -68,4 +68,6 @@ export const tab = {
   "tab.invoiceNumber": "Invoice {number}",
   "tab.paypalInvoice": "PayPal invoice",
   "tab.sentOn": "{amount} · sent {date}",
+  "tab.sharedByLink": "{name} can open this tab on their own phone with a link.",
+  "tab.turnOffLink": "Turn off link",
 } as const;

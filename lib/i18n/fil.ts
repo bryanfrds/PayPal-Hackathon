@@ -885,4 +885,11 @@ export const fil: Dictionary = {
   "share.tabLink.failed": "Hindi ma-update ang link ng utang nila ngayon, kaya baka luma pa ang ipinapakita.",
   "sharedTab.inactiveTitle": "Hindi aktibo ang link na ito",
   "sharedTab.inactiveBody": "Baka luma na o pinatay na ito. Hilingin sa tindahan na magpadala ng bagong link sa utang mo.",
+  "share.tabLink.pending": "Idadagdag ang link kapag nag-send o nag-copy ka",
+  "share.tabLink.turnOff": "Patayin ang link",
+  "share.tabLink.turnedOff": "Pinatay na ang link. Hindi na mabubuksan ang lumang link.",
+  "share.tabLink.turnOffFailed": "Hindi mapatay ang link ngayon. Subukan ulit.",
+  "share.sending": "Binubuksan ang WhatsApp…",
+  "tab.sharedByLink": "Mabubuksan ni {name} ang utang na ito sa sarili niyang phone gamit ang link.",
+  "tab.turnOffLink": "Patayin ang link",
 };

@@ -872,4 +872,11 @@ export const vi: Dictionary = {
   "share.tabLink.failed": "Chưa cập nhật được liên kết khoản nợ của họ lúc này, nên có thể đang hiện bản cũ.",
   "sharedTab.inactiveTitle": "Liên kết này không còn hoạt động",
   "sharedTab.inactiveBody": "Có thể liên kết đã cũ hoặc đã bị tắt. Hãy nhờ cửa hàng gửi liên kết mới tới khoản nợ của bạn.",
+  "share.tabLink.pending": "Liên kết được thêm khi bạn gửi hoặc sao chép",
+  "share.tabLink.turnOff": "Tắt liên kết",
+  "share.tabLink.turnedOff": "Đã tắt liên kết. Liên kết cũ sẽ không mở được nữa.",
+  "share.tabLink.turnOffFailed": "Chưa tắt được liên kết lúc này. Hãy thử lại.",
+  "share.sending": "Đang mở WhatsApp…",
+  "tab.sharedByLink": "{name} có thể mở khoản nợ này trên điện thoại của mình bằng liên kết.",
+  "tab.turnOffLink": "Tắt liên kết",
 };

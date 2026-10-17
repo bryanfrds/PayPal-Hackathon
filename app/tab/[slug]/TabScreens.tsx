@@ -25,6 +25,7 @@ import { invoicePayState, isPayPalUrl, payPlan, type InvoicePayState } from "@/l
 import type { InvoiceRecord } from "@/lib/collect-store";
 import { useCollect } from "../../useCollect";
 import { useDebts } from "../../useDebts";
+import { revokeTabLink, useTabLink } from "../../tabLinks";
 import { useShop } from "../../useShop";
 import { useT } from "../../useT";
 
@@ -159,6 +160,31 @@ function BillCard({ bill, today, slug, year }: { bill: Bill; today: string; slug
   );
 }
 
+/**
+ * On the owner's own device only (not the customer's shared page): when this tab is shared by
+ * link, say so and offer to turn the link off.
+ */
+function OwnerLinkNotice({ slug, name }: { slug: string; name: string }) {
+  const { shared } = useTabSource(slug);
+  const link = useTabLink(slug);
+  const { t } = useT();
+  const [failed, setFailed] = useState(false);
+  if (shared || !link.url) return null;
+  return (
+    <div className="notice tab-link-notice">
+      <p className="notice-text">{t("tab.sharedByLink", { name })}</p>
+      <button type="button" className="button button-sm" onClick={async () => setFailed(!(await revokeTabLink(slug)))}>
+        {t("tab.turnOffLink")}
+      </button>
+      {failed && (
+        <p className="field-error" role="alert">
+          {t("share.tabLink.turnOffFailed")}
+        </p>
+      )}
+    </div>
+  );
+}
+
 /* 1 · Your tab */
 export function TabHome({ slug }: { slug: string }) {
   const { t, formatDay, formatMonth } = useT();
@@ -179,6 +205,7 @@ export function TabHome({ slug }: { slug: string }) {
               <p className="dash-hello">{t("tab.hello", { name: tab.customerName })}</p>
               <h1 className="dash-shop">{shopName}</h1>
             </div>
+            <OwnerLinkNotice slug={slug} name={tab.customerName} />
 
             <section className="tab-hero" aria-labelledby="owe-label">
               <p className="tab-hero-label" id="owe-label">

@@ -867,4 +867,11 @@ export const id: Dictionary = {
   "share.tabLink.failed": "Link utang mereka belum bisa diperbarui sekarang, jadi mungkin masih menampilkan salinan lama.",
   "sharedTab.inactiveTitle": "Link ini tidak aktif",
   "sharedTab.inactiveBody": "Mungkin sudah lama atau dimatikan. Minta toko mengirim link baru untuk utang kamu.",
+  "share.tabLink.pending": "Link ditambahkan saat kamu kirim atau salin",
+  "share.tabLink.turnOff": "Matikan link",
+  "share.tabLink.turnedOff": "Link dimatikan. Link lama tidak bisa dibuka lagi.",
+  "share.tabLink.turnOffFailed": "Link belum bisa dimatikan sekarang. Coba lagi.",
+  "share.sending": "Membuka WhatsApp…",
+  "tab.sharedByLink": "{name} bisa membuka utang ini di ponselnya sendiri lewat link.",
+  "tab.turnOffLink": "Matikan link",
 };
