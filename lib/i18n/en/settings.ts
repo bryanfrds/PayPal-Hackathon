@@ -72,5 +72,8 @@ export const settings = {
   "share.noLink.not-on-device": "This tab's PayPal pay link isn't on this device, so the message has no link.",
   "share.noLink.over-billed": "The PayPal invoice is for more than they owe now, so the message has no link.",
   "share.noLink.settled": "PayPal shows this invoice as paid or closed, so the message has no link.",
+  "share.tabLink.option": "Add a link to their tab",
+  "share.tabLink.hint": "They can see their bills and pay on their own phone.",
+  "share.tabLink.failed": "Their tab link couldn't be updated just now, so it may show an older copy.",
   "share.noLink.off": "Pay links are turned off in Settings, so the message has no link.",
 } as const;

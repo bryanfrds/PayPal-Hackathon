@@ -3,7 +3,7 @@ import type { InvoiceRecord } from "./collect-store";
 import type { Debt } from "./debts";
 import { LANGUAGES, translate, translator } from "./i18n";
 import type { InvoiceStanding } from "./payments";
-import { buildShareMessage, chooseLink, itemSummary, payLinkFor, plainName, unpaidItems, whatsappUrl, type ShareInput } from "./share";
+import { buildShareMessage, chooseLink, isTabLink, itemSummary, payLinkFor, plainName, unpaidItems, whatsappUrl, type ShareInput } from "./share";
 
 const LINK = "https://www.sandbox.paypal.com/invoice/p/#INV2-K4LN-ABCD";
 const FULL = { link: LINK, amountSen: 12800, full: true };
@@ -290,5 +290,28 @@ describe("messages in every language", () => {
     const t = translator("ms");
     const list = ["a", "b", "c"].join(translate("ms", "msg.items.sep"));
     expect(itemSummary(["a", "b", "c", "d"], 3, t)).toBe(translate("ms", "msg.items.more", { list, count: 1 }));
+  });
+});
+
+describe("See your tab link", () => {
+  const TAB = "https://buku.example.com/t/AbCdEfGhIjKlMnOpQrStUv";
+
+  it("adds the line in each language, with the same pay link rules", () => {
+    for (const { code } of LANGUAGES) {
+      const m = buildShareMessage({ ...base, language: code, pay: FULL, tabLink: TAB });
+      expect(m.tabLine).toBe(translate(code, "msg.tabLine", { url: TAB }));
+      expect(m.tabLine).toContain(TAB);
+      expect(m.text).toBe(`${m.intro}\n\n${m.payLine} ${LINK}\n\n${m.tabLine}\n\n${m.closing}`);
+    }
+  });
+
+  it("leaves it out when there's no link or it isn't one of our tab pages", () => {
+    // (The share sheet only ever passes this site's own origin; the shape check is the backstop.)
+    for (const tabLink of [undefined, "", "https://buku.example.com/tab/kak-lina", "http://buku.example.com/t/AbCdEfGhIjKlMnOpQrStUv", "https://buku.example.com/t/short", "https://buku.example.com/t/AbCdEfGhIjKlMnOpQrStUv?x=1"]) {
+      const m = buildShareMessage({ ...base, tabLink });
+      expect(m.tabLine).toBeUndefined();
+      expect(m.text).toBe(`${m.intro}\n\n${m.closing}`);
+    }
+    expect(isTabLink("http://localhost:3000/t/AbCdEfGhIjKlMnOpQrStUv")).toBe(true);
   });
 });

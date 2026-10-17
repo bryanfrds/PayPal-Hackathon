@@ -879,4 +879,10 @@ export const fil: Dictionary = {
   "scanx.fixAmount": "Ayusin ang halaga",
   "scanx.fixAmountLabel": "Ayusin ang halaga para kay {name}",
   "ledger.detail.invoiceNotHere": "Naka-mark na may invoice na ang utang na ito, pero wala sa device na ito ang detalye ng invoice. Baka na-send ito mula sa ibang phone.",
+  "msg.tabLine": "Tingnan ang utang mo: {url}",
+  "share.tabLink.option": "Isama ang link sa utang nila",
+  "share.tabLink.hint": "Makikita nila ang mga bill at makakabayad sila sa sarili nilang phone.",
+  "share.tabLink.failed": "Hindi ma-update ang link ng utang nila ngayon, kaya baka luma pa ang ipinapakita.",
+  "sharedTab.inactiveTitle": "Hindi aktibo ang link na ito",
+  "sharedTab.inactiveBody": "Baka luma na o pinatay na ito. Hilingin sa tindahan na magpadala ng bagong link sa utang mo.",
 };

@@ -16,6 +16,7 @@ import { buildShareMessage, chooseLink, payLinkFor, TONES, unpaidItems, whatsapp
 import { useCollect } from "../useCollect";
 import { useDebts } from "../useDebts";
 import { usePrefs } from "../usePrefs";
+import { publishTabSoon, useTabLink } from "../tabLinks";
 import { useT } from "../useT";
 import { useShop } from "../useShop";
 import Avatar from "./Avatar";
@@ -45,6 +46,12 @@ export default function ShareSheet({
   const [tone, setTone] = useState<Tone>(prefs.defaultTone);
   const [msgLang, setMsgLang] = useState<Language>(lang);
   const [copied, setCopied] = useState<"idle" | "done" | "failed">("idle");
+  // Their shared tab: published when the sheet opens, so the link is ready to add.
+  const tabLink = useTabLink(slug);
+  const [addTab, setAddTab] = useState(true);
+  useEffect(() => {
+    publishTabSoon(slug, 0);
+  }, [slug]);
   const sheetRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const today = todayLocal();
@@ -55,7 +62,16 @@ export default function ShareSheet({
   const { pay, note } = chooseLink(lookup, prefs.payLink, t);
   const since = mine.reduce((min, d) => (d.date < min ? d.date : min), mine[0]?.date ?? today);
   const message = row
-    ? buildShareMessage({ customerName: row.customerName, shopName, owedSen: row.owedSen, items: unpaidItems(mine), tone, pay, language: msgLang })
+    ? buildShareMessage({
+        customerName: row.customerName,
+        shopName,
+        owedSen: row.owedSen,
+        items: unpaidItems(mine),
+        tone,
+        pay,
+        language: msgLang,
+        tabLink: addTab ? tabLink.url : undefined,
+      })
     : null;
 
   // Focus moves in, stays in, Escape closes, and focus goes back to the opener afterwards.
@@ -176,12 +192,25 @@ export default function ShareSheet({
                   </span>
                 </p>
               )}
+              {message.tabLine && <p className="share-tabline">{message.tabLine}</p>}
               <p>{message.closing}</p>
             </div>
           </div>
         </figure>
 
         {!message.link && note && <p className="share-note">{note}</p>}
+
+        {/* Only once the database has given them a link: with none, the message is as before. */}
+        {tabLink.url && (
+          <label className="share-tab-option">
+            <input type="checkbox" checked={addTab} onChange={(e) => { setAddTab(e.target.checked); setCopied("idle"); }} />
+            <span>
+              {t("share.tabLink.option")}
+              <small>{t("share.tabLink.hint")}</small>
+            </span>
+          </label>
+        )}
+        {tabLink.url && tabLink.failed && <p className="share-note share-note-quiet">{t("share.tabLink.failed")}</p>}
 
         <div className="share-label-row">
           <p className="share-label" id={`${titleId}-tone`}>

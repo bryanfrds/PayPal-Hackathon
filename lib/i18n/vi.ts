@@ -866,4 +866,10 @@ export const vi: Dictionary = {
   "scanx.fixAmount": "Sửa số tiền",
   "scanx.fixAmountLabel": "Sửa số tiền của {name}",
   "ledger.detail.invoiceNotHere": "Khoản này đã được đánh dấu là có hóa đơn, nhưng chi tiết hóa đơn không có trên thiết bị này. Có thể nó đã được gửi từ điện thoại khác.",
+  "msg.tabLine": "Xem khoản nợ của bạn: {url}",
+  "share.tabLink.option": "Thêm liên kết tới khoản nợ của họ",
+  "share.tabLink.hint": "Họ có thể xem hóa đơn và trả tiền trên điện thoại của mình.",
+  "share.tabLink.failed": "Chưa cập nhật được liên kết khoản nợ của họ lúc này, nên có thể đang hiện bản cũ.",
+  "sharedTab.inactiveTitle": "Liên kết này không còn hoạt động",
+  "sharedTab.inactiveBody": "Có thể liên kết đã cũ hoặc đã bị tắt. Hãy nhờ cửa hàng gửi liên kết mới tới khoản nợ của bạn.",
 };

@@ -862,4 +862,10 @@ export const ms: Dictionary = {
   "scanx.fixAmount": "Betulkan jumlah",
   "scanx.fixAmountLabel": "Betulkan jumlah untuk {name}",
   "ledger.detail.invoiceNotHere": "Hutang ini ditanda sudah diinvois, tetapi butiran invois tiada pada peranti ini. Mungkin ia dihantar dari telefon lain.",
+  "msg.tabLine": "Lihat hutang anda: {url}",
+  "share.tabLink.option": "Tambah pautan ke hutang mereka",
+  "share.tabLink.hint": "Mereka boleh lihat bil dan bayar di telefon sendiri.",
+  "share.tabLink.failed": "Pautan hutang mereka tidak dapat dikemas kini sekarang, jadi ia mungkin menunjukkan salinan lama.",
+  "sharedTab.inactiveTitle": "Pautan ini tidak aktif",
+  "sharedTab.inactiveBody": "Mungkin ia sudah lama atau telah dimatikan. Minta kedai hantar pautan baharu untuk hutang anda.",
 };

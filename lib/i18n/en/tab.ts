@@ -1,5 +1,7 @@
 // English words for the tab screens. Keys are "area.thing"; English is the source of keys.
 export const tab = {
+  "sharedTab.inactiveTitle": "This link isn't active",
+  "sharedTab.inactiveBody": "It may be old or turned off. Ask the shop to send you a new link to your tab.",
   "tab.loading": "Loading your tab…",
   "tab.unreadableTitle": "Your tab couldn't be loaded",
   "tab.unreadableBody": "Something went wrong reading the saved tabs. Ask {shop} to check the app.",

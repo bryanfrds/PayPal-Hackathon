@@ -861,4 +861,10 @@ export const id: Dictionary = {
   "scanx.fixAmount": "Perbaiki jumlah",
   "scanx.fixAmountLabel": "Perbaiki jumlah untuk {name}",
   "ledger.detail.invoiceNotHere": "Utang ini sudah ditandai ada invoice-nya, tapi detail invoice tidak ada di perangkat ini. Mungkin dikirim dari ponsel lain.",
+  "msg.tabLine": "Lihat utang kamu: {url}",
+  "share.tabLink.option": "Tambahkan link ke utang mereka",
+  "share.tabLink.hint": "Mereka bisa lihat tagihan dan bayar dari ponsel sendiri.",
+  "share.tabLink.failed": "Link utang mereka belum bisa diperbarui sekarang, jadi mungkin masih menampilkan salinan lama.",
+  "sharedTab.inactiveTitle": "Link ini tidak aktif",
+  "sharedTab.inactiveBody": "Mungkin sudah lama atau dimatikan. Minta toko mengirim link baru untuk utang kamu.",
 };

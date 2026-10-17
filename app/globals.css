@@ -7974,3 +7974,37 @@ dd.debt-detail-value {
     transform: translate(-50%, -50%);
   }
 }
+
+/* Share sheet: "See your tab" line in the preview, and the option to add it. */
+.share-tabline {
+  overflow-wrap: anywhere;
+}
+
+.share-tab-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  margin: 0.75rem 0.15rem 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.share-tab-option input {
+  flex: none;
+  width: 1.15rem;
+  height: 1.15rem;
+  margin-top: 0.1rem;
+  accent-color: var(--accent);
+}
+
+.share-tab-option small {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.share-note-quiet {
+  color: var(--muted);
+}

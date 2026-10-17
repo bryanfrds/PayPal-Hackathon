@@ -860,4 +860,10 @@ export const zh: Dictionary = {
   "scanx.fixAmount": "修正金额",
   "scanx.fixAmountLabel": "修正 {name} 的金额",
   "ledger.detail.invoiceNotHere": "这笔赊账已标记为已开账单，但这台设备上没有账单详情。可能是从另一部手机发送的。",
+  "msg.tabLine": "查看你的赊账：{url}",
+  "share.tabLink.option": "附上他们赊账的链接",
+  "share.tabLink.hint": "他们可以在自己的手机上查看账单并付款。",
+  "share.tabLink.failed": "暂时无法更新他们的赊账链接，所以可能显示的是旧的内容。",
+  "sharedTab.inactiveTitle": "这个链接已失效",
+  "sharedTab.inactiveBody": "链接可能已过期或已被关闭。请让店家给你发新的赊账链接。",
 };

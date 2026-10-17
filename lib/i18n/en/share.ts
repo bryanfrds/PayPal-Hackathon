@@ -9,6 +9,7 @@ export const share = {
   "msg.firm.payLine": "Pay with PayPal or card here:",
   "msg.partialPayLine": "{amount} of this can be paid here:",
   "msg.closing": "Thank you!",
+  "msg.tabLine": "See your tab: {url}",
   "msg.nameFallback": "there",
   "msg.shopFallback": "your shop",
   "msg.items.two": "{a} and {b}",

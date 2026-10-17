@@ -879,4 +879,10 @@ export const bn: Dictionary = {
   "scanx.fixAmount": "পরিমাণ ঠিক করুন",
   "scanx.fixAmountLabel": "{name}-এর পরিমাণ ঠিক করুন",
   "ledger.detail.invoiceNotHere": "এই বাকির ইনভয়েস পাঠানো হয়েছে বলে চিহ্নিত, কিন্তু ইনভয়েসের বিবরণ এই ডিভাইসে নেই। হয়তো অন্য ফোন থেকে পাঠানো হয়েছে।",
+  "msg.tabLine": "আপনার বাকি দেখুন: {url}",
+  "share.tabLink.option": "তাঁদের বাকির লিংক যোগ করুন",
+  "share.tabLink.hint": "তাঁরা নিজের ফোনেই বিল দেখে টাকা দিতে পারবেন।",
+  "share.tabLink.failed": "তাঁদের বাকির লিংক এখন আপডেট করা গেল না, তাই হয়তো পুরনো তথ্য দেখাচ্ছে।",
+  "sharedTab.inactiveTitle": "এই লিংকটি সক্রিয় নেই",
+  "sharedTab.inactiveBody": "হয়তো এটি পুরনো বা বন্ধ করা হয়েছে। আপনার বাকির নতুন লিংক পাঠাতে দোকানকে বলুন।",
 };
