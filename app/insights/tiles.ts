@@ -43,6 +43,33 @@ export function layoutKind(width: number): LayoutKind {
   return width <= PHONE_MAX ? "phone" : "wide";
 }
 
+// The three value tiles ("Still owed to you", "Collected", "Overdue") across the top. How many
+// share a row depends on the measured canvas width (see valueTilesFor): side by side as in PHONE
+// and WIDE when the amounts fit, otherwise two to a row or one per row, with every tile below
+// moved down to make room.
+export type ValueTilesPerRow = 1 | 2 | 3;
+type ValueTileId = "owed" | "collected" | "overdue";
+const VALUE_ROWS: Record<1 | 2, Record<ValueTileId, Box>> = {
+  2: { owed: [0, 0, 6, 7], collected: [6, 0, 6, 7], overdue: [0, 7, 12, 6] },
+  1: { owed: [0, 0, 12, 7], collected: [0, 7, 12, 7], overdue: [0, 14, 12, 6] },
+};
+/** Most value tiles to a row in each layout, widest first: what PHONE and WIDE use. */
+const VALUE_STEPS: Record<LayoutKind, readonly ValueTilesPerRow[]> = { phone: [2, 1], wide: [3, 2, 1] };
+
+const bottomOf = (boxes: Box[]) => Math.max(...boxes.map(([, y, , h]) => y + h));
+
+function layoutFor(kind: LayoutKind, values: ValueTilesPerRow): Layout {
+  const base = kind === "phone" ? PHONE : WIDE;
+  if (values === VALUE_STEPS[kind][0]) return base;
+  const top = VALUE_ROWS[values as 1 | 2];
+  const { owed, collected, overdue, ...rest } = base;
+  const shift = bottomOf(Object.values(top)) - bottomOf([owed, collected, overdue]);
+  const moved = Object.fromEntries(
+    Object.entries(rest).map(([id, [x, y, w, h]]) => [id, [x, y + shift, w, h]]),
+  ) as Record<Exclude<WidgetId, ValueTileId>, Box>;
+  return { ...top, ...moved };
+}
+
 export type WidgetBox = {
   xTrack: number;
   yTrack: number;
@@ -50,9 +77,9 @@ export type WidgetBox = {
   ySpan: number;
 };
 
-/** Studio's widgetLayout for the given layout. */
-export function widgetLayout(kind: LayoutKind): Record<WidgetId, WidgetBox> {
-  const layout = kind === "phone" ? PHONE : WIDE;
+/** Studio's widgetLayout for the given layout, with `values` value tiles to a row. */
+export function widgetLayout(kind: LayoutKind, values: ValueTilesPerRow = VALUE_STEPS[kind][0]): Record<WidgetId, WidgetBox> {
+  const layout = layoutFor(kind, values);
   return Object.fromEntries(
     Object.entries(layout).map(([id, [xTrack, yTrack, xSpan, ySpan]]) => [
       id,
@@ -62,10 +89,41 @@ export function widgetLayout(kind: LayoutKind): Record<WidgetId, WidgetBox> {
 }
 
 /** Studio fills its parent, so the parent gets the height of the tallest column of tiles. */
-export function canvasHeight(kind: LayoutKind): number {
-  const layout = kind === "phone" ? PHONE : WIDE;
-  const rows = Math.max(...Object.values(layout).map(([, y, , h]) => y + h));
-  return rows * ROW_HEIGHT + PAGE_PADDING * 2;
+export function canvasHeight(kind: LayoutKind, values: ValueTilesPerRow = VALUE_STEPS[kind][0]): number {
+  return bottomOf(Object.values(layoutFor(kind, values))) * ROW_HEIGHT + PAGE_PADDING * 2;
+}
+
+/** Width of a tile at column `x`, `w` columns wide, on a Studio canvas this wide, by Studio's own track sums. */
+function tileWidth(canvasWidth: number, x: number, w: number): number {
+  const track = (canvasWidth - 2 * PAGE_PADDING) / COLUMNS;
+  return Math.floor((x + w) * track) - Math.floor(x * track);
+}
+
+/** The value tiles' amount size (their typography.fontSize), in px. */
+export const VALUE_FONT_SIZE = 28;
+/** Studio's value widget keeps its own spacing (8px) clear on each side, inside the tile padding. */
+export const VALUE_SIDE_MARGIN = 8;
+/**
+ * Room "RM 12,345.60" needs at VALUE_FONT_SIZE: 182.4px in Manrope ExtraBold (the value tiles use
+ * the theme's Manrope at weight 800), from the advance widths of the Manrope file next/font serves.
+ * Studio cuts a value that's wider than its tile ("RM 197…", or just "…").
+ */
+export const VALUE_AMOUNT_WIDTH = 183;
+
+/** Room for the amount inside the narrower of the two money tiles, with `values` value tiles to a row. */
+export function valueTileRoom(canvasWidth: number, kind: LayoutKind, values: ValueTilesPerRow): number {
+  const { owed, collected } = layoutFor(kind, values);
+  const narrowest = Math.min(...[owed, collected].map(([x, , w]) => tileWidth(canvasWidth, x, w)));
+  return narrowest - 2 * WIDGET_PADDING - 2 * VALUE_SIDE_MARGIN;
+}
+
+/**
+ * How many value tiles share a row: as many as the layout allows while "RM 12,345.60" still fits
+ * at full size, else one per row. Only a few steps, so Studio (which reads the layout once and is
+ * remounted when it changes) remounts at two or three widths at most.
+ */
+export function valueTilesFor(canvasWidth: number, kind: LayoutKind): ValueTilesPerRow {
+  return VALUE_STEPS[kind].find((values) => valueTileRoom(canvasWidth, kind, values) >= VALUE_AMOUNT_WIDTH) ?? 1;
 }
 
 /** Nudge's chat panel width on Insights (the theme's studioAiPanelWidth), in px. */
@@ -111,9 +169,9 @@ export type TabsGrid = { columns: 3 | 5; columnWidth: number; cellPadding: numbe
 
 /** Width of the "Every tab" tile on a Studio canvas this wide, by Studio's own track sums. */
 export function tabsTileWidth(canvasWidth: number, kind: LayoutKind): number {
-  const track = (canvasWidth - 2 * PAGE_PADDING) / COLUMNS;
+  // Moving the value tiles only shifts this tile down, never sideways.
   const [x, , w] = (kind === "phone" ? PHONE : WIDE).tabs;
-  return Math.floor((x + w) * track) - Math.floor(x * track);
+  return tileWidth(canvasWidth, x, w);
 }
 
 /** Room inside the "Every tab" tile for the grid itself. */
