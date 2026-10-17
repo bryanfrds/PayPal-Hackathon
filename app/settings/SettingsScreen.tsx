@@ -12,7 +12,8 @@ import { initials } from "@/lib/home";
 import { languageInfo } from "@/lib/i18n";
 import { THEME_CHOICES } from "@/lib/preferences";
 import { TONES } from "@/lib/share";
-import { BackIcon, BellIcon, ChatIcon, CheckIcon, ChevronIcon, LinkIcon, ResetIcon, SignOutIcon } from "../components/icons";
+import { BackIcon, BellIcon, ChatIcon, CheckIcon, ChevronIcon, LinkIcon, PlayIcon, ResetIcon, SignOutIcon } from "../components/icons";
+import { requestTourReplay } from "../components/tourReplay";
 import { useDebts } from "../useDebts";
 import { usePrefs } from "../usePrefs";
 import { useReminders } from "../useReminders";
@@ -264,6 +265,28 @@ export default function SettingsScreen() {
           <span className="set-grow">
             {t("settings.reminderRules")}
             <small>{reminderSummary}</small>
+          </span>
+          <ChevronIcon className="icon set-chev" />
+        </Link>
+      </div>
+
+      <h2 className="set-label">{t("settings.help")}</h2>
+      <div className="card set-group">
+        {/* Goes to Home, which starts the quick tour at step 1. */}
+        <Link
+          href="/"
+          className="set-item set-item-link"
+          onClick={(e) => {
+            // Opening Home in a new tab doesn't start the tour here.
+            if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) requestTourReplay();
+          }}
+        >
+          <span className="set-ic set-ic-violet" aria-hidden="true">
+            <PlayIcon />
+          </span>
+          <span className="set-grow">
+            {t("settings.replayTour")}
+            <small>{t("settings.replayTourHint")}</small>
           </span>
           <ChevronIcon className="icon set-chev" />
         </Link>
