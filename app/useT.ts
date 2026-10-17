@@ -3,13 +3,22 @@
 // The app's words in the owner's language: const { t } = useT(); t("status.overdue").
 // Plurals: t("late.days", { count: 5 }). Dates go through Intl; money stays "RM 12.50".
 
-import { useMemo } from "react";
+import { createContext, createElement, useContext, useMemo, type ReactNode } from "react";
 import { formatDayIn, formatMonthIn, formatNumberIn, languageInfo, translator, type Language } from "@/lib/i18n";
 import { usePrefs } from "./usePrefs";
 
+// Pages that aren't the owner's (a customer's shared tab) choose their own language instead of
+// the owner's setting: see app/t/[token].
+const LanguageOverride = createContext<Language | null>(null);
+
+export function LanguageProvider({ lang, children }: { lang: Language; children: ReactNode }) {
+  return createElement(LanguageOverride.Provider, { value: lang }, children);
+}
+
 export function useT() {
   const { prefs } = usePrefs();
-  const lang: Language = prefs.language;
+  const override = useContext(LanguageOverride);
+  const lang: Language = override ?? prefs.language;
   return useMemo(
     () => ({
       t: translator(lang),

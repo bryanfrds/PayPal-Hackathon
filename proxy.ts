@@ -2,7 +2,8 @@
 // /sign-in (pages) or get a 401 (APIs). Owner API routes also check for themselves
 // (requireOwner), so this is the first gate, not the only one.
 //
-// Open to everyone: sign-in, a customer's own tab pages (/tab/...), reading one invoice's
+// Open to everyone: sign-in, a customer's own tab pages (/tab/... on the owner's device, and
+// /t/<token>, a published tab the customer opens on their own phone), reading one invoice's
 // status (the customer's pay page polls it), PayPal's webhook, and static files.
 
 import { NextResponse, type NextRequest } from "next/server";
@@ -12,6 +13,7 @@ function isPublic(req: NextRequest): boolean {
   const { pathname } = req.nextUrl;
   if (pathname === "/sign-in" || pathname.startsWith("/sign-in/")) return true;
   if (pathname.startsWith("/tab/")) return true;
+  if (pathname.startsWith("/t/")) return true;
   if (pathname.startsWith("/api/auth/")) return true;
   // PayPal's webhook: PayPal isn't signed in; the route checks each delivery's signature with PayPal.
   if (pathname === "/api/paypal/webhook" && req.method === "POST") return true;

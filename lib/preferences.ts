@@ -86,5 +86,7 @@ const HTML_LANGS: Record<string, string> = Object.fromEntries(LANGUAGES.map((l) 
  * Runs in <head> before the page paints, so a dark-mode owner never sees a flash of light.
  * Sets data-theme on <html> to light, dark or auto (CSS handles auto with a media query), and
  * lang to the chosen language, so screen readers and fonts are right from the first paint.
+ * A customer's shared tab (/t/...) isn't the owner's: it follows the visitor's own device
+ * (auto theme, and their browser's language when it's one of ours).
  */
-export const THEME_SCRIPT = `(function(){var d=document.documentElement,L=${JSON.stringify(HTML_LANGS)};try{var p=JSON.parse(localStorage.getItem(${JSON.stringify(PREFS_KEY)})||"{}")||{},t=p.theme;d.setAttribute("data-theme",t==="dark"||t==="auto"?t:"light");if(Object.prototype.hasOwnProperty.call(L,p.language))d.setAttribute("lang",L[p.language])}catch(e){d.setAttribute("data-theme","light")}})();`;
+export const THEME_SCRIPT = `(function(){var d=document.documentElement,L=${JSON.stringify(HTML_LANGS)},H=function(k){return Object.prototype.hasOwnProperty.call(L,k)};try{if(typeof location!=="undefined"&&location.pathname.indexOf("/t/")===0){d.setAttribute("data-theme","auto");var n=(typeof navigator!=="undefined"&&(navigator.languages||[navigator.language]))||[];for(var i=0;i<n.length;i++){var b=String(n[i]||"").toLowerCase().split(/[-_]/)[0];b=b==="tl"?"fil":b==="in"?"id":b;if(H(b)){d.setAttribute("lang",L[b]);break}}return}var p=JSON.parse(localStorage.getItem(${JSON.stringify(PREFS_KEY)})||"{}")||{},t=p.theme;d.setAttribute("data-theme",t==="dark"||t==="auto"?t:"light");if(H(p.language))d.setAttribute("lang",L[p.language])}catch(e){d.setAttribute("data-theme","light")}})();`;
