@@ -15,3 +15,6 @@ next-env.d.ts
 
 # Bryntum files copied from node_modules by scripts/copy-bryntum.mjs
 public/vendor/
+
+# Local agent worktrees (copies of the repo)
+.claude/worktrees/
