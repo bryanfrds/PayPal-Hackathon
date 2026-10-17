@@ -3,14 +3,20 @@
 
 import { customerSlug } from "./customer-tab";
 import type { TabDb } from "./tab-db";
-import { isTabToken, parseTabSnapshot, snapshotToTab, tabLinkPath, type TabSnapshot } from "./tab-snapshot";
+import { isTabToken, MAX_SLUG_LENGTH, parseTabSnapshot, snapshotToTab, tabLinkPath, type TabSnapshot } from "./tab-snapshot";
 
-const SLUG = /^[\p{L}\p{M}\p{N}-]{1,80}$|^~[a-z0-9]{1,12}$/u;
+// customerSlug()'s output: letters, marks, digits and hyphens (or "~" plus a hash for names with none).
+const SLUG = new RegExp(`^[\\p{L}\\p{M}\\p{N}-]{1,${MAX_SLUG_LENGTH}}$|^~[a-z0-9]{1,12}$`, "u");
 
 export type HandlerResult = { status: number; body: Record<string, unknown> };
 
-/** POST /api/tabs/publish: { slug, snapshot } → { url } (a path: /t/<token>). */
-export async function publishTab(db: TabDb | null, ownerEmail: string, body: unknown): Promise<HandlerResult> {
+// Status codes the device acts on (app/tabLinks.ts):
+// - 503 "not set up": no DATABASE_URL on this server, so sharing is off; the device stops trying
+//   this visit and messages go out without a tab link, as before the feature;
+// - 502 (from the routes): the database didn't answer; the device keeps the old link and says so.
+
+/** POST /api/tabs/publish: { slug, snapshot } → { url }, the full link (origin + /t/<token>). */
+export async function publishTab(db: TabDb | null, ownerEmail: string, body: unknown, origin = ""): Promise<HandlerResult> {
   if (!db) return { status: 503, body: { error: "Sharing tabs isn't set up on this server." } };
   if (typeof body !== "object" || body === null || Array.isArray(body)) return { status: 400, body: { error: "Send a slug and a snapshot." } };
   const { slug, snapshot, ...rest } = body as Record<string, unknown>;
@@ -20,7 +26,7 @@ export async function publishTab(db: TabDb | null, ownerEmail: string, body: unk
   if (!checked.ok) return { status: 400, body: { error: checked.error } };
   if (customerSlug(checked.snapshot.customerName) !== slug) return { status: 400, body: { error: "The snapshot is for another customer." } };
   const token = await db.publish(ownerEmail, slug, checked.snapshot);
-  return { status: 200, body: { url: tabLinkPath(token) } };
+  return { status: 200, body: { url: `${origin}${tabLinkPath(token)}` } };
 }
 
 /** POST /api/tabs/revoke: { slug } → { revoked }. */

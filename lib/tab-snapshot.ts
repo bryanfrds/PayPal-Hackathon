@@ -15,7 +15,7 @@ export const SNAPSHOT_VERSION = 1;
 export const MAX_SNAPSHOT_BYTES = 64 * 1024;
 export const MAX_DEBTS = 500;
 export const MAX_INVOICES = 100;
-const MAX_TEXT = 200;
+const MAX_TEXT = 200; // = MAX_TEXT_LENGTH, below
 
 export type SnapshotDebt = { id: string; item: string; amountSen: number; date: string; status: DebtStatus };
 export type SnapshotInvoice = {
@@ -36,6 +36,18 @@ export type TabSnapshot = {
 
 const STATUSES: DebtStatus[] = ["overdue", "sent", "unpaid", "paid"];
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+/** A real calendar day (2026-02-30 is refused), written YYYY-MM-DD. */
+function isDay(v: unknown): v is string {
+  if (typeof v !== "string" || !DAY.test(v)) return false;
+  const d = new Date(`${v}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v;
+}
+
+/** Limits shared by the device (buildTabSnapshot) and the server (parseTabSnapshot). */
+export const MAX_TEXT_LENGTH = 200;
+export const MAX_INVOICE_NUMBER_LENGTH = 64;
+export const MAX_SLUG_LENGTH = 200;
 const LOCAL_ID = /^[a-z]\d{1,4}$/;
 const INVOICE_ID = /^[A-Za-z0-9-]{5,64}$/;
 
@@ -60,7 +72,7 @@ export function buildTabSnapshot(slug: string, debts: Debt[], invoices: InvoiceR
     debts: mine.map((d) => ({ id: localId.get(d.id)!, item: text(d.item), amountSen: d.amountSen, date: d.date, status: d.status })),
     invoices: open.map((r) => ({
       id: r.id,
-      ...(r.number ? { number: text(r.number) } : {}),
+      ...(r.number ? { number: r.number.slice(0, MAX_INVOICE_NUMBER_LENGTH) } : {}),
       debtIds: r.debtIds.filter((id) => localId.has(id)).map((id) => localId.get(id)!),
       amountSen: r.amountSen,
       sentAt: r.sentAt,
@@ -107,14 +119,14 @@ export function parseTabSnapshot(value: unknown): Check {
   for (const d of value.debts) {
     if (!isObj(d) || !exactKeys(d, ["id", "item", "amountSen", "date", "status"])) return fail("Unexpected debt fields.");
     if (typeof d.id !== "string" || !LOCAL_ID.test(d.id) || ids.has(d.id)) return fail("Bad debt id.");
-    if (!isText(d.item) || !isSen(d.amountSen) || typeof d.date !== "string" || !DAY.test(d.date)) return fail("Bad debt.");
+    if (!isText(d.item) || !isSen(d.amountSen) || !isDay(d.date)) return fail("Bad debt.");
     if (!STATUSES.includes(d.status as DebtStatus)) return fail("Bad debt status.");
     ids.add(d.id);
   }
   for (const r of value.invoices) {
     if (!isObj(r) || !exactKeys(r, ["id", "debtIds", "amountSen", "sentAt"], ["number", "payerLink"])) return fail("Unexpected invoice fields.");
     if (typeof r.id !== "string" || !INVOICE_ID.test(r.id)) return fail("Bad invoice id.");
-    if (r.number !== undefined && (!isText(r.number, 64) || !r.number)) return fail("Bad invoice number.");
+    if (r.number !== undefined && (!isText(r.number, MAX_INVOICE_NUMBER_LENGTH) || !r.number)) return fail("Bad invoice number.");
     if (!Array.isArray(r.debtIds) || r.debtIds.length === 0 || r.debtIds.some((id) => typeof id !== "string" || !ids.has(id))) {
       return fail("Bad invoice debts.");
     }

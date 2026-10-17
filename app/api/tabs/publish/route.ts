@@ -2,7 +2,7 @@
 // Owner only. The snapshot is built on the device and checked strictly here (lib/shared-tab.ts).
 
 import { NextResponse } from "next/server";
-import { requireOwner } from "@/lib/auth-server";
+import { requireOwner, siteOrigin } from "@/lib/auth-server";
 import { publishTab } from "@/lib/shared-tab";
 import { tabDb } from "@/lib/tab-db";
 import { MAX_SNAPSHOT_BYTES } from "@/lib/tab-snapshot";
@@ -26,7 +26,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Send JSON." }, { status: 400 });
   }
   try {
-    const result = await publishTab(tabDb(), owner.email, body);
+    // The link's origin is this site's own address (SITE_URL / Vercel's), never the request's Host.
+    const result = await publishTab(tabDb(), owner.email, body, siteOrigin(req));
     return NextResponse.json(result.body, { status: result.status });
   } catch {
     return NextResponse.json({ error: "Couldn't save the tab just now." }, { status: 502 });

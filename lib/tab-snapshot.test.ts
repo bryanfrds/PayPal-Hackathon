@@ -107,6 +107,8 @@ describe("parseTabSnapshot", () => {
       (s) => (s.debts[0].amountSen = -5),
       (s) => (s.debts[0].amountSen = 12.5),
       (s) => (s.debts[0].date = "yesterday"),
+      (s) => (s.debts[0].date = "2026-02-30"),
+      (s) => (s.debts[0].date = "2026-13-01"),
       (s) => ((s.debts[0] as { status: string }).status = "forgiven"),
       (s) => (s.invoices[0].debtIds = ["d99"]),
       (s) => (s.invoices[0].id = "x"),

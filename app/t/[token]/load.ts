@@ -16,6 +16,7 @@ export type SharedTabProps = Omit<SharedTab, "snapshot"> & { base: string };
 export async function loadForPage(token: string): Promise<SharedTabProps> {
   const h = await headers();
   const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "unknown";
+  // Over the limit: the same "not active" page as a wrong token, so guessing gets no signal.
   if (throttle.hit(ip) > 0) notFound();
   let tab: SharedTab | null = null;
   try {
