@@ -5,6 +5,7 @@ import { THEME_SCRIPT } from "@/lib/preferences";
 import type { NavLink } from "./NavLinks";
 import PaymentSync from "./PaymentSync";
 import SiteHeader from "./SiteHeader";
+import TabPublisher from "./TabPublisher";
 import "./globals.css";
 
 const manrope = Manrope({ subsets: ["latin"], variable: "--font-manrope" });
@@ -44,6 +45,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <SiteHeader links={NAV_LINKS} />
         <main className="site-main">{children}</main>
         <PaymentSync />
+        <TabPublisher />
       </body>
     </html>
   );
