@@ -17,7 +17,7 @@ import { collectGroups } from "@/lib/collect";
 import { customerSlug } from "@/lib/customer-tab";
 import { isPayPalUrl } from "@/lib/customer-pay";
 import type { InvoiceRecord } from "@/lib/collect-store";
-import { LEDGER_FILTERS, debtsToCsv, filterByStatus, ledgerTotals, type LedgerFilter } from "@/lib/ledger";
+import { LEDGER_FILTERS, debtsToCsv, filterByStatus, latestInvoiceByDebt, ledgerTotals, type LedgerFilter } from "@/lib/ledger";
 import LedgerGrid, { type LedgerGridHandle } from "./LedgerGrid";
 
 type Notice =
@@ -146,6 +146,12 @@ function DebtDetailSheet({
             )}
           </div>
         )}
+        {!invoice && debt.status === "sent" && (
+          <div className="debt-detail-invoice">
+            <h3>{t("ledger.detail.invoiceTitle")}</h3>
+            <p className="debt-detail-note">{t("ledger.detail.invoiceNotHere")}</p>
+          </div>
+        )}
 
         <div className="debt-detail-actions">
           <button
@@ -189,15 +195,8 @@ export default function LedgerScreen() {
   const { emails, invoices, pending } = useCollect();
   const toInvoice = collectGroups(debts, emails, pending).length;
 
-  const invoiceRecordMap = useMemo(() => {
-    const map: Record<string, InvoiceRecord> = {};
-    for (const inv of invoices) {
-      for (const id of inv.debtIds) {
-        map[id] = inv;
-      }
-    }
-    return map;
-  }, [invoices]);
+  // The newest invoice for each debt (an older, replaced invoice no longer counts).
+  const invoiceRecordMap = useMemo(() => latestInvoiceByDebt(invoices), [invoices]);
 
   const invoiceIdMap = useMemo(() => {
     const map: Record<string, string> = {};

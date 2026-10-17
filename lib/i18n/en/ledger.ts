@@ -171,4 +171,5 @@ export const ledger = {
   "scan.addToLedger_other": "Add {count} debts to ledger",
   "scan.nothingSent": "Nothing is sent to customers until you approve invoices.",
   "scan.unsureAmount": "Check amount: {a} or {b}?",
+  "ledger.detail.invoiceNotHere": "This tab is marked as invoiced, but the invoice details aren't on this device. It may have been sent from another phone.",
 } as const;

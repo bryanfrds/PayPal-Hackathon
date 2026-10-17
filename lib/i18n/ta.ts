@@ -299,7 +299,7 @@ export const ta: Dictionary = {
 
   // collect list
   "collect.title": "வசூல்",
-  "collect.heroLabel": "வசூலிக்கத் தயார்",
+  "collect.heroLabel": "இன்வாய்ஸ் அனுப்பத் தயார்",
   "collect.notInvoiced_one": "{count} வாடிக்கையாளருக்கு இன்னும் இன்வாய்ஸ் அனுப்பவில்லை",
   "collect.notInvoiced_other": "{count} வாடிக்கையாளர்களுக்கு இன்னும் இன்வாய்ஸ் அனுப்பவில்லை",
   "collect.tabsLabel": "இன்வாய்ஸ்கள்",
@@ -860,4 +860,5 @@ export const ta: Dictionary = {
   "scanx.expandPhoto": "படத்தை முழுதாகப் பார்",
   "scanx.fixAmount": "தொகையைத் திருத்து",
   "scanx.fixAmountLabel": "{name}-க்கான தொகையைத் திருத்து",
+  "ledger.detail.invoiceNotHere": "இந்தக் கடனுக்கு இன்வாய்ஸ் அனுப்பப்பட்டதாகக் குறிக்கப்பட்டுள்ளது, ஆனால் இன்வாய்ஸ் விவரங்கள் இந்தச் சாதனத்தில் இல்லை. வேறு போனிலிருந்து அனுப்பப்பட்டிருக்கலாம்.",
 };

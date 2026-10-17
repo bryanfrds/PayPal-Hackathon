@@ -300,7 +300,7 @@ export const ms: Dictionary = {
 
   // collect: Collect list
   "collect.title": "Kutip",
-  "collect.heroLabel": "Sedia untuk dikutip",
+  "collect.heroLabel": "Sedia untuk diinvois",
   "collect.notInvoiced_one": "{count} pelanggan belum diinvois",
   "collect.notInvoiced_other": "{count} pelanggan belum diinvois",
   "collect.tabsLabel": "Invois",
@@ -861,4 +861,5 @@ export const ms: Dictionary = {
   "scanx.expandPhoto": "Besarkan gambar",
   "scanx.fixAmount": "Betulkan jumlah",
   "scanx.fixAmountLabel": "Betulkan jumlah untuk {name}",
+  "ledger.detail.invoiceNotHere": "Hutang ini ditanda sudah diinvois, tetapi butiran invois tiada pada peranti ini. Mungkin ia dihantar dari telefon lain.",
 };

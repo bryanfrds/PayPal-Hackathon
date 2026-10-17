@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { Debt } from "./debts";
 import type { T } from "./i18n";
-import { csvCell, debtsToCsv, filterByStatus, ledgerTotals } from "./ledger";
+import type { InvoiceRecord } from "./collect-store";
+import { csvCell, debtsToCsv, filterByStatus, latestInvoiceByDebt, ledgerTotals } from "./ledger";
 
 const d = (id: string, status: Debt["status"], amountSen: number): Debt => ({
   id,
@@ -82,5 +83,16 @@ describe("debtsToCsv", () => {
     const debt = { ...d("a", "unpaid", 100), customerName: 'Kedai "Ali", Jalan 1', item: "Milo\nGula" };
     const csv = debtsToCsv([debt]);
     expect(csv).toContain('"Kedai ""Ali"", Jalan 1","Milo\nGula"');
+  });
+});
+
+describe("latestInvoiceByDebt", () => {
+  it("maps each debt to its newest invoice", () => {
+    const inv = (id: string, sentAt: string, debtIds: string[]) =>
+      ({ id, sentAt, debtIds, customerName: "A", slug: "a", email: "a@x.co", amountSen: 100 }) as InvoiceRecord;
+    const map = latestInvoiceByDebt([inv("NEW", "2026-10-09T00:00:00Z", ["d1"]), inv("OLD", "2026-10-01T00:00:00Z", ["d1", "d2"])]);
+    expect(map.d1.id).toBe("NEW");
+    expect(map.d2.id).toBe("OLD");
+    expect(latestInvoiceByDebt([])).toEqual({});
   });
 });

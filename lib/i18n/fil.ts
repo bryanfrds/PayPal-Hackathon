@@ -300,7 +300,7 @@ export const fil: Dictionary = {
 
   // collect list
   "collect.title": "Maningil",
-  "collect.heroLabel": "Handa nang singilin",
+  "collect.heroLabel": "Handa nang i-invoice",
   "collect.notInvoiced_one": "{count} customer na wala pang invoice",
   "collect.notInvoiced_other": "{count} customer na wala pang invoice",
   "collect.tabsLabel": "Mga invoice",
@@ -878,4 +878,5 @@ export const fil: Dictionary = {
   "scanx.expandPhoto": "Palakihin ang litrato",
   "scanx.fixAmount": "Ayusin ang halaga",
   "scanx.fixAmountLabel": "Ayusin ang halaga para kay {name}",
+  "ledger.detail.invoiceNotHere": "Naka-mark na may invoice na ang utang na ito, pero wala sa device na ito ang detalye ng invoice. Baka na-send ito mula sa ibang phone.",
 };
