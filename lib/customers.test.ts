@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { customerRows, customerTotals, nameFromSlug, planAddCustomer, saveAddCustomer, type AddCustomerInput } from "./customers";
+import { collectGroups, type PendingSend } from "./collect";
+import { customerRows, customerTotals, isReadyToInvoice, nameFromSlug, planAddCustomer, saveAddCustomer, type AddCustomerInput } from "./customers";
 import { MAX_ITEM_LENGTH, MAX_NAME_LENGTH, outstanding, type Debt } from "./debts";
 
 const TODAY = "2026-10-16";
@@ -161,5 +162,38 @@ describe("customerRows and customerTotals", () => {
     const rows = customerRows([], { "kak-lina": "a@x.co", "uncle-tan": "b@x.co" }, new Map([["kak-lina", "Kak Lina"]]));
     expect(rows.map((r) => r.name).sort()).toEqual(["Kak Lina", "Uncle Tan"]);
     expect(nameFromSlug("pak-ali-bengkel")).toBe("Pak Ali Bengkel");
+  });
+});
+
+describe("isReadyToInvoice", () => {
+  const mk = (id: string, name: string, status: Debt["status"]): Debt => ({
+    id, customerName: name, item: "Milo", amountSen: 1000, date: "2026-10-01", status, source: "manual", createdAt: "2026-10-01T00:00:00.000Z",
+  });
+  const row = (slug: string, rows: ReturnType<typeof customerRows>) => rows.find((r) => r.slug === slug)!;
+
+  it("matches what Collect can send: a not-sent or overdue tab, plus an email", () => {
+    const debts = [mk("1", "Ali", "unpaid"), mk("2", "Bala", "overdue"), mk("3", "Chong", "sent"), mk("4", "Dev", "paid"), mk("5", "Esah", "unpaid")];
+    const rows = customerRows(debts, { ali: "a@x.co", bala: "b@x.co", chong: "c@x.co", dev: "d@x.co" });
+    expect(isReadyToInvoice(row("ali", rows))).toBe(true);
+    expect(isReadyToInvoice(row("bala", rows))).toBe(true);
+    expect(isReadyToInvoice(row("chong", rows))).toBe(false); // only an "Invoice sent" tab: nothing to send
+    expect(isReadyToInvoice(row("dev", rows))).toBe(false); // paid up
+    expect(isReadyToInvoice(row("esah", rows))).toBe(false); // no email yet
+    // The same customers collectGroups would put in "To send" with an address.
+    const ready = rows.filter(isReadyToInvoice).map((r) => r.slug).sort();
+    const groups = collectGroups(debts, { ali: "a@x.co", bala: "b@x.co", chong: "c@x.co", dev: "d@x.co" }).filter((g) => g.email).map((g) => g.slug).sort();
+    expect(ready).toEqual(groups);
+  });
+
+  it("uses an unfinished send's email, like Collect does", () => {
+    const debts = [mk("1", "Esah", "unpaid")];
+    const pending = { esah: { slug: "esah", customerName: "Esah", email: "esah@x.co", debtIds: ["1"], lines: [], amountSen: 1000, requestId: "r", startedAt: "2026-10-01T00:00:00Z" } } as unknown as Record<string, PendingSend>;
+    const rows = customerRows(debts, {}, new Map(), pending);
+    expect(rows[0].invoiceEmail).toBe("esah@x.co");
+    expect(isReadyToInvoice(rows[0])).toBe(true);
+    expect(customerTotals(rows).readyToInvoice).toBe(1);
+    // A stale send that no longer holds an invoiceable tab doesn't count.
+    const stale = customerRows([mk("1", "Esah", "sent")], {}, new Map(), pending);
+    expect(isReadyToInvoice(stale[0])).toBe(false);
   });
 });

@@ -7,6 +7,7 @@ import { EMAIL_DOMAINS, isValidEmail, withDomain } from "@/lib/collect";
 import {
   customerRows,
   customerTotals,
+  isReadyToInvoice,
   planAddCustomer,
   saveAddCustomer,
   type AddCustomerErrors,
@@ -41,7 +42,7 @@ export default function CustomersScreen() {
     const knownNames = new Map<string, string>();
     for (const inv of invoices) if (!knownNames.has(inv.slug)) knownNames.set(inv.slug, inv.customerName);
     for (const p of Object.values(pending)) if (!knownNames.has(p.slug)) knownNames.set(p.slug, p.customerName);
-    return customerRows(debts, emails, knownNames);
+    return customerRows(debts, emails, knownNames, pending);
   }, [debts, emails, invoices, pending]);
 
   // Filtered customer list
@@ -53,7 +54,7 @@ export default function CustomersScreen() {
 
       if (filter === "owed") return c.owedSen > 0;
       if (filter === "missing_email") return !c.email;
-      if (filter === "ready") return !!c.email && c.unpaidCount + c.overdueCount > 0;
+      if (filter === "ready") return isReadyToInvoice(c);
       return true;
     });
   }, [customers, query, filter]);
@@ -219,7 +220,8 @@ export default function CustomersScreen() {
                 <Link href={`/tab/${c.slug}`} className="button button-sm">
                   {t("customers.row.viewTab")}
                 </Link>
-                {c.owedSen > 0 && (
+                {/* Only when Collect has something to send them, so "Invoice sent" tabs get no dead button. */}
+                {isReadyToInvoice(c) && (
                   <Link href="/collect" className="button button-sm button-primary cust-invoice">
                     <SendIcon /> {t("customers.row.invoice")}
                   </Link>
