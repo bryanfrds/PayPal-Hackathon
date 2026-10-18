@@ -27,6 +27,31 @@ export function isSupportedMime(mime: string): mime is SupportedImageMime {
   return SUPPORTED_IMAGE_MIMES.includes(mime.toLowerCase() as SupportedImageMime);
 }
 
+export function verifyImageMagicBytes(bytes: Uint8Array, mimeType: string): boolean {
+  if (bytes.byteLength < 3) return false;
+  const mime = mimeType.toLowerCase();
+  if (mime === "image/jpeg") {
+    return bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  }
+  if (mime === "image/png") {
+    return bytes.byteLength >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
+  }
+  if (mime === "image/webp") {
+    return (
+      bytes.byteLength >= 12 &&
+      bytes[0] === 0x52 &&
+      bytes[1] === 0x49 &&
+      bytes[2] === 0x46 &&
+      bytes[3] === 0x46 && // RIFF
+      bytes[8] === 0x57 &&
+      bytes[9] === 0x45 &&
+      bytes[10] === 0x42 &&
+      bytes[11] === 0x50 // WEBP
+    );
+  }
+  return false;
+}
+
 export async function saveScanImage(
   ownerEmail: string,
   scanId: string,
@@ -44,6 +69,13 @@ export async function saveScanImage(
     throw new ImageStorageError(
       `Image file exceeds limit of ${MAX_SCAN_IMAGE_BYTES / (1024 * 1024)}MB.`,
       413,
+    );
+  }
+
+  if (!verifyImageMagicBytes(bytes, mimeType)) {
+    throw new ImageStorageError(
+      `File content header does not match image format "${mimeType}".`,
+      400,
     );
   }
 

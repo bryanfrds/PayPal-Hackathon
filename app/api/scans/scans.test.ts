@@ -59,7 +59,7 @@ describe("Scans API", () => {
   });
 
   it("GET /api/scans/[id]: returns scan and draft entries", async () => {
-    const createRes = await createScan(makeUploadRequest(new Uint8Array([0xff, 0xd8, 0x01])));
+    const createRes = await createScan(makeUploadRequest(new Uint8Array([0xff, 0xd8, 0xff, 0xe1])));
     const { scan } = await createRes.json();
 
     const getReq = new Request(`http://localhost:3000/api/scans/${scan.id}`);
@@ -71,7 +71,7 @@ describe("Scans API", () => {
   });
 
   it("PATCH /api/scans/[id]/entries/[entryId]: saves corrections to draft line", async () => {
-    const createRes = await createScan(makeUploadRequest(new Uint8Array([0xff, 0xd8, 0x02])));
+    const createRes = await createScan(makeUploadRequest(new Uint8Array([0xff, 0xd8, 0xff, 0xe2])));
     const { scan, entries } = await createRes.json();
     const entry = entries[0];
 
@@ -99,7 +99,7 @@ describe("Scans API", () => {
   });
 
   it("POST /api/scans/[id]/rescan: starts a new extraction revision", async () => {
-    const createRes = await createScan(makeUploadRequest(new Uint8Array([0xff, 0xd8, 0x03])));
+    const createRes = await createScan(makeUploadRequest(new Uint8Array([0xff, 0xd8, 0xff, 0xe3])));
     const { scan } = await createRes.json();
 
     const rescanReq = new Request(`http://localhost:3000/api/scans/${scan.id}/rescan`, {
