@@ -38,8 +38,7 @@ describe("Customers Directory & Match Confirmation API", () => {
     expect(created.name).toBe("Pak Ali (Bengkel)");
     expect(created.slug).toBe("pak-ali-bengkel");
 
-    const getReq = new Request("http://localhost:3000/api/customers");
-    const listRes = await listCustomers(getReq);
+    const listRes = await listCustomers();
     expect(listRes.status).toBe(200);
     const list = await listRes.json();
     expect(list.some((c: { name: string }) => c.name === "Pak Ali (Bengkel)")).toBe(true);
