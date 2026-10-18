@@ -24,7 +24,7 @@ describe("Scans API", () => {
 
   function makeUploadRequest(bytes: Uint8Array, mime = "image/jpeg", mode = "notebook") {
     const formData = new FormData();
-    const blob = new Blob([bytes], { type: mime });
+    const blob = new Blob([new Uint8Array(bytes)], { type: mime });
     formData.append("file", blob, "notebook.jpg");
     formData.append("mode", mode);
     return new Request("http://localhost:3000/api/scans", {
