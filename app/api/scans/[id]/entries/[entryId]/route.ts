@@ -28,7 +28,12 @@ export async function PATCH(
   const patch: Record<string, unknown> = { ownerEdited: true };
   if (typeof body.customerName === "string") patch.customerName = body.customerName.trim();
   if (typeof body.item === "string") patch.item = body.item.trim();
-  if (typeof body.amountSen === "number") patch.amountSen = body.amountSen;
+  if (typeof body.amountSen === "number") {
+    if (!Number.isInteger(body.amountSen) || body.amountSen <= 0 || body.amountSen > 100_000_000) {
+      return NextResponse.json({ error: "amountSen must be a positive integer in sen (max 100,000,000)." }, { status: 400 });
+    }
+    patch.amountSen = body.amountSen;
+  }
   if (typeof body.date === "string") patch.date = body.date;
   if (typeof body.included === "boolean") patch.included = body.included;
   if (typeof body.isAmbiguous === "boolean") {
@@ -36,7 +41,16 @@ export async function PATCH(
     if (!body.isAmbiguous) patch.ambiguityReason = undefined;
   }
   if (typeof body.confirmedCustomerId === "string") {
-    patch.confirmedCustomerId = body.confirmedCustomerId;
+    const custId = body.confirmedCustomerId.trim();
+    if (custId) {
+      const customer = await store.getCustomer(owner.email, custId);
+      if (!customer) {
+        return NextResponse.json({ error: "Customer not found." }, { status: 404 });
+      }
+      patch.confirmedCustomerId = custId;
+    } else {
+      patch.confirmedCustomerId = undefined;
+    }
   }
 
   const updated = await store.updateEntry(owner.email, entryId, patch);
