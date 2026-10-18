@@ -125,7 +125,7 @@ describe("reminder-scheduler", () => {
   });
 
   it("defers reminders during Friday prayers (Friday 12:00-14:59)", async () => {
-    const fridayNoon = new Date("2026-10-16T13:00:00Z"); // Friday 1pm
+    const fridayNoon = new Date("2026-10-16T13:00:00+08:00"); // Friday 1pm Malaysian time
     const deps = makeDeps({ now: fridayNoon });
 
     const result = await processEligibleReminders(owner, deps);

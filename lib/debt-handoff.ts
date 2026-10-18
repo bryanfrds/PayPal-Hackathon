@@ -46,8 +46,8 @@ export async function approveDebtsForInvoicing(
       continue;
     }
 
-    if (!entry.amountSen || entry.amountSen <= 0) {
-      rejected.push({ entryId, reason: "Entry amount must be greater than zero." });
+    if (!entry.amountSen || entry.amountSen <= 0 || !Number.isInteger(entry.amountSen)) {
+      rejected.push({ entryId, reason: "Entry amount must be a positive integer in sen." });
       continue;
     }
 
@@ -59,6 +59,11 @@ export async function approveDebtsForInvoicing(
     const customer = await store.getCustomer(ownerEmail, entry.confirmedCustomerId);
     if (!customer) {
       rejected.push({ entryId, reason: "Linked customer record does not exist." });
+      continue;
+    }
+
+    if (!customer.confirmedAt) {
+      rejected.push({ entryId, reason: "Linked customer has not been confirmed by the shop owner." });
       continue;
     }
 

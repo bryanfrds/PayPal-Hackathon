@@ -26,9 +26,35 @@ export type SchedulerProcessResult = {
 };
 
 function daysBetween(fromDay: string, toDay: string): number {
-  const d1 = new Date(`${fromDay}T00:00:00Z`).getTime();
-  const d2 = new Date(`${toDay}T00:00:00Z`).getTime();
+  if (!fromDay || !toDay) return NaN;
+  const d1 = new Date(`${fromDay.slice(0, 10)}T00:00:00Z`).getTime();
+  const d2 = new Date(`${toDay.slice(0, 10)}T00:00:00Z`).getTime();
+  if (isNaN(d1) || isNaN(d2)) return NaN;
   return Math.floor((d2 - d1) / (24 * 60 * 60 * 1000));
+}
+
+function getLocalShopTime(date: Date): { dayStr: string; hour: number; dayOfWeek: number } {
+  try {
+    const formatter = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Kuala_Lumpur",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      hourCycle: "h23",
+    });
+    const parts = formatter.formatToParts(date);
+    const map: Record<string, string> = {};
+    for (const p of parts) map[p.type] = p.value;
+    const dayStr = `${map.year}-${map.month}-${map.day}`;
+    const hour = parseInt(map.hour || "0", 10);
+    const dayOfWeek = new Date(`${dayStr}T12:00:00Z`).getUTCDay();
+    return { dayStr, hour, dayOfWeek };
+  } catch {
+    // Fallback if timezone formatting fails
+    const utcDay = date.toISOString().slice(0, 10);
+    return { dayStr: utcDay, hour: date.getUTCHours(), dayOfWeek: date.getUTCDay() };
+  }
 }
 
 export async function processEligibleReminders(
@@ -37,9 +63,7 @@ export async function processEligibleReminders(
 ): Promise<SchedulerProcessResult> {
   const { store, getInvoices, sendReminder } = deps;
   const now = deps.now || new Date();
-  const todayStr = now.toISOString().slice(0, 10);
-  const hour = now.getUTCHours();
-  const dayOfWeek = now.getUTCDay(); // 5 = Friday
+  const { dayStr: todayStr, hour, dayOfWeek } = getLocalShopTime(now);
 
   const rules = await store.getReminderRules(ownerEmail);
   const result: SchedulerProcessResult = {
@@ -54,7 +78,7 @@ export async function processEligibleReminders(
     return result;
   }
 
-  // Friday prayer suppression: Friday between 12:00 and 14:59 UTC/local
+  // Friday prayer suppression: Friday between 12:00 and 14:59 Malaysian time (Asia/Kuala_Lumpur)
   if (rules.skipFridayPrayers && dayOfWeek === 5 && hour >= 12 && hour < 15) {
     result.skipped.push({ invoiceId: "all", reason: "Suppressed during Friday prayer hours (12:00-15:00)." });
     return result;
@@ -77,10 +101,12 @@ export async function processEligibleReminders(
 
     // Overdue days check
     const overdueDays = daysBetween(inv.dueDate, todayStr);
-    if (overdueDays < rules.firstAfterDays) {
+    if (isNaN(overdueDays) || overdueDays < rules.firstAfterDays) {
       result.skipped.push({
         invoiceId: inv.id,
-        reason: `Only ${overdueDays} days overdue, below first after days threshold (${rules.firstAfterDays}).`,
+        reason: isNaN(overdueDays)
+          ? "Invalid or missing due date on invoice."
+          : `Only ${overdueDays} days overdue, below first after days threshold (${rules.firstAfterDays}).`,
       });
       continue;
     }
