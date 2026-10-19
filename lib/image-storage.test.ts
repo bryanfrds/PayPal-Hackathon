@@ -1,4 +1,7 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const blob = vi.hoisted(() => ({ put: vi.fn(), get: vi.fn(), del: vi.fn() }));
+vi.mock("@vercel/blob", () => blob);
 import {
   computeImageHash,
   deleteScanImage,
@@ -13,6 +16,15 @@ describe("image-storage", () => {
   const intruder = "intruder@example.com";
   const sampleBytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46]); // JPEG header bytes
   const samplePngBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]); // PNG header bytes
+  beforeEach(() => vi.stubEnv("BLOB_READ_WRITE_TOKEN", ""));
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("stores configured production uploads in private Blob storage", async () => {
+    vi.stubEnv("BLOB_READ_WRITE_TOKEN", "blob-token");
+    blob.put.mockResolvedValueOnce({ pathname: "scans/path/scan.jpg" });
+    await saveScanImage(owner, "scan-blob", sampleBytes, "image/jpeg");
+    expect(blob.put).toHaveBeenCalledWith(expect.stringContaining("scans/"), expect.any(Uint8Array), expect.objectContaining({ access: "private", addRandomSuffix: false }));
+  });
 
   it("computes deterministic SHA-256 image hash", () => {
     const hash1 = computeImageHash(sampleBytes);

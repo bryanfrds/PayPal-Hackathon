@@ -1,5 +1,6 @@
 // Private image storage engine for uploaded scans
 import { createHash } from "node:crypto";
+import { del, get, put } from "@vercel/blob";
 
 export const MAX_SCAN_IMAGE_BYTES = 10 * 1024 * 1024; // 10 MB limit
 export const SUPPORTED_IMAGE_MIMES = ["image/jpeg", "image/png", "image/webp"] as const;
@@ -18,6 +19,12 @@ export function computeImageHash(bytes: Uint8Array): string {
 
 function hashOwner(email: string): string {
   return createHash("sha256").update(email.trim().toLowerCase()).digest("hex").slice(0, 16);
+}
+
+function assertOwnerKey(ownerEmail: string, imageKey: string): void {
+  if (!imageKey.startsWith(`scans/${hashOwner(ownerEmail)}/`)) {
+    throw new ImageStorageError("Unauthorized access to image record.", 403);
+  }
 }
 
 // In-memory backing buffer store for serverless runtime & testing
@@ -84,6 +91,14 @@ export async function saveScanImage(
   const imageKey = `scans/${ownerSlug}/${scanId}.${ext}`;
   const hash = computeImageHash(bytes);
 
+  if (process.env.BLOB_READ_WRITE_TOKEN) {
+    const blob = await put(imageKey, Buffer.from(bytes), { access: "private", addRandomSuffix: false, contentType: mimeType });
+    return { imageKey: blob.pathname, hash };
+  }
+  if (process.env.NODE_ENV === "production") {
+    throw new ImageStorageError("Private scan storage is not configured.", 503);
+  }
+
   storageRegistry.set(imageKey, {
     ownerEmail: ownerEmail.trim().toLowerCase(),
     bytes,
@@ -97,6 +112,12 @@ export async function getScanImage(
   ownerEmail: string,
   imageKey: string,
 ): Promise<Uint8Array | null> {
+  assertOwnerKey(ownerEmail, imageKey);
+  if (process.env.BLOB_READ_WRITE_TOKEN) {
+    const result = await get(imageKey, { access: "private", useCache: false });
+    if (!result || result.statusCode !== 200) return null;
+    return new Uint8Array(await new Response(result.stream).arrayBuffer());
+  }
   const item = storageRegistry.get(imageKey);
   if (!item) return null;
 
@@ -108,6 +129,11 @@ export async function getScanImage(
 }
 
 export async function deleteScanImage(ownerEmail: string, imageKey: string): Promise<void> {
+  assertOwnerKey(ownerEmail, imageKey);
+  if (process.env.BLOB_READ_WRITE_TOKEN) {
+    await del(imageKey);
+    return;
+  }
   const item = storageRegistry.get(imageKey);
   if (!item) return;
 

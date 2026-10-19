@@ -16,7 +16,7 @@ vi.mock("@/lib/paypal", async (importOriginal) => {
 });
 
 // In-memory holds unless a test gives the route a payments database.
-const db = vi.hoisted(() => ({ value: null as null | { claimReminder: ReturnType<typeof vi.fn>; releaseReminder: ReturnType<typeof vi.fn> } }));
+const db = vi.hoisted(() => ({ value: null as null | { claimReminder: ReturnType<typeof vi.fn>; releaseReminder: ReturnType<typeof vi.fn>; getOwnerInvoice?: ReturnType<typeof vi.fn> } }));
 vi.mock("@/lib/payment-db", () => ({ paymentDb: () => db.value }));
 
 import { PayPalError } from "@/lib/paypal";
@@ -155,6 +155,12 @@ describe("POST /api/invoices/[id]/remind", () => {
   });
 
   describe("with the payments database", () => {
+    it("does not reveal or remind another owner's invoice", async () => {
+      db.value = { claimReminder: vi.fn(), releaseReminder: vi.fn(), getOwnerInvoice: vi.fn().mockResolvedValue(null) };
+      const res = await remind("INV2-NOT-MINE");
+      expect(res.status).toBe(404);
+      expect(paypal.getInvoice).not.toHaveBeenCalled();
+    });
     it("holds the invoice in the database, across server instances", async () => {
       db.value = { claimReminder: vi.fn().mockResolvedValue(false), releaseReminder: vi.fn().mockResolvedValue(undefined) };
       const res = await remind("INV2-DB-HELD");

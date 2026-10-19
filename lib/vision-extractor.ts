@@ -1,4 +1,6 @@
 // Multimodal vision extraction engine for Buku 555 notebook pages and receipts
+import { generateText, Output } from "ai";
+import { z } from "zod";
 import { moneyToSen } from "./payments";
 import type { EntryClassification, ExtractedEntry } from "./person1-types";
 
@@ -27,6 +29,39 @@ type RawExtractedLine = {
   ambiguityReason?: string;
   confidence?: number;
 };
+
+const visionResultSchema = z.object({
+  entries: z.array(z.object({
+    customerName: z.string().max(120),
+    item: z.string().max(500),
+    amount: z.string().max(32),
+    date: z.string().max(10).optional(),
+    classification: z.enum(["debt", "repayment", "crossed_out", "ambiguous"]),
+    rawText: z.string().max(1000),
+    isAmbiguous: z.boolean().optional(),
+    ambiguityReason: z.string().max(500).optional(),
+    confidence: z.number().min(0).max(1).optional(),
+  })).max(100),
+});
+
+const DEFAULT_VISION_MODEL = "anthropic/claude-haiku-5.5";
+
+async function extractWithGateway(imageBytes: Uint8Array, mimeType: string): Promise<RawExtractedLine[]> {
+  const result = await generateText({
+    model: process.env.AI_GATEWAY_VISION_MODEL || process.env.AI_GATEWAY_MODEL || DEFAULT_VISION_MODEL,
+    system: "Extract handwritten shop debt entries accurately. Never guess unclear values; mark them ambiguous. Preserve crossed-out entries and repayments for human review.",
+    messages: [{
+      role: "user",
+      content: [
+        { type: "text", text: "Read this notebook image. Return each line with customer, item, amount, optional YYYY-MM-DD date, classification, raw text, confidence, and ambiguity details." },
+        { type: "file", mediaType: mimeType, data: imageBytes },
+      ],
+    }],
+    output: Output.object({ schema: visionResultSchema, name: "notebook_entries" }),
+    maxOutputTokens: 3000,
+  });
+  return result.output.entries;
+}
 
 function buildSyntheticLines(scenario: SyntheticScenario | undefined, today: string): RawExtractedLine[] {
   switch (scenario) {
@@ -65,19 +100,22 @@ function buildSyntheticLines(scenario: SyntheticScenario | undefined, today: str
 }
 
 export async function extractNotebookEntries(
-  _imageBytes: Uint8Array,
-  _mimeType: string,
+  imageBytes: Uint8Array,
+  mimeType: string,
   opts: ExtractionOptions,
 ): Promise<ExtractedEntry[]> {
   const { scanId, revision, today, fixtureScenario } = opts;
   const now = new Date().toISOString();
 
-  // If a synthetic fixture scenario is provided, or in test mode without AI key, return synthetic lines
-  const rawLines = buildSyntheticLines(fixtureScenario, today);
+  const connected = Boolean(process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN);
+  const rawLines = fixtureScenario || !connected
+    ? buildSyntheticLines(fixtureScenario, today)
+    : await extractWithGateway(imageBytes, mimeType);
 
   return rawLines.map((l, index) => {
     const amountSen = moneyToSen(l.amount) ?? 0;
-    const isAmbiguous = Boolean(l.isAmbiguous || l.classification === "ambiguous");
+    const missingDate = !l.date;
+    const isAmbiguous = Boolean(l.isAmbiguous || l.classification === "ambiguous" || missingDate);
     const isExcluded = l.classification === "crossed_out" || l.classification === "repayment" || isAmbiguous;
 
     return {
@@ -93,7 +131,7 @@ export async function extractNotebookEntries(
       classification: l.classification,
       confidence: l.confidence ?? (isAmbiguous ? 0.65 : 0.95),
       isAmbiguous,
-      ambiguityReason: l.ambiguityReason,
+      ambiguityReason: l.ambiguityReason || (missingDate ? "Date is missing; scan date used pending owner review." : undefined),
       included: !isExcluded,
       sourceRef: { lineIndex: index + 1 },
       ownerEdited: false,

@@ -63,7 +63,7 @@ describe("debt-handoff", () => {
     const result = await approveDebtsForInvoicing(owner, ["entry-valid"], store);
     expect(result.approved).toHaveLength(1);
     expect(result.rejected).toHaveLength(0);
-    expect(result.approved[0].handoffKey).toBe(`${owner}:entry-valid:1`);
+    expect(result.approved[0].handoffKey).toContain(`${owner}:entry-valid:1:`);
     expect(result.approved[0].customerEmail).toBe("ali@example.com");
 
     // Replay is idempotent

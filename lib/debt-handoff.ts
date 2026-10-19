@@ -23,6 +23,17 @@ export async function approveDebtsForInvoicing(
       continue;
     }
 
+    const scan = await store.getScan(ownerEmail, entry.scanId);
+    if (!scan) {
+      rejected.push({ entryId, reason: "Source scan no longer exists." });
+      continue;
+    }
+    const firstImport = await store.findScanByHash(ownerEmail, scan.imageHash);
+    if (firstImport && firstImport.id !== scan.id) {
+      rejected.push({ entryId, reason: "Duplicate scan must be resolved before approval." });
+      continue;
+    }
+
     if (entry.classification === "crossed_out") {
       rejected.push({ entryId, reason: "Crossed out debts cannot be approved for invoicing." });
       continue;
@@ -72,7 +83,7 @@ export async function approveDebtsForInvoicing(
       continue;
     }
 
-    const handoffKey = `${ownerEmail}:${entry.id}:${entry.revision}`;
+    const handoffKey = `${ownerEmail}:${entry.id}:${entry.revision}:${entry.updatedAt}:${customer.updatedAt}`;
     const existing = await store.getApprovedDebtByHandoffKey(ownerEmail, handoffKey);
     if (existing) {
       approved.push(existing);

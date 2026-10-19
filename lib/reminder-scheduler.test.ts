@@ -5,7 +5,7 @@ import { processEligibleReminders, type SchedulerDeps } from "./reminder-schedul
 describe("reminder-scheduler", () => {
   let store: Person1Store;
   const owner = "owner@example.com";
-  const now = new Date("2026-10-18T10:00:00Z"); // Sunday 10am UTC
+  const now = new Date("2026-10-18T02:00:00Z"); // Sunday 10am Malaysian time
 
   beforeEach(() => {
     store = createMemoryPerson1Store();
@@ -43,6 +43,12 @@ describe("reminder-scheduler", () => {
     expect(decisions[0].action).toBe("requested");
   });
 
+  it("atomically prevents concurrent jobs from sending the same reminder twice", async () => {
+    const deps = makeDeps();
+    await Promise.all([processEligibleReminders(owner, deps), processEligibleReminders(owner, deps)]);
+    expect(deps.sendReminder).toHaveBeenCalledTimes(1);
+  });
+
   it("skips paid or settled invoices", async () => {
     const deps = makeDeps({
       getInvoices: async () => [
@@ -62,6 +68,13 @@ describe("reminder-scheduler", () => {
     expect(result.skipped).toHaveLength(1);
     expect(result.skipped[0].reason).toMatch(/paid|settled/i);
     expect(deps.sendReminder).not.toHaveBeenCalled();
+    expect((await store.listReminderDecisions(owner))[0].action).toBe("skipped");
+  });
+
+  it("only runs during the configured Malaysian reminder hour", async () => {
+    const result = await processEligibleReminders(owner, makeDeps({ now: new Date("2026-10-18T03:00:00Z"), enforceSendHour: true }));
+    expect(result.requested).toHaveLength(0);
+    expect(result.skipped[0].reason).toMatch(/configured reminder hour/i);
   });
 
   it("skips invoice before firstAfterDays has elapsed", async () => {

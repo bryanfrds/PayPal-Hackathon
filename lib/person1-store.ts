@@ -48,9 +48,12 @@ export interface Person1Store {
   getReminderRules(ownerEmail: string): Promise<ReminderRuleRecord>;
   setReminderRules(rules: ReminderRuleRecord): Promise<void>;
   saveReminderDecision(decision: ReminderDecision): Promise<void>;
+  claimReminderRequest(decision: ReminderDecision): Promise<boolean>;
   listReminderDecisions(ownerEmail: string, limit?: number): Promise<ReminderDecision[]>;
   getReminderDecision(ownerEmail: string, decisionId: string): Promise<ReminderDecision | null>;
   updateReminderDecisionAction(ownerEmail: string, decisionId: string, action: ReminderDecision["action"], deliveryResult?: string): Promise<void>;
+  claimPendingReminder(ownerEmail: string, decisionId: string): Promise<boolean>;
+  listEnabledReminderOwners(): Promise<string[]>;
 }
 
 export function createMemoryPerson1Store(): Person1Store {
@@ -205,6 +208,11 @@ export function createMemoryPerson1Store(): Person1Store {
     async saveReminderDecision(decision) {
       decisions.set(decision.id, { ...decision });
     },
+    async claimReminderRequest(decision) {
+      if ([...decisions.values()].some((item) => item.idempotencyKey === decision.idempotencyKey)) return false;
+      decisions.set(decision.id, { ...decision });
+      return true;
+    },
     async listReminderDecisions(ownerEmail, limit = 100) {
       const result: ReminderDecision[] = [];
       for (const d of decisions.values()) {
@@ -228,6 +236,16 @@ export function createMemoryPerson1Store(): Person1Store {
         if (deliveryResult !== undefined) d.deliveryResult = deliveryResult;
       }
     },
+    async claimPendingReminder(ownerEmail, decisionId) {
+      const d = decisions.get(decisionId);
+      if (!d || d.ownerEmail.toLowerCase() !== ownerEmail.toLowerCase() || d.action !== "pending_approval") return false;
+      d.action = "requested";
+      d.deliveryResult = "Claimed for delivery";
+      return true;
+    },
+    async listEnabledReminderOwners() {
+      return [...rules.values()].filter((rule) => rule.enabled).map((rule) => rule.ownerEmail);
+    },
   };
 }
 
@@ -235,6 +253,11 @@ export function createMemoryPerson1Store(): Person1Store {
 let globalMemoryStore: Person1Store | null = null;
 
 export function getPerson1Store(): Person1Store {
+  if (process.env.DATABASE_URL) {
+    // Loaded lazily to keep unit tests and browser-adjacent imports free of database setup.
+    const { getPostgresPerson1Store } = require("./person1-postgres-store") as typeof import("./person1-postgres-store");
+    return getPostgresPerson1Store();
+  }
   if (!globalMemoryStore) {
     globalMemoryStore = createMemoryPerson1Store();
   }

@@ -1,48 +1,48 @@
-// POST /api/reminders/process: Triggers a scheduled reminder evaluation pass
 import { NextResponse } from "next/server";
+import { sendReminderForOwner } from "@/app/api/invoices/[id]/remind/route";
 import { requireOwner } from "@/lib/auth-server";
 import { paymentDb } from "@/lib/payment-db";
 import { getPerson1Store } from "@/lib/person1-store";
 import { processEligibleReminders, type InvoiceCandidate, type SchedulerDeps } from "@/lib/reminder-scheduler";
 
-export async function POST(req: Request) {
-  const owner = await requireOwner();
-  if (owner instanceof Response) return owner;
+export const maxDuration = 60;
 
-  let body: { candidateInvoices?: InvoiceCandidate[] } = {};
-  try {
-    body = await req.json();
-  } catch {}
-
+async function processOwner(ownerEmail: string, enforceSendHour = false) {
   const store = getPerson1Store();
   const db = paymentDb();
-
+  if (!db) throw new Error("Database is required for scheduled reminders.");
   const deps: SchedulerDeps = {
     store,
-    getInvoices: async () => {
-      if (body.candidateInvoices && Array.isArray(body.candidateInvoices)) {
-        return body.candidateInvoices;
-      }
-      return [];
-    },
-    sendReminder: async (invoiceId: string) => {
-      // Delegate safely to Person 2's remind endpoint internally
-      const host = req.headers.get("host") || "localhost:3000";
-      const protocol = host.startsWith("localhost") ? "http" : "https";
-      try {
-        const cookie = req.headers.get("cookie") || "";
-        const res = await fetch(`${protocol}://${host}/api/invoices/${invoiceId}/remind`, {
-          method: "POST",
-          headers: { cookie },
-        });
-        const data = await res.json().catch(() => ({}));
-        return { ok: res.ok, message: data.message || "Delivered", error: data.error };
-      } catch (err) {
-        return { ok: false, error: err instanceof Error ? err.message : "Delivery call failed" };
-      }
+    enforceSendHour,
+    getInvoices: async () => (await db.listOwnerInvoices(ownerEmail)).map((invoice): InvoiceCandidate => ({
+      id: invoice.id, customerName: invoice.customerName, dueDate: invoice.sentAt.slice(0, 10),
+      amountSen: invoice.amountSen, status: invoice.status, settlement: invoice.settlement,
+    })),
+    sendReminder: async (invoiceId) => {
+      const res = await sendReminderForOwner(ownerEmail, invoiceId);
+      const data = await res.json().catch(() => ({}));
+      return { ok: res.ok, message: data.message || "Delivered", error: data.error };
     },
   };
+  return processEligibleReminders(ownerEmail, deps);
+}
 
-  const outcome = await processEligibleReminders(owner.email, deps);
-  return NextResponse.json(outcome);
+export async function POST(_req?: Request) {
+  const owner = await requireOwner();
+  if (owner instanceof Response) return owner;
+  try { return NextResponse.json(await processOwner(owner.email)); }
+  catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : "Reminder processing failed." }, { status: 503 }); }
+}
+
+export async function GET(req: Request) {
+  const secret = process.env.CRON_SECRET?.trim();
+  if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) return NextResponse.json({ error: "Unauthorized scheduler request." }, { status: 401 });
+  const store = getPerson1Store();
+  const owners = await store.listEnabledReminderOwners();
+  const results = [];
+  for (const ownerEmail of owners) {
+    try { results.push({ ownerEmail, ok: true, outcome: await processOwner(ownerEmail, true) }); }
+    catch (error) { results.push({ ownerEmail, ok: false, error: error instanceof Error ? error.message : "Failed" }); }
+  }
+  return NextResponse.json({ processedOwners: owners.length, results });
 }

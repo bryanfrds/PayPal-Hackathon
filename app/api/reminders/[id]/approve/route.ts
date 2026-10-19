@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { requireOwner } from "@/lib/auth-server";
 import { getPerson1Store } from "@/lib/person1-store";
+import { sendReminderForOwner } from "@/app/api/invoices/[id]/remind/route";
 
 export async function POST(
   req: Request,
@@ -25,16 +26,11 @@ export async function POST(
     );
   }
 
-  // Trigger safe delivery to Person 2
-  const host = req.headers.get("host") || "localhost:3000";
-  const protocol = host.startsWith("localhost") ? "http" : "https";
-  const cookie = req.headers.get("cookie") || "";
+  const claimed = await store.claimPendingReminder(owner.email, decisionId);
+  if (!claimed) return NextResponse.json({ error: "Reminder was already taken for delivery." }, { status: 409 });
 
   try {
-    const res = await fetch(`${protocol}://${host}/api/invoices/${decision.invoiceId}/remind`, {
-      method: "POST",
-      headers: { cookie },
-    });
+    const res = await sendReminderForOwner(owner.email, decision.invoiceId);
     const data = await res.json().catch(() => ({}));
 
     if (res.ok) {

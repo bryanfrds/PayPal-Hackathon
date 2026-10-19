@@ -4,6 +4,10 @@ import { requireOwner } from "@/lib/auth-server";
 import { customerSlug } from "@/lib/customer-tab";
 import { getPerson1Store } from "@/lib/person1-store";
 import type { CustomerRecord } from "@/lib/person1-types";
+import { validateCustomerInput } from "@/lib/person1-validation";
+import { clientIp, createThrottle } from "@/lib/throttle";
+
+const writes = createThrottle(30, 60_000);
 
 export async function GET() {
   const owner = await requireOwner();
@@ -25,10 +29,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid JSON request body." }, { status: 400 });
   }
 
-  const name = typeof body.name === "string" ? body.name.trim() : "";
-  if (!name) {
-    return NextResponse.json({ error: "Customer name is required." }, { status: 400 });
-  }
+  const wait = writes.hit(`${owner.email}:${clientIp(req)}`);
+  if (wait) return NextResponse.json({ error: "Too many customer changes." }, { status: 429, headers: { "Retry-After": String(wait) } });
+  const parsed = validateCustomerInput(body, true);
+  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
+  const name = parsed.value.name!;
 
   const slug = customerSlug(name);
   const store = getPerson1Store();
@@ -47,8 +52,8 @@ export async function POST(req: Request) {
     ownerEmail: owner.email,
     name,
     slug,
-    email: typeof body.email === "string" ? body.email.trim() : undefined,
-    phone: typeof body.phone === "string" ? body.phone.trim() : undefined,
+    email: parsed.value.email,
+    phone: parsed.value.phone,
     createdAt: now,
     updatedAt: now,
   };

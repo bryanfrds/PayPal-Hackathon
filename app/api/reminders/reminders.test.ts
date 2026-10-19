@@ -8,6 +8,11 @@ vi.mock("@/lib/auth-server", () => ({
       : Response.json({ error: "Sign in to do that." }, { status: 401 }),
 }));
 
+const payments = vi.hoisted(() => ({
+  listOwnerInvoices: vi.fn(), getOwnerInvoice: vi.fn(), claimReminder: vi.fn(), releaseReminder: vi.fn(),
+}));
+vi.mock("@/lib/payment-db", () => ({ paymentDb: () => payments }));
+
 import { GET as getRules, PUT as updateRules } from "../reminder-rules/route";
 import { POST as processReminders } from "./process/route";
 import { GET as getActivity } from "./activity/route";
@@ -22,6 +27,8 @@ describe("Reminder Orchestration APIs", () => {
   beforeEach(() => {
     signedIn.value = true;
     signedIn.email = owner;
+    vi.resetAllMocks();
+    payments.listOwnerInvoices.mockResolvedValue([]);
   });
 
   it("GET & PUT /api/reminder-rules: gets and updates owner rules", async () => {
@@ -62,22 +69,8 @@ describe("Reminder Orchestration APIs", () => {
       updatedAt: new Date().toISOString(),
     });
 
-    const processReq = new Request("http://localhost:3000/api/reminders/process", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        candidateInvoices: [
-          {
-            id: "INV-ACT-1",
-            customerName: "Pak Ali",
-            dueDate: "2026-10-10",
-            amountSen: 3000,
-            status: "SENT",
-            settlement: "open",
-          },
-        ],
-      }),
-    });
+    payments.listOwnerInvoices.mockResolvedValue([{ id: "INV-ACT-1", ownerEmail: owner, customerName: "Pak Ali", amountSen: 3000, currency: "MYR", sentAt: "2026-10-10T00:00:00Z", status: "SENT", settlement: "open" }]);
+    const processReq = new Request("http://localhost:3000/api/reminders/process", { method: "POST" });
 
     const processRes = await processReminders(processReq);
     expect(processRes.status).toBe(200);

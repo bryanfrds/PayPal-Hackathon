@@ -58,7 +58,16 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   if (owner instanceof Response) return owner;
 
   const { id } = await params;
+  return sendReminderForOwner(owner.email, id);
+}
+
+export async function sendReminderForOwner(ownerEmail: string, id: string) {
   if (!ID.test(id)) return NextResponse.json({ error: "Unknown invoice." }, { status: 400 });
+
+  const ownerDb = paymentDb();
+  if (ownerDb?.getOwnerInvoice && !(await ownerDb.getOwnerInvoice(ownerEmail, id))) {
+    return NextResponse.json({ error: "Unknown invoice." }, { status: 404 });
+  }
 
   const hold = holds();
   let claimed: boolean;
