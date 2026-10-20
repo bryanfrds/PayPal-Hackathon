@@ -14,6 +14,7 @@ import { lateLabel, type BoardRow } from "@/lib/home";
 import Avatar from "../components/Avatar";
 import { DARK_GRID_COLOURS } from "../components/grid-theme";
 import { ShareButton } from "../components/ShareButton";
+import { customerPagePath } from "../customerLinks";
 import { useResolvedTheme } from "../usePrefs";
 import { useT } from "../useT";
 
@@ -52,7 +53,7 @@ function CustomerCell({ data }: CustomCellRendererProps<Row>) {
   if (!data) return null;
   if (isTotal(data)) return <strong>{t("home.grid.customers", { count: data.count })}</strong>;
   return (
-    <Link href={tabPath(data.slug)} className="hg-who">
+    <Link href={customerPagePath(data.customerName)} className="hg-who">
       <Avatar name={data.customerName} />
       <span className="hg-who-main">
         <span className="hg-who-name" title={data.customerName}>

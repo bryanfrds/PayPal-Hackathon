@@ -7,7 +7,6 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
-import { tabPath } from "@/lib/customer-tab";
 import { formatSen, todayLocal } from "@/lib/debts";
 import { greeting, homeOverview, initials, lateLabel, monthTotals, owedBoard, type BoardRow } from "@/lib/home";
 import { buildSchedule } from "@/lib/reminders";
@@ -17,6 +16,7 @@ import QuickTour from "./components/QuickTour";
 import { ShareButton, ShareTip, useShareTip } from "./components/ShareButton";
 import ShareSheet from "./components/ShareSheet";
 import { BellIcon, ChartIcon, ChevronIcon, PlusIcon, ReceiptIcon, ScanIcon, SendIcon, SparkIcon } from "./components/icons";
+import { customerPagePath } from "./customerLinks";
 import { useCollect } from "./useCollect";
 import { useDebts } from "./useDebts";
 import { useIsWide } from "./useIsWide";
@@ -48,8 +48,8 @@ function BoardList({ rows, onShare }: { rows: BoardRow[]; onShare: (slug: string
     <ul className="card home-board">
       {rows.map((row) => (
         <li key={row.slug} className="home-board-item">
-          {/* Opens the customer's own tab page, the one the shop sends them a link to. */}
-          <Link href={tabPath(row.slug)} className="home-board-row">
+          {/* Opens this customer on the owner's Customers screen, not their customer-facing tab. */}
+          <Link href={customerPagePath(row.customerName)} className="home-board-row">
             <Avatar name={row.customerName} />
             <span className="home-board-main">
               <span className="home-board-name">{row.customerName}</span>
@@ -62,7 +62,7 @@ function BoardList({ rows, onShare }: { rows: BoardRow[]; onShare: (slug: string
               <span className={`badge badge-${row.status}`}>{lateLabel(row, t)}</span>
             </span>
           </Link>
-          {/* A sibling of the link, so the row still opens the tab and this only opens the share sheet. */}
+          {/* A sibling of the link, so the row still opens the customer and this only opens the share sheet. */}
           <ShareButton customerName={row.customerName} onOpen={(button) => onShare(row.slug, button)} />
         </li>
       ))}

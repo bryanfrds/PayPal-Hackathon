@@ -118,6 +118,10 @@ export const ledger = {
   "scan.noCameraBody": "Allow camera access in your browser, or take or choose a photo instead.",
   "scan.takePhoto": "Take a photo",
   "scan.chooseGallery": "Choose from gallery",
+  "scan.chooseIntro": "Take a photo of a notebook page or a receipt, or upload one you already have.",
+  "scan.takePhotoHint": "Opens your camera",
+  "scan.uploadPhoto": "Upload a photo",
+  "scan.uploadPhotoHint": "Pick one from your phone or computer",
   "scan.modeGroup": "What are you scanning?",
   "scan.notebook": "Notebook",
   "scan.receipt": "Receipt",
@@ -135,7 +139,6 @@ export const ledger = {
   "scan.fewSeconds": "This takes a few seconds.",
   "scan.progress": "Reading progress",
   // Scan: check
-  "scan.backToCamera": "Back to camera",
   "scan.checkPage": "Check the page",
   "scan.checkReceipt": "Check the receipt",
   "scan.photoNotebook": "Your notebook photo",

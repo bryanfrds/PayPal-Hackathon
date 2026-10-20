@@ -226,7 +226,7 @@ export default function SignInScreen() {
               {t("signin.title")}
             </h2>
             {error && (
-              <p className="si-error" role="alert" id="si-err">
+              <p className="si-error" role="alert" id="si-err-welcome">
                 {errorText}
               </p>
             )}
@@ -273,7 +273,7 @@ export default function SignInScreen() {
                 spellCheck={false}
                 required
                 aria-invalid={error ? true : undefined}
-                aria-describedby={error ? "si-err" : undefined}
+                aria-describedby={error ? "si-err-email" : undefined}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
@@ -281,7 +281,7 @@ export default function SignInScreen() {
             </span>
           </label>
           {atDomain !== null && atDomain === "" && (
-            <div className="si-chips" aria-label={t("signin.finishEmail")}>
+            <div className="si-chips" role="group" aria-label={t("signin.finishEmail")}>
               {DOMAINS.map((d) => (
                 <button key={d} type="button" onClick={() => setEmail(`${email}${d}`)}>
                   {d}
@@ -290,7 +290,7 @@ export default function SignInScreen() {
             </div>
           )}
           {error && (
-            <p className="si-error" role="alert" id="si-err">
+            <p className="si-error" role="alert" id="si-err-email">
               {errorText}
             </p>
           )}
@@ -329,7 +329,7 @@ export default function SignInScreen() {
               spellCheck={false}
               maxLength={OWNER_CODE_LENGTH + 4}
               aria-invalid={error ? true : undefined}
-              aria-describedby={error ? "si-err" : undefined}
+              aria-describedby={error ? "si-err-code" : undefined}
               value={code}
               onChange={(e) => onCode(e.target.value)}
               // Read-only (not disabled) while checking, so it keeps focus for the next try.
@@ -344,7 +344,7 @@ export default function SignInScreen() {
             </span>
           </label>
           {error && (
-            <p className="si-error" role="alert" id="si-err">
+            <p className="si-error" role="alert" id="si-err-code">
               {errorText}
             </p>
           )}
@@ -395,6 +395,7 @@ export default function SignInScreen() {
               <input
                 required
                 maxLength={MAX_SHOP_NAME}
+                aria-describedby={error ? "si-err-shop" : undefined}
                 value={shopName}
                 onChange={(e) => setShopName(e.target.value)}
               />
@@ -410,7 +411,7 @@ export default function SignInScreen() {
             ))}
           </fieldset>
           {error && (
-            <p className="si-error" role="alert" id="si-err">
+            <p className="si-error" role="alert" id="si-err-shop">
               {errorText}
             </p>
           )}

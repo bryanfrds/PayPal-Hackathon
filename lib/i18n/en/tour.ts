@@ -15,7 +15,7 @@ export const tour = {
   "tour.done": "Done",
   "tour.skip": "Skip tour",
   "tour.home.title": "Everything owed, at a glance",
-  "tour.home.text": "Your total, what's overdue, and what's come in. Tap any customer below to see their tab.",
+  "tour.home.text": "Your total, what's overdue, and what's come in. Tap any customer below to see their balance and email, and send an invoice.",
   "tour.scan.title": "Scan: snap your 555 notebook",
   "tour.scan.text": "Photograph a page and each line becomes a debt. You check every line before it's saved.",
   "tour.collect.title": "Collect: send PayPal invoices",

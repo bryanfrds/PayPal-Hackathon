@@ -26,12 +26,12 @@ import { useT } from "../useT";
 type FilterTab = "all" | "owed" | "missing_email" | "ready";
 
 
-export default function CustomersScreen() {
+export default function CustomersScreen({ initialQuery = "" }: { initialQuery?: string }) {
   const { t, formatDay, formatNumber } = useT();
   const { debts } = useDebts();
   const { emails, invoices, pending } = useCollect();
 
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const [filter, setFilter] = useState<FilterTab>("all");
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<CustomerRow | null>(null);
