@@ -26,13 +26,19 @@ describe("collectGroups", () => {
   ];
 
   it("makes one group per customer, overdue first, then biggest first", () => {
-    const groups = collectGroups(debts, {});
+    const groups = collectGroups(debts, {}, {}, "2026-10-13");
     expect(groups.map((g) => [g.customerName, g.totalSen, g.status])).toEqual([
       ["Mak Cik Siti", 4850, "overdue"],
       ["Uncle Tan", 2280, "unpaid"],
       ["Mr. Raj", 500, "unpaid"],
     ]);
     expect(groups[1].debts.map((d) => d.id)).toEqual(["3", "1"]);
+  });
+
+  it("calls a tab overdue once it's past its due date, like every other screen", () => {
+    // October tabs fall due on 10 November.
+    const groups = collectGroups(debts, {}, {}, "2026-11-11");
+    expect(groups.map((g) => g.status)).toEqual(["overdue", "overdue", "overdue"]);
   });
 
   it("attaches saved emails by customer slug", () => {

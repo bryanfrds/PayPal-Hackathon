@@ -88,6 +88,8 @@ export function dueDateFor(month: string): string {
   return `${nextY}-${String(nextM).padStart(2, "0")}-${String(BILL_DUE_DAY).padStart(2, "0")}`;
 }
 
+// A bill is overdue when any of its unpaid tabs is: the same rule as isOverdue in
+// lib/tab-status (which builds on this file, so the rule is spelled out here rather than imported).
 function billStatus(debts: Debt[], dueDate: string, today: string): BillStatus {
   const unpaid = debts.filter((d) => d.status !== "paid");
   if (unpaid.length === 0) return "paid";

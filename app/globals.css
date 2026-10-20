@@ -352,6 +352,13 @@ a {
   height: 100%;
 }
 
+/* Invoice state plus a late badge side by side ("Invoice sent" · "10 days late"). */
+.tab-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
 .badge {
   display: inline-flex;
   align-items: center;
@@ -5217,6 +5224,13 @@ body.nudge-sheet-open {
     letter-spacing: -0.03em;
   }
 
+  .ledger-summary-late {
+    margin-top: -0.4rem !important;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--overdue);
+  }
+
   .ledger-summary ul {
     margin: 0;
     padding: 0;
@@ -5305,7 +5319,7 @@ body.nudge-sheet-open {
     flex-wrap: wrap;
     gap: 0.4rem 1.1rem;
     grid-column: 2;
-    grid-row: 1 / span 2;
+    grid-row: 1 / span 3;
   }
 
   .ledger-summary li {
@@ -5315,13 +5329,18 @@ body.nudge-sheet-open {
   }
 
   .ledger-summary-k,
-  .ledger-summary-v {
+  .ledger-summary-v,
+  .ledger-summary-late {
     grid-column: 1;
+  }
+
+  .ledger-summary-late {
+    margin-top: 0 !important;
   }
 
   .ledger-summary-go {
     grid-column: 3;
-    grid-row: 1 / span 2;
+    grid-row: 1 / span 3;
   }
 }
 

@@ -72,7 +72,6 @@ export const id: Dictionary = {
   "home.send": "Kirim",
   "home.notInvoiced_one": "{count} utang belum di-invoice",
   "home.notInvoiced_other": "{count} utang belum di-invoice",
-  "home.markedPaid": "Ditandai lunas di buku utang",
   "home.nothingToDo": "Tidak ada yang perlu dikerjakan sekarang.",
   "home.chartTitle": "Utang vs tertagih",
   "home.chartSub": "per bulan dicatat",

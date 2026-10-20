@@ -73,7 +73,6 @@ export const ms: Dictionary = {
   "home.send": "Hantar",
   "home.notInvoiced_one": "{count} hutang belum diinvois",
   "home.notInvoiced_other": "{count} hutang belum diinvois",
-  "home.markedPaid": "Ditanda dibayar dalam lejar anda",
   "home.nothingToDo": "Tiada apa perlu dibuat sekarang.",
   "home.chartTitle": "Hutang vs dikutip",
   "home.chartSub": "ikut bulan dicatat",

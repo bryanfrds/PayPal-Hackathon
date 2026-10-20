@@ -72,7 +72,6 @@ export const ta: Dictionary = {
   "home.send": "அனுப்பு",
   "home.notInvoiced_one": "இன்வாய்ஸ் அனுப்பாத {count} கடன்",
   "home.notInvoiced_other": "இன்வாய்ஸ் அனுப்பாத {count} கடன்கள்",
-  "home.markedPaid": "கணக்கில் செலுத்தியதாகக் குறிக்கப்பட்டது",
   "home.nothingToDo": "இப்போது செய்ய எதுவும் இல்லை.",
   "home.chartTitle": "கடன் vs வசூல்",
   "home.chartSub": "எழுதிய மாதப்படி",

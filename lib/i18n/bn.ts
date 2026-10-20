@@ -73,7 +73,6 @@ export const bn: Dictionary = {
   "home.send": "পাঠান",
   "home.notInvoiced_one": "{count}টি বাকির ইনভয়েস হয়নি",
   "home.notInvoiced_other": "{count}টি বাকির ইনভয়েস হয়নি",
-  "home.markedPaid": "আপনার খাতায় পরিশোধিত চিহ্নিত",
   "home.nothingToDo": "এখন কিছু করার নেই।",
   "home.chartTitle": "পাওনা বনাম আদায়",
   "home.chartSub": "লেখার মাস অনুযায়ী",

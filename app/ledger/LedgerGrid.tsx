@@ -14,9 +14,10 @@ import {
   type RowSelectionOptions,
   type SelectionColumnDef,
 } from "ag-grid-community";
-import { formatSen, outstanding, sortDebts, STATUS_ORDER, type Debt, type DebtStatus } from "@/lib/debts";
+import { formatSen, outstanding, type Debt } from "@/lib/debts";
 import type { T } from "@/lib/i18n";
-import StatusBadge from "../components/StatusBadge";
+import { daysLate, invoiceState, isOverdue } from "@/lib/tab-status";
+import { TabStatus, tabStatusText } from "../components/StatusBadge";
 import { DARK_GRID_COLOURS } from "../components/grid-theme";
 import { CloseIcon } from "../components/icons";
 import { useResolvedTheme } from "../usePrefs";
@@ -59,17 +60,28 @@ const HEADER_HEIGHT = 44;
 
 type LedgerRow = Debt;
 
-function StatusCell(props: CustomCellRendererProps<LedgerRow>) {
-  const status = props.value as DebtStatus | undefined;
-  if (!status) return null;
+type DeleteContext = { onDelete: (debt: Debt) => void; t: T };
+
+// Passed through the column (cellRendererParams), which the grid re-reads when the layout or
+// day changes; the grid context is only read once.
+type StatusParams = { today: string; compact: boolean };
+
+function StatusCell(props: CustomCellRendererProps<LedgerRow> & StatusParams) {
+  const debt = props.data;
+  // The pinned "Still owed" row has no status.
+  if (!debt || props.node.rowPinned) return null;
   return (
     <span className="status-cell">
-      <StatusBadge status={status} />
+      <TabStatus debt={debt} today={props.today} compact={props.compact} />
     </span>
   );
 }
 
-type DeleteContext = { onDelete: (debt: Debt) => void; t: T };
+/** Sort order: overdue first (most days late first), then invoice sent, not sent, paid. */
+function statusRank(debt: Debt, today: string): number {
+  if (isOverdue(debt, today)) return -daysLate(debt, today) - 1;
+  return { sent: 1, unpaid: 2, paid: 3 }[invoiceState(debt)];
+}
 
 function DeleteButton(props: CustomCellRendererProps<LedgerRow, unknown, DeleteContext>) {
   const debt = props.data;
@@ -88,15 +100,17 @@ function DeleteButton(props: CustomCellRendererProps<LedgerRow, unknown, DeleteC
   );
 }
 
-// Minimum widths are set so the visible columns fit without cutting the status badge or the
+// Minimum widths are set so the visible columns fit without cutting the status badges or the
 // date: phone columns (with the 34px tick box) total about 332px, under the ~340px grid on a
-// 390px phone; laptop columns total about 710px, under the ~730px grid at 1280px.
-function buildColumnDefs(mode: LayoutMode, t: T): ColDef<LedgerRow>[] {
+// 390px phone; laptop columns total about 726px, under the ~730px grid at 1280px.
+function buildColumnDefs(mode: LayoutMode, t: T, today: string): ColDef<LedgerRow>[] {
   const phone = mode === "phone";
-  const label = (status: DebtStatus) => t(`status.${status}`);
+  // The pinned "Still owed" row has no date or status: it gets no label.
+  const label = (debt: Debt | undefined) => (debt?.status && debt.date ? tabStatusText(debt, today, t) : "");
   return [
-    { field: "customerName", headerName: t("ledger.colName"), flex: 1.3, minWidth: phone ? 88 : 130, tooltipField: "customerName" },
-    { field: "item", headerName: t("ledger.colItem"), flex: 2, minWidth: 120, hide: phone, tooltipField: "item" },
+    { field: "customerName", headerName: t("ledger.colName"), flex: 1.3, minWidth: phone ? 88 : 110, tooltipField: "customerName" },
+    // Item gives up width first, so a late tab's two status badges fit beside it.
+    { field: "item", headerName: t("ledger.colItem"), flex: 2, minWidth: 80, hide: phone, tooltipField: "item" },
     {
       field: "amountSen",
       headerName: mode === "desktop" ? t("ledger.colAmount") : "RM",
@@ -120,14 +134,17 @@ function buildColumnDefs(mode: LayoutMode, t: T): ColDef<LedgerRow>[] {
       field: "status",
       headerName: t("ledger.colStatus"),
       flex: 1,
-      minWidth: phone ? 112 : 132,
+      // Phones show one badge; wider grids show the invoice state and a late badge side by side.
+      minWidth: phone ? 112 : 210,
       cellRenderer: StatusCell,
-      // Search and filter by the words on the badge ("Invoice sent"), not the stored value ("sent").
-      getQuickFilterText: (p) => (p.value ? label(p.value as DebtStatus) : ""),
-      filterValueGetter: (p) => (p.data?.status ? label(p.data.status) : ""),
+      cellRendererParams: { today, compact: phone } satisfies StatusParams,
+      // Search and filter by the words on the badges ("Invoice sent · Overdue"), not the stored value.
+      getQuickFilterText: (p) => label(p.data),
+      filterValueGetter: (p) => label(p.data),
       // Header sort goes by urgency (overdue → invoice sent → not sent → paid), not A–Z.
-      comparator: (a, b) => (a ? STATUS_ORDER[a as DebtStatus] : 9) - (b ? STATUS_ORDER[b as DebtStatus] : 9),
-      valueFormatter: (p) => (p.value ? label(p.value as DebtStatus) : ""),
+      comparator: (_a, _b, nodeA, nodeB) =>
+        (nodeA.data?.status ? statusRank(nodeA.data, today) : 9) - (nodeB.data?.status ? statusRank(nodeB.data, today) : 9),
+      valueFormatter: (p) => label(p.data),
     },
     {
       colId: "delete",
@@ -222,12 +239,15 @@ function useLayoutMode(ref: React.RefObject<HTMLElement | null>): LayoutMode {
 export default function LedgerGrid({
   ref,
   rows,
+  today,
   onDelete,
   onRowClick,
   onSelectionChange,
 }: {
   ref?: Ref<LedgerGridHandle>;
   rows: Debt[];
+  /** YYYY-MM-DD: decides which tabs are late (lib/tab-status). */
+  today: string;
   onDelete: (debt: Debt) => void;
   onRowClick?: (debt: Debt) => void;
   onSelectionChange?: (selected: Debt[]) => void;
@@ -237,7 +257,11 @@ export default function LedgerGrid({
   const dark = useResolvedTheme() === "dark";
   const wrapperRef = useRef<HTMLDivElement>(null);
   const layout = useLayoutMode(wrapperRef);
-  const sortedRows = useMemo(() => sortDebts(rows), [rows]);
+  // Most urgent first (the status column's order), then oldest first.
+  const sortedRows = useMemo(
+    () => [...rows].sort((a, b) => statusRank(a, today) - statusRank(b, today) || a.date.localeCompare(b.date)),
+    [rows, today],
+  );
   const apiRef = useRef<GridApi<LedgerRow> | null>(null);
   useImperativeHandle(ref, () => ({ clearSelection: () => apiRef.current?.deselectAll() }), []);
   // AG Grid only reads `context` once, so it gets a stable function that always calls
@@ -248,7 +272,7 @@ export default function LedgerGrid({
   });
   // The grid is remounted when the language changes (key={lang}), so t is current here.
   const gridContext = useMemo<DeleteContext>(() => ({ onDelete: (debt) => onDeleteRef.current(debt), t }), [t]);
-  const columnDefs = useMemo(() => buildColumnDefs(layout, t), [layout, t]);
+  const columnDefs = useMemo(() => buildColumnDefs(layout, t, today), [layout, t, today]);
   // AG Grid's own words that actually show: the text filter popup and the empty overlay.
   const localeText = useMemo<Record<string, string>>(
     () => ({

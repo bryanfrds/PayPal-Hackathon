@@ -9,6 +9,7 @@ import type { InvoiceRecord } from "./collect-store";
 import { customerSlug, dueDateFor } from "./customer-tab";
 import { outstanding, todayLocal, type Debt } from "./debts";
 import { translator, type T, type TKey } from "./i18n";
+import { isInvoiced } from "./tab-status";
 
 export type ReminderRules = {
   /** Off: no reminders are planned at all. */
@@ -111,10 +112,11 @@ export function normaliseRules(value: unknown): ReminderRules {
   };
 }
 
-/** Only tabs a PayPal invoice covers are chased: "Invoice sent" or "Overdue". */
-function isChased(debt: Debt): boolean {
-  return debt.status === "sent" || debt.status === "overdue";
-}
+/**
+ * Only tabs a PayPal invoice covers are chased (isInvoiced). A tab marked overdue before any
+ * invoice went out is billed from Collect first: there's no invoice to remind them about.
+ */
+const isChased = isInvoiced;
 
 function monthName(month: string, t: T): string {
   const m = Number(month.slice(5, 7));

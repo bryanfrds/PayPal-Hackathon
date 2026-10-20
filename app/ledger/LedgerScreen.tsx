@@ -5,9 +5,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { DebtStoreError } from "@/lib/debt-store";
-import { formatSen, type Debt, type DebtStatus } from "@/lib/debts";
+import { formatSen, todayLocal, type Debt, type DebtStatus } from "@/lib/debts";
+import { isNotInvoiced } from "@/lib/tab-status";
 import Avatar from "../components/Avatar";
-import StatusBadge from "../components/StatusBadge";
+import StatusBadge, { TabStatus } from "../components/StatusBadge";
 import { CloseIcon, SendIcon } from "../components/icons";
 import { useDialog } from "../components/useDialog";
 import { useDebts } from "../useDebts";
@@ -103,7 +104,7 @@ function DebtDetailSheet({
           <div className="debt-detail-row">
             <dt className="debt-detail-label">{t("ledger.detail.status")}</dt>
             <dd className="debt-detail-value">
-              <StatusBadge status={debt.status} />
+              <TabStatus debt={debt} today={todayLocal()} />
             </dd>
           </div>
           <div className="debt-detail-row">
@@ -189,11 +190,13 @@ export default function LedgerScreen() {
   const [selectedDebts, setSelectedDebts] = useState<Debt[]>([]);
   const [detailDebt, setDetailDebt] = useState<Debt | null>(null);
   const gridRef = useRef<LedgerGridHandle>(null);
-  const { counts, sen: totals, owedSen } = ledgerTotals(debts);
-  const shown = filterByStatus(debts, filter);
+  const today = todayLocal();
+  // Chips use the shared rules (lib/tab-status), so Overdue matches Home and Not sent matches Collect.
+  const { counts, sen: totals, owedSen } = ledgerTotals(debts, today);
+  const shown = filterByStatus(debts, filter, today);
   // Same list as Collect's "To send": customers with tabs not invoiced yet.
   const { emails, invoices, pending } = useCollect();
-  const toInvoice = collectGroups(debts, emails, pending).length;
+  const toInvoice = collectGroups(debts, emails, pending, today).length;
 
   // The newest invoice for each debt (an older, replaced invoice no longer counts).
   const invoiceRecordMap = useMemo(() => latestInvoiceByDebt(invoices), [invoices]);
@@ -346,6 +349,7 @@ export default function LedgerScreen() {
             <LedgerGrid
               ref={gridRef}
               rows={shown}
+              today={today}
               onDelete={onDelete}
               onRowClick={(debt) => setDetailDebt(debt)}
               onSelectionChange={(selected) => setSelectedDebts(selected)}
@@ -353,8 +357,15 @@ export default function LedgerScreen() {
             <aside className="card ledger-summary ledger-wide-only" aria-label={t("ledger.totalsLabel")}>
               <p className="ledger-summary-k">{t("ledger.stillOwed")}</p>
               <p className="ledger-summary-v">RM {formatSen(owedSen)}</p>
+              {/* Overdue is part of what's owed, not a fourth pile, so it sits under the total. */}
+              {totals.overdue > 0 && (
+                <p className="ledger-summary-late">
+                  {/* Home's meter words ("· RM 146.80 overdue"), without the separator dot it starts with there. */}
+                  {t("home.meterOverdue", { amount: formatSen(totals.overdue) }).replace(/^·\s*/, "")}
+                </p>
+              )}
               <ul>
-                {(["overdue", "sent", "unpaid", "paid"] as DebtStatus[]).map((st) => (
+                {(["sent", "unpaid", "paid"] as DebtStatus[]).map((st) => (
                   <li key={st}>
                     <StatusBadge status={st} />
                     <b>RM {formatSen(totals[st])}</b>
@@ -395,7 +406,7 @@ export default function LedgerScreen() {
               className="ledger-bulk-btn ledger-bulk-btn-primary"
               onClick={() => {
                 // Collect has its own picker; this only checks there's something left to invoice.
-                if (!selectedDebts.some((d) => d.status === "unpaid" || d.status === "overdue")) {
+                if (!selectedDebts.some(isNotInvoiced)) {
                   setNotice({ kind: "error", message: t("ledger.bulk.nothingToInvoice") });
                   return;
                 }

@@ -29,14 +29,19 @@ describe("buildNudgeContext", () => {
     const ctx = buildNudgeContext("Kedai Ah Seng", debts, [], buildSchedule(debts, [], DEFAULT_RULES, {}, TODAY), TODAY);
     expect(ctx).toMatchObject({ owedSen: 7090, collectedSen: 1200 });
     expect(ctx.customers.map((c) => [c.name, c.daysLate, c.status])).toEqual([
-      ["Mak Cik Siti", 33, "Overdue"],
+      // Late but never invoiced: "Not sent", so Nudge suggests Collect before a reminder.
+      ["Mak Cik Siti", 33, "Not sent"],
       ["Kak Lina", 3, "Overdue"],
     ]);
-    expect(ctx.customers[0]).toMatchObject({ slug: "mak-cik-siti", nextReminder: TODAY, remindersSent: 0, items: ["Beras 10kg"] });
+    expect(ctx.customers[0]).toMatchObject({ slug: "mak-cik-siti", nextReminder: undefined, remindersSent: 0, items: ["Beras 10kg"] });
+    expect(ctx.customers[1]).toMatchObject({ slug: "kak-lina", nextReminder: TODAY });
   });
 
   it("adds up one customer's tabs and shows their most urgent status", () => {
-    const debts = [debt({}), debt({ id: "T-2", date: "2026-10-01", amountSen: 1000, status: "unpaid" })];
+    const debts = [
+      debt({ status: "sent" }),
+      debt({ id: "T-2", date: "2026-10-01", amountSen: 1000, status: "unpaid" }),
+    ];
     const [siti] = buildNudgeContext("K", debts, [], [], TODAY).customers;
     expect(siti).toMatchObject({ owedSen: 5850, status: "Overdue", daysLate: 33 });
   });
