@@ -178,7 +178,7 @@ function DeleteButton(props: CustomCellRendererProps<LedgerRow, unknown, DeleteC
 
 // Minimum widths are set so every header and status badge reads in full, in English and in
 // Bahasa Melayu (a late invoiced tab shows "Invois dihantar" and "40 hari lewat" side by side):
-// laptop columns total about 950px, which is TABLET_MAX_WIDTH; tablet ones about 730px; phone
+// laptop columns total about 950px, which is TABLET_MAX_WIDTH; tablet ones about 745px; phone
 // ones (two-line rows) about 300px, under the ~340px grid on a 390px phone.
 function buildColumnDefs(mode: LayoutMode, t: T, today: string): ColDef<LedgerRow>[] {
   const phone = mode === "phone";
@@ -190,7 +190,7 @@ function buildColumnDefs(mode: LayoutMode, t: T, today: string): ColDef<LedgerRo
       field: "customerName",
       headerName: t("ledger.colName"),
       flex: 1.3,
-      minWidth: phone ? 100 : desktop ? 150 : 130,
+      minWidth: phone ? 100 : 150,
       tooltipField: phone ? undefined : "customerName",
       cellRenderer: phone ? NameCell : TotalLabelCell,
       cellClass: phone ? "ledger-two-line" : undefined,
