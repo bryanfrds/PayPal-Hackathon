@@ -37,7 +37,12 @@ export function createPostgresPerson1Store(query: Query): Person1Store {
     async setReminderRules(r){ await query(`INSERT INTO reminder_rules(owner_email,enabled,first_after_days,min_interval_days,max_attempts,send_hour,skip_friday_prayers,require_approval,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(owner_email) DO UPDATE SET enabled=$2,first_after_days=$3,min_interval_days=$4,max_attempts=$5,send_hour=$6,skip_friday_prayers=$7,require_approval=$8,updated_at=$9`,[owner(r.ownerEmail),r.enabled,r.firstAfterDays,r.minIntervalDays,r.maxAttempts,r.sendHour,r.skipFridayPrayers,r.requireApproval,r.updatedAt]); },
     async saveReminderDecision(d){ await query(`INSERT INTO reminder_decisions(id,owner_email,invoice_id,action,reason,idempotency_key,attempt_number,delivery_result,created_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(idempotency_key) DO NOTHING`,[d.id,owner(d.ownerEmail),d.invoiceId,d.action,d.reason,d.idempotencyKey,d.attemptNumber,d.deliveryResult??null,d.createdAt]); },
     async claimReminderRequest(d){ return (await query(`INSERT INTO reminder_decisions(id,owner_email,invoice_id,action,reason,idempotency_key,attempt_number,delivery_result,created_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(idempotency_key) DO NOTHING RETURNING id`,[d.id,owner(d.ownerEmail),d.invoiceId,d.action,d.reason,d.idempotencyKey,d.attemptNumber,d.deliveryResult??null,d.createdAt])).length===1; },
-    async listReminderDecisions(email,limit=100){ return (await query(`SELECT * FROM reminder_decisions WHERE owner_email=$1 ORDER BY created_at DESC LIMIT $2`,[owner(email),limit])).map(decisionRow); },
+    async listReminderDecisions(email,limit=100,action){
+      if(action){
+        return (await query(`SELECT * FROM reminder_decisions WHERE owner_email=$1 AND action=$3 ORDER BY created_at DESC LIMIT $2`,[owner(email),limit,action])).map(decisionRow);
+      }
+      return (await query(`SELECT * FROM reminder_decisions WHERE owner_email=$1 ORDER BY created_at DESC LIMIT $2`,[owner(email),limit])).map(decisionRow);
+    },
     async getReminderDecision(email,id){ const [r]=await query(`SELECT * FROM reminder_decisions WHERE owner_email=$1 AND id=$2`,[owner(email),id]); return r?decisionRow(r):null; },
     async updateReminderDecisionAction(email,id,action,result){ await query(`UPDATE reminder_decisions SET action=$3,delivery_result=COALESCE($4,delivery_result) WHERE owner_email=$1 AND id=$2`,[owner(email),id,action,result??null]); },
     async claimPendingReminder(email,id){ return (await query(`UPDATE reminder_decisions SET action='requested',delivery_result='Claimed for delivery' WHERE owner_email=$1 AND id=$2 AND action='pending_approval' RETURNING id`,[owner(email),id])).length===1; },

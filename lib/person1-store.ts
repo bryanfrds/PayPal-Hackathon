@@ -50,7 +50,7 @@ export interface Person1Store {
   setReminderRules(rules: ReminderRuleRecord): Promise<void>;
   saveReminderDecision(decision: ReminderDecision): Promise<void>;
   claimReminderRequest(decision: ReminderDecision): Promise<boolean>;
-  listReminderDecisions(ownerEmail: string, limit?: number): Promise<ReminderDecision[]>;
+  listReminderDecisions(ownerEmail: string, limit?: number, action?: ReminderDecision["action"]): Promise<ReminderDecision[]>;
   getReminderDecision(ownerEmail: string, decisionId: string): Promise<ReminderDecision | null>;
   updateReminderDecisionAction(ownerEmail: string, decisionId: string, action: ReminderDecision["action"], deliveryResult?: string): Promise<void>;
   claimPendingReminder(ownerEmail: string, decisionId: string): Promise<boolean>;
@@ -235,11 +235,13 @@ export function createMemoryPerson1Store(): Person1Store {
       decisions.set(decision.id, { ...decision });
       return true;
     },
-    async listReminderDecisions(ownerEmail, limit = 100) {
+    async listReminderDecisions(ownerEmail, limit = 100, action) {
       const result: ReminderDecision[] = [];
       for (const d of decisions.values()) {
         if (d.ownerEmail.toLowerCase() === ownerEmail.toLowerCase()) {
-          result.push({ ...d });
+          if (!action || d.action === action) {
+            result.push({ ...d });
+          }
         }
       }
       return result

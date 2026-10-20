@@ -105,7 +105,9 @@ export async function processEligibleReminders(
   }
 
   const invoices = await getInvoices();
-  const priorDecisions = await store.listReminderDecisions(ownerEmail, 500);
+  const priorRequested = await store.listReminderDecisions(ownerEmail, 1000, "requested");
+  const priorPending = await store.listReminderDecisions(ownerEmail, 1000, "pending_approval");
+  const priorDecisions = [...priorRequested, ...priorPending].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
   for (const inv of invoices) {
     // Check settlement: skip paid, closed, or check

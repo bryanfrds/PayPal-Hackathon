@@ -204,4 +204,67 @@ describe("debt-handoff", () => {
     expect(allDebts[0].amountSen).toBe(12000);
     expect(allDebts[0].item).toBe("Beras Wangi");
   });
+
+  it("rejects modifying an approved debt that has already been invoiced on PayPal", async () => {
+    const entry: ExtractedEntry = {
+      id: "entry-invoiced",
+      scanId: "scan-1",
+      revision: 1,
+      rawText: "Pak Ali 50.00",
+      customerName: "Pak Ali",
+      item: "Kopi",
+      amountSen: 5000,
+      rawAmountText: "50.00",
+      date: "2026-10-18",
+      classification: "debt",
+      confidence: 0.95,
+      isAmbiguous: false,
+      included: true,
+      confirmedCustomerId: "cust-1",
+      sourceRef: { lineIndex: 1 },
+      ownerEdited: false,
+      createdAt: "2026-10-18T00:00:00Z",
+      updatedAt: "2026-10-18T00:00:00Z",
+    };
+    await store.saveEntries([entry]);
+    const approvedResult = await approveDebtsForInvoicing(owner, ["entry-invoiced"], store);
+    const approvedId = approvedResult.approved[0].id;
+
+    // Mock paymentDb with an active invoice containing this debtId
+    const { paymentDb } = await import("./payment-db");
+    const originalPaymentDb = paymentDb;
+    const mockDb = {
+      listOwnerInvoices: async () => [
+        {
+          id: "INV2-ACTIVE",
+          ownerEmail: owner,
+          customerName: "Pak Ali",
+          amountSen: 5000,
+          currency: "MYR",
+          sentAt: "2026-10-18T00:00:00Z",
+          status: "SENT",
+          settlement: "open" as const,
+          debtIds: [approvedId],
+        },
+      ],
+    };
+
+    // Edit the entry
+    await store.updateEntry(owner, "entry-invoiced", {
+      amountSen: 6000,
+      ownerEdited: true,
+    });
+
+    const { vi } = await import("vitest");
+    const spy = vi.spyOn(await import("./payment-db"), "paymentDb").mockReturnValue(mockDb as any);
+
+    try {
+      const editResult = await approveDebtsForInvoicing(owner, ["entry-invoiced"], store);
+      expect(editResult.approved).toHaveLength(0);
+      expect(editResult.rejected).toHaveLength(1);
+      expect(editResult.rejected[0].reason).toMatch(/already been invoiced on PayPal/i);
+    } finally {
+      spy.mockRestore();
+    }
+  });
 });

@@ -16,6 +16,23 @@ async function processOwner(ownerEmail: string, candidateInvoices?: InvoiceCandi
     enforceSendHour,
     getInvoices: async () => {
       if (candidateInvoices && Array.isArray(candidateInvoices)) {
+        if (db) {
+          const ownerInvoices = await db.listOwnerInvoices(ownerEmail);
+          const ownerMap = new Map(ownerInvoices.map((inv) => [inv.id, inv]));
+          return candidateInvoices
+            .filter((c) => ownerMap.has(c.id))
+            .map((c) => {
+              const matched = ownerMap.get(c.id)!;
+              return {
+                id: matched.id,
+                customerName: matched.customerName,
+                dueDate: c.dueDate || matched.sentAt.slice(0, 10),
+                amountSen: matched.amountSen,
+                status: matched.status,
+                settlement: matched.settlement,
+              };
+            });
+        }
         return candidateInvoices;
       }
       if (db) {
