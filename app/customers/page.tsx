@@ -11,5 +11,7 @@ export default async function CustomersPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { q } = await searchParams;
-  return <CustomersScreen initialQuery={initialCustomerQuery(q)} />;
+  const initialQuery = initialCustomerQuery(q);
+  // Keyed by the query, so following another ?q= link while already here fills the search again.
+  return <CustomersScreen key={initialQuery} initialQuery={initialQuery} />;
 }
