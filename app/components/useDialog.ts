@@ -5,7 +5,7 @@
 // whatever opened it (or to the page heading if it opened by itself), and the page behind is
 // inert and doesn't scroll while it's open. Put role="dialog" aria-modal="true" and a label on the element itself.
 
-import { useEffect, useRef, type RefObject } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 
 // The page behind stays still while any dialog is open. A count, not a saved-and-restored
 // value per dialog, so it's right whatever order stacked dialogs close in: the first to open
@@ -94,10 +94,16 @@ export function useDialog<T extends HTMLElement>(
     onCloseRef.current = onClose;
   });
   const { returnTo, initialFocus } = options;
+  // What had focus when the dialog first rendered, read during render rather than in the effect:
+  // in development React runs the effect twice, and by the second run focus is already inside the
+  // dialog, so the opener would be lost.
+  const [focusedAtOpen] = useState(() =>
+    typeof document !== "undefined" && document.activeElement instanceof HTMLElement ? document.activeElement : null,
+  );
 
   useEffect(() => {
     const root = ref.current;
-    const opener = returnTo ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
+    const opener = returnTo ?? focusedAtOpen;
     lockPage();
     // The page behind can't be clicked, tabbed into or read out while the dialog is open.
     const restoreInert = root ? inertOutside(root) : () => {};
