@@ -4805,6 +4805,11 @@ body.nudge-sheet-open {
   margin-top: 0.5rem;
 }
 
+/* Studio's tile ran 2px taller than its box and drew a scrollbar inside the chart card. */
+.home-studio .ag-studio-layout {
+  overflow: hidden;
+}
+
 /* The sidebar's Nudge box: laptop only. */
 .side-nudge,
 .nav-wide-only {
