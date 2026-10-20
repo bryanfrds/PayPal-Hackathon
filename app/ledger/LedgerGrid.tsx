@@ -48,14 +48,14 @@ const ledgerPhoneDarkTheme = ledgerDarkTheme.withParams(PHONE_PADDING);
 
 // Narrow grids fold Item and Date under the name and the status under the amount; medium ones
 // hide Date; wide ones show every column. Measured on the grid itself: on a phone it's about
-// 340px wide ("phone"); on a laptop it's about 940px at a 1280px window ("desktop"). The
+// 340px wide ("phone"); on a laptop it's about 1020px at a 1280px window ("desktop"). The
 // breakpoints sit where the next layout's minimum widths (below) stop fitting.
-const PHONE_MAX_WIDTH = 620;
-const TABLET_MAX_WIDTH = 950;
+export const PHONE_MAX_WIDTH = 760;
+export const TABLET_MAX_WIDTH = 950;
 // The status column on wider grids, in px (see buildColumnDefs).
 const STATUS_WIDTH = 272;
 
-type LayoutMode = "phone" | "tablet" | "desktop";
+export type LayoutMode = "phone" | "tablet" | "desktop";
 
 // Fixed sizes so the grid can be given an exact height that follows the visible rows.
 const ROW_HEIGHT = 42;
@@ -136,7 +136,7 @@ function AmountStatusCell(props: CustomCellRendererProps<LedgerRow> & StatusPara
  * The row's tick box, named after the customer and amount for screen readers (AG Grid's own box
  * says "Press Space to toggle row" on every row), with a hit area of at least 24px.
  */
-function SelectCell(props: CustomCellRendererProps<LedgerRow, unknown, DeleteContext>) {
+export function SelectCell(props: CustomCellRendererProps<LedgerRow, unknown, DeleteContext>) {
   const { node, context } = props;
   const [checked, setChecked] = useState(() => node.isSelected() ?? false);
   useEffect(() => {
@@ -178,9 +178,14 @@ function DeleteButton(props: CustomCellRendererProps<LedgerRow, unknown, DeleteC
 
 // Minimum widths are set so every header and status badge reads in full, in English and in
 // Bahasa Melayu (a late invoiced tab shows "Invois dihantar" and "40 hari lewat" side by side):
-// laptop columns total about 950px, which is TABLET_MAX_WIDTH; tablet ones about 745px; phone
+// laptop columns total about 950px, which is TABLET_MAX_WIDTH; tablet ones about 745px (under
+// PHONE_MAX_WIDTH, so a portrait tablet gets the two-line phone rows); phone
 // ones (two-line rows) about 300px, under the ~340px grid on a 390px phone.
-function buildColumnDefs(mode: LayoutMode, t: T, today: string): ColDef<LedgerRow>[] {
+/** "20 Oct": how a date reads in the owner's language (useT's formatDay). */
+type FormatDay = (day: string, opts?: { year?: boolean }) => string;
+
+/** The grid's columns for a layout; exported for tests. */
+export function buildColumnDefs(mode: LayoutMode, t: T, today: string, formatDay?: FormatDay): ColDef<LedgerRow>[] {
   const phone = mode === "phone";
   const desktop = mode === "desktop";
   // The pinned "Still owed" row has no date or status: it gets no label.
@@ -220,7 +225,13 @@ function buildColumnDefs(mode: LayoutMode, t: T, today: string): ColDef<LedgerRo
       width: 124,
       minWidth: 124,
       hide: !desktop,
-      getQuickFilterText: (p) => p.data?.date ?? "",
+      // Search finds the stored date and the words phones show under the name ("20 Oct"),
+      // so typing "Oct" works on every layout.
+      getQuickFilterText: (p) => {
+        const date = p.data?.date;
+        if (!date) return "";
+        return formatDay ? `${date} ${formatDay(date, { year: false })}` : date;
+      },
     },
     {
       field: "status",
@@ -259,7 +270,7 @@ function buildColumnDefs(mode: LayoutMode, t: T, today: string): ColDef<LedgerRo
 // A plain row click opens the detail sheet instead of ticking, and the pinned "Still owed" row
 // can't be ticked (no box shows on it).
 // The row boxes are our own SelectCell (named per row); AG Grid draws only the header box.
-const ROW_SELECTION: RowSelectionOptions<LedgerRow> = {
+export const ROW_SELECTION: RowSelectionOptions<LedgerRow> = {
   mode: "multiRow",
   checkboxes: false,
   headerCheckbox: true,
@@ -269,7 +280,7 @@ const ROW_SELECTION: RowSelectionOptions<LedgerRow> = {
   isRowSelectable: (node) => !node.rowPinned && node.data?.id !== "OUTSTANDING",
 };
 
-const SELECTION_COLUMN: SelectionColumnDef = {
+export const SELECTION_COLUMN: SelectionColumnDef = {
   // The tick box's 24px hit area plus the cell's side padding.
   cellRenderer: SelectCell,
   cellClass: "ledger-select-cell",
@@ -282,7 +293,7 @@ const SELECTION_COLUMN: SelectionColumnDef = {
 };
 
 // Phones use half the side padding, so the tick box column can be narrower.
-const SELECTION_COLUMN_PHONE: SelectionColumnDef = { ...SELECTION_COLUMN, width: 40, minWidth: 40, maxWidth: 40 };
+export const SELECTION_COLUMN_PHONE: SelectionColumnDef = { ...SELECTION_COLUMN, width: 40, minWidth: 40, maxWidth: 40 };
 
 /** What the ledger screen can ask of the grid. */
 export type LedgerGridHandle = {
@@ -372,7 +383,7 @@ export default function LedgerGrid({
     () => ({ onDelete: (debt) => onDeleteRef.current(debt), t, formatDay }),
     [t, formatDay],
   );
-  const columnDefs = useMemo(() => buildColumnDefs(layout, t, today), [layout, t, today]);
+  const columnDefs = useMemo(() => buildColumnDefs(layout, t, today, formatDay), [layout, t, today, formatDay]);
   // AG Grid's own words that actually show: the text filter popup and the empty overlay.
   const localeText = useMemo<Record<string, string>>(
     () => ({
