@@ -26,6 +26,9 @@ export async function POST(
     );
   }
 
+  const claimed = await store.claimPendingReminder(owner.email, decisionId);
+  if (!claimed) return NextResponse.json({ error: "Reminder was already taken for delivery." }, { status: 409 });
+
   // Person 2's safe delivery, called in-process.
   try {
     const delivery = await deliverScheduledReminder(decision.invoiceId);

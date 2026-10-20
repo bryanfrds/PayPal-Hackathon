@@ -3,9 +3,9 @@ import { NextResponse } from "next/server";
 import { requireOwner } from "@/lib/auth-server";
 import { getScanImage } from "@/lib/image-storage";
 import { getPerson1Store } from "@/lib/person1-store";
-import { extractNotebookEntries } from "@/lib/vision-extractor";
+import { extractNotebookEntries, type SyntheticScenario } from "@/lib/vision-extractor";
 
-export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const owner = await requireOwner();
   if (owner instanceof Response) return owner;
 
@@ -22,14 +22,36 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: "Source scan image unavailable." }, { status: 410 });
   }
 
+  let fixtureScenario: SyntheticScenario | undefined;
+  try {
+    const url = new URL(req.url);
+    const fixtureParam = url.searchParams.get("fixtureScenario");
+    if (fixtureParam) fixtureScenario = fixtureParam as SyntheticScenario;
+    if (!fixtureScenario) {
+      const body = await req.clone().json().catch(() => null);
+      if (body?.fixtureScenario) fixtureScenario = body.fixtureScenario;
+    }
+  } catch {}
+
   const newRevision = scan.revision + 1;
   const now = new Date().toISOString();
 
-  const entries = await extractNotebookEntries(bytes, scan.mimeType, {
-    scanId: scan.id,
-    revision: newRevision,
-    today: now.slice(0, 10),
-  });
+  let entries;
+  try {
+    entries = await extractNotebookEntries(bytes, scan.mimeType, {
+      scanId: scan.id,
+      revision: newRevision,
+      today: now.slice(0, 10),
+      fixtureScenario,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Rescan extraction failed.";
+    const isUnconfigured = message.includes("not configured");
+    return NextResponse.json(
+      { error: isUnconfigured ? "AI document scanning is not configured." : message },
+      { status: isUnconfigured ? 503 : 502 },
+    );
+  }
 
   const updatedScan = {
     ...scan,

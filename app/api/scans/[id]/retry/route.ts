@@ -3,9 +3,9 @@ import { NextResponse } from "next/server";
 import { requireOwner } from "@/lib/auth-server";
 import { getScanImage } from "@/lib/image-storage";
 import { getPerson1Store } from "@/lib/person1-store";
-import { extractNotebookEntries } from "@/lib/vision-extractor";
+import { extractNotebookEntries, type SyntheticScenario } from "@/lib/vision-extractor";
 
-export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const owner = await requireOwner();
   if (owner instanceof Response) return owner;
 
@@ -22,20 +22,36 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: "Source scan image unavailable." }, { status: 410 });
   }
 
+  let fixtureScenario: SyntheticScenario | undefined;
+  try {
+    const url = new URL(req.url);
+    const fixtureParam = url.searchParams.get("fixtureScenario");
+    if (fixtureParam) fixtureScenario = fixtureParam as SyntheticScenario;
+    if (!fixtureScenario) {
+      const body = await req.clone().json().catch(() => null);
+      if (body?.fixtureScenario) fixtureScenario = body.fixtureScenario;
+    }
+  } catch {}
+
   try {
     const entries = await extractNotebookEntries(bytes, scan.mimeType, {
       scanId: scan.id,
       revision: scan.revision,
       today: new Date().toISOString().slice(0, 10),
+      fixtureScenario,
     });
 
     await store.saveEntries(entries);
     await store.updateScanStatus(owner.email, scan.id, "completed");
 
-    return NextResponse.json({ scan, entries });
+    return NextResponse.json({ scan: { ...scan, status: "completed" }, entries });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Retry extraction failed.";
+    const isUnconfigured = message.includes("not configured");
     await store.updateScanStatus(owner.email, scan.id, "failed", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      { error: isUnconfigured ? "AI document scanning is not configured." : message },
+      { status: isUnconfigured ? 503 : 502 },
+    );
   }
 }
