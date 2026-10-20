@@ -3806,8 +3806,35 @@ body.nudge-sheet-open {
   }
 }
 
+/* Phone: tall enough for the month and four 40px rows of the day's list; a busier day scrolls
+   inside the list instead of being clipped by the card. */
 .reminder-board-phone {
-  height: 30rem;
+  height: 33rem;
+}
+
+.reminder-board-phone .b-month-agenda-agenda {
+  min-height: 0;
+}
+
+/* Today's date number: Bryntum's #1e88e5 blue is 2.3:1 on the light card. Our ink is well over
+   4.5:1 in both themes (it follows the light and dark tokens). */
+.reminder-board {
+  --b-date-picker-today-color: var(--ink);
+  --b-calendar-today-color: var(--ink);
+  --b-month-view-today-day-num-color: var(--ink);
+}
+
+/* Bryntum's date picker sets its own today colour on the cell, so it's overridden there too. */
+.reminder-board .b-calendar-panel-cell.b-today,
+.reminder-board .b-calendar-panel-cell.b-today .b-date-picker-cell-inner {
+  --b-calendar-panel-color: var(--ink);
+  --b-date-picker-today-color: var(--ink);
+  color: var(--ink);
+}
+
+/* Keeps "RM" and its amount on one line. */
+.nowrap {
+  white-space: nowrap;
 }
 
 .reminder-board .b-widget,
