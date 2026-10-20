@@ -6,6 +6,7 @@ import {
   TABS_COLUMN_WIDTH,
   GRID_CELL_PADDING,
   TABS_NARROW_STEPS,
+  TABS_FILL_STEP,
   studioCanvasWidth,
   layoutKind,
   tabsGridFor,
@@ -31,7 +32,8 @@ function estimatedCanvas(screen: number) {
 
 const fits = (grid: TabsGrid, room: number) => grid.columns * grid.columnWidth + GRID_SCROLLBAR <= room;
 const NARROWEST = TABS_NARROW_STEPS[TABS_NARROW_STEPS.length - 1];
-const wide96 = { columns: 5, columnWidth: 96, cellPadding: GRID_CELL_PADDING } as const;
+const five = (columnWidth: number) => ({ columns: 5 as const, columnWidth, cellPadding: GRID_CELL_PADDING });
+const wide96 = five(96);
 const three = (columnWidth: number, cellPadding: number = GRID_CELL_PADDING) => ({ columns: 3 as const, columnWidth, cellPadding });
 
 describe("studioCanvasWidth", () => {
@@ -56,7 +58,7 @@ describe("tabsGridFor", () => {
   it.each([
     [328, "phone", 292, three(90)],
     [358, "phone", 322, three(96)],
-    [718, "wide", 448, three(96)],
+    [718, "wide", 448, three(144)],
     [422, "wide", 251, three(78, 4)],
   ] as const)("measured canvas %ipx (%s): grid %ipx", (canvas, kind, room, expected) => {
     expect(tabsGridRoom(canvas, kind)).toBe(room);
@@ -70,13 +72,13 @@ describe("tabsGridFor", () => {
     [360, "phone", 292, three(90)],
     [375, "phone", 307, three(96)],
     [390, "phone", 322, three(96)],
-    [681, "wide", 397, three(96)],
-    [768, "wide", 455, three(96)],
-    [900, "wide", 543, wide96],
-    [1024, "wide", 252, three(78, 4)],
-    [1280, "wide", 422, three(96)],
-    [1366, "wide", 480, three(96)],
-    [1600, "wide", 502, wide96],
+    [681, "wide", 397, three(120)],
+    [768, "wide", 455, three(144)],
+    [900, "wide", 543, five(104)],
+    [1024, "wide", 265, three(78, 4)],
+    [1280, "wide", 436, three(136)],
+    [1366, "wide", 493, three(152)],
+    [1600, "wide", 516, wide96],
   ] as const)("%ipx screen (%s, about %ipx of room): every column fits", (screen, kind, room, expected) => {
     const estimate = estimatedCanvas(screen);
     expect(estimate.kind).toBe(kind);
@@ -100,20 +102,30 @@ describe("tabsGridFor", () => {
     expect(tabsGridFor(200, "phone")).toEqual(three(78, 4));
   });
 
-  it("changes only at a few coarse steps, so neighbouring widths give the same grid", () => {
-    const seen = new Set<string>();
+  it("changes only at coarse steps, so neighbouring widths give the same grid", () => {
+    const narrow = TABS_NARROW_STEPS.map((step) => step.columnWidth as number);
     for (const kind of ["phone", "wide"] as const) {
       for (let canvas = 300; canvas <= 1200; canvas++) {
         const here = tabsGridFor(canvas, kind);
-        seen.add(`${here.columns}x${here.columnWidth}`);
-        const next = tabsGridFor(canvas + 1, kind);
-        // Any change is a step to the next allowed width or to five columns, never a 1px nudge.
-        if (here.columnWidth !== next.columnWidth) expect(TABS_NARROW_STEPS.map((step) => step.columnWidth)).toContain(next.columnWidth);
+        // A narrow step, or 96px and up in TABS_FILL_STEP steps: never a 1px nudge.
+        const allowed = narrow.includes(here.columnWidth) || (here.columnWidth - TABS_COLUMN_WIDTH) % TABS_FILL_STEP === 0;
+        expect(allowed, `${kind} ${canvas}: ${here.columnWidth}`).toBe(true);
       }
     }
-    expect([...seen].sort()).toEqual(["3x78", "3x85", "3x90", "3x96", "5x96"]);
     expect(tabsGridFor(330, "phone")).toEqual(tabsGridFor(331, "phone"));
     expect(tabsGridFor(700, "wide")).toEqual(tabsGridFor(701, "wide"));
+  });
+
+  it("grows the columns to fill the tile, leaving less than one fill step per column unused", () => {
+    for (const kind of ["phone", "wide"] as const) {
+      for (let canvas = 300; canvas <= 1200; canvas++) {
+        const grid = tabsGridFor(canvas, kind);
+        if (grid.columnWidth < TABS_COLUMN_WIDTH) continue;
+        const spare = tabsGridRoom(canvas, kind) - GRID_SCROLLBAR - grid.columns * grid.columnWidth;
+        expect(spare).toBeGreaterThanOrEqual(0);
+        if (grid.columnWidth > TABS_COLUMN_WIDTH) expect(spare).toBeLessThan(grid.columns * TABS_FILL_STEP);
+      }
+    }
   });
 
   it.each(TABS_NARROW_STEPS.map((step) => [step.columnWidth, step.cellPadding]))(

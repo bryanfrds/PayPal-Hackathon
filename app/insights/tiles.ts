@@ -126,8 +126,12 @@ export function valueTilesFor(canvasWidth: number, kind: LayoutKind): ValueTiles
   return VALUE_STEPS[kind].find((values) => valueTileRoom(canvasWidth, kind, values) >= VALUE_AMOUNT_WIDTH) ?? 1;
 }
 
-/** Nudge's chat panel width on Insights (the theme's studioAiPanelWidth), in px. */
-export const NUDGE_PANEL_WIDTH = 340;
+/**
+ * Nudge's chat panel width on Insights (the theme's studioAiPanelWidth), in px. 320 leaves the
+ * three value tiles side by side at 1280px with room to spare for a classic 15px scrollbar (at
+ * 340 they had 2px to spare, and "Overdue tabs" dropped to its own row).
+ */
+export const NUDGE_PANEL_WIDTH = 320;
 /** The 1px divider Studio draws beside a docked panel (its borderWidth). */
 export const PANEL_DIVIDER = 1;
 
@@ -179,13 +183,24 @@ export function tabsGridRoom(canvasWidth: number, kind: LayoutKind): number {
   return tabsTileWidth(canvasWidth, kind) - 2 * WIDGET_PADDING;
 }
 
+/** Columns wider than 96px grow in steps this size, so the grid fills its tile but a window drag only remounts Studio every few px. */
+export const TABS_FILL_STEP = 8;
+
+/** The widest column, in TABS_FILL_STEP steps, that lets `columns` columns fill `room`, never under 96px. */
+function fillWidth(room: number, columns: number): number {
+  return Math.max(TABS_COLUMN_WIDTH, Math.floor(room / columns / TABS_FILL_STEP) * TABS_FILL_STEP);
+}
+
 /**
- * How many columns the "Every tab" grid shows and how wide: all five at 96px when they fit
+ * How many columns the "Every tab" grid shows and how wide: all five when they fit at 96px
  * beside a scrollbar, otherwise customer, amount and days late at the widest step that fits.
+ * With room to spare the columns grow to fill the tile (Studio gives every column one width),
+ * instead of leaving the right of the card empty.
  */
 export function tabsGridFor(canvasWidth: number, kind: LayoutKind): TabsGrid {
   const room = tabsGridRoom(canvasWidth, kind) - GRID_SCROLLBAR;
-  if (room >= 5 * TABS_COLUMN_WIDTH) return { columns: 5, columnWidth: TABS_COLUMN_WIDTH, cellPadding: GRID_CELL_PADDING };
+  if (room >= 5 * TABS_COLUMN_WIDTH) return { columns: 5, columnWidth: fillWidth(room, 5), cellPadding: GRID_CELL_PADDING };
   const step = TABS_NARROW_STEPS.find(({ columnWidth }) => 3 * columnWidth <= room);
+  if (step?.columnWidth === TABS_COLUMN_WIDTH) return { columns: 3, columnWidth: fillWidth(room, 3), cellPadding: GRID_CELL_PADDING };
   return { columns: 3, ...(step ?? TABS_NARROW_STEPS[TABS_NARROW_STEPS.length - 1]) };
 }
