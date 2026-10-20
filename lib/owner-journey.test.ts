@@ -217,7 +217,7 @@ describe("Person 3: End-to-End Owner Journeys", () => {
           item: "Beras",
           amountSen: 4500,
           date: "2026-09-01",
-          status: "overdue",
+          status: "sent",
           source: "manual",
           createdAt: "2026-09-01T00:00:00Z",
         },

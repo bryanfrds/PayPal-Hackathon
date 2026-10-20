@@ -7,6 +7,7 @@ import type { InvoiceRecord } from "./collect-store";
 import { customerSlug, daysBetween, dueDateFor } from "./customer-tab";
 import type { Debt } from "./debts";
 import type { ScheduleItem } from "./reminders";
+import { isInvoiced, isNotInvoiced, isOverdue } from "./tab-status";
 
 /** Most customers sent to the model; the rest are summed into the totals only. */
 export const MAX_CUSTOMERS = 40;
@@ -23,7 +24,7 @@ export const nudgeCustomerSchema = z.object({
   owedSen: z.number().int().min(0).max(MAX_OWED_SEN),
   /** Days the oldest unpaid bill is past its due date; 0 if not due yet. */
   daysLate: z.number().int().min(0).max(3650),
-  /** "Invoice sent", "Overdue", "Not sent" — the most urgent status on their tab. */
+  /** "Overdue" (an invoiced tab is late), "Not sent" (a tab has no invoice yet) or "Invoice sent". */
   status: z.string().max(20),
   invoiceNumber: z.string().max(20).optional(),
   /** YYYY-MM-DD of the next reminder, if one is planned. */
@@ -43,8 +44,6 @@ export const nudgeContextSchema = z.object({
 export type NudgeCustomer = z.infer<typeof nudgeCustomerSchema>;
 export type NudgeContext = z.infer<typeof nudgeContextSchema>;
 
-const STATUS_RANK: Record<Debt["status"], number> = { overdue: 0, sent: 1, unpaid: 2, paid: 3 };
-const STATUS_TEXT: Record<Debt["status"], string> = { overdue: "Overdue", sent: "Invoice sent", unpaid: "Not sent", paid: "Paid" };
 
 /** Everyone who still owes, most urgent first (most days late, then most owed). */
 export function buildNudgeContext(
@@ -69,7 +68,6 @@ export function buildNudgeContext(
 
   const customers: NudgeCustomer[] = [...groups].map(([slug, tabs]) => {
     const oldest = tabs.map((d) => d.date.slice(0, 7)).sort()[0];
-    const worst = tabs.reduce((a, b) => (STATUS_RANK[b.status] < STATUS_RANK[a.status] ? b : a));
     const invoice = invoices.filter((inv) => inv.slug === slug).sort((a, b) => b.sentAt.localeCompare(a.sentAt))[0];
     const reminders = schedule.filter((i) => i.kind === "reminder" && i.slug === slug);
     const next = reminders.find((r) => !r.sent);
@@ -80,8 +78,10 @@ export function buildNudgeContext(
       // Capped so one very big tab can't make the whole summary fail its own limits.
       owedSen: Math.min(MAX_OWED_SEN, tabs.reduce((sum, d) => sum + d.amountSen, 0)),
       daysLate,
-      // Past the due date counts as overdue even if no one marked it, like the customer's own page.
-      status: worst.status === "sent" && daysLate > 0 ? "Overdue" : STATUS_TEXT[worst.status],
+      // The same rules as every screen (lib/tab-status): "Overdue" only when an invoiced tab is
+      // late, so there's something to remind about; "Not sent" while any tab still needs an
+      // invoice (daysLate still says how late it is); otherwise "Invoice sent".
+      status: tabs.some((d) => isInvoiced(d) && isOverdue(d, today)) ? "Overdue" : tabs.some(isNotInvoiced) ? "Not sent" : "Invoice sent",
       invoiceNumber: invoice?.number,
       nextReminder: next?.day,
       remindersSent: reminders.filter((r) => r.sent).length,
