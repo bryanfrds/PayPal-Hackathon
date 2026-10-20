@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { requireOwner } from "@/lib/auth-server";
 import { paymentDb } from "@/lib/payment-db";
 import { getPerson1Store } from "@/lib/person1-store";
+import { deliverScheduledReminder } from "@/lib/remind";
 import { processEligibleReminders, type InvoiceCandidate, type SchedulerDeps } from "@/lib/reminder-scheduler";
 
 export async function POST(req: Request) {
@@ -25,22 +26,8 @@ export async function POST(req: Request) {
       }
       return [];
     },
-    sendReminder: async (invoiceId: string) => {
-      // Delegate safely to Person 2's remind endpoint internally
-      const host = req.headers.get("host") || "localhost:3000";
-      const protocol = host.startsWith("localhost") ? "http" : "https";
-      try {
-        const cookie = req.headers.get("cookie") || "";
-        const res = await fetch(`${protocol}://${host}/api/invoices/${invoiceId}/remind`, {
-          method: "POST",
-          headers: { cookie },
-        });
-        const data = await res.json().catch(() => ({}));
-        return { ok: res.ok, message: data.message || "Delivered", error: data.error };
-      } catch (err) {
-        return { ok: false, error: err instanceof Error ? err.message : "Delivery call failed" };
-      }
-    },
+    // Person 2's safe delivery, called in-process.
+    sendReminder: deliverScheduledReminder,
   };
 
   const outcome = await processEligibleReminders(owner.email, deps);
