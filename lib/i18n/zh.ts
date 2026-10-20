@@ -265,7 +265,6 @@ export const zh: Dictionary = {
   "scan.fewSeconds": "需要几秒钟。",
   "scan.progress": "读取进度",
   // Scan: check
-  "scan.backToCamera": "返回相机",
   "scan.checkPage": "检查这一页",
   "scan.checkReceipt": "检查收据",
   "scan.photoNotebook": "你的账簿照片",

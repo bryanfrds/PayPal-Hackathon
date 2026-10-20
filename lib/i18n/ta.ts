@@ -266,7 +266,6 @@ export const ta: Dictionary = {
   "scan.fewSeconds": "இதற்குச் சில விநாடிகள் ஆகும்.",
   "scan.progress": "படிக்கும் முன்னேற்றம்",
   // scan: check
-  "scan.backToCamera": "கேமராவுக்குத் திரும்பு",
   "scan.checkPage": "பக்கத்தைச் சரிபாருங்கள்",
   "scan.checkReceipt": "ரசீதைச் சரிபாருங்கள்",
   "scan.photoNotebook": "உங்கள் நோட்டுப் புத்தகப் புகைப்படம்",

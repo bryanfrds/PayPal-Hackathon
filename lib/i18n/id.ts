@@ -266,7 +266,6 @@ export const id: Dictionary = {
   "scan.fewSeconds": "Butuh beberapa detik.",
   "scan.progress": "Proses membaca",
   // scan: check
-  "scan.backToCamera": "Kembali ke kamera",
   "scan.checkPage": "Cek halamannya",
   "scan.checkReceipt": "Cek struknya",
   "scan.photoNotebook": "Foto buku catatanmu",

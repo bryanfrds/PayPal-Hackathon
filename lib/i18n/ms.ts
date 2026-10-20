@@ -267,7 +267,6 @@ export const ms: Dictionary = {
   "scan.fewSeconds": "Ini ambil beberapa saat.",
   "scan.progress": "Kemajuan membaca",
   // Scan: check
-  "scan.backToCamera": "Kembali ke kamera",
   "scan.checkPage": "Semak muka surat",
   "scan.checkReceipt": "Semak resit",
   "scan.photoNotebook": "Gambar buku anda",

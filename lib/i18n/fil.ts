@@ -267,7 +267,6 @@ export const fil: Dictionary = {
   "scan.fewSeconds": "Ilang segundo lang ito.",
   "scan.progress": "Progreso ng pagbasa",
   // scan: check
-  "scan.backToCamera": "Bumalik sa camera",
   "scan.checkPage": "Suriin ang pahina",
   "scan.checkReceipt": "Suriin ang resibo",
   "scan.photoNotebook": "Litrato ng notebook mo",

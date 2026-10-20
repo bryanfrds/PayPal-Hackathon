@@ -267,7 +267,6 @@ export const bn: Dictionary = {
   "scan.fewSeconds": "কয়েক সেকেন্ড লাগবে।",
   "scan.progress": "পড়ার অগ্রগতি",
   // scan: check
-  "scan.backToCamera": "ক্যামেরায় ফিরুন",
   "scan.checkPage": "পাতাটা দেখে নিন",
   "scan.checkReceipt": "রসিদটা দেখে নিন",
   "scan.photoNotebook": "আপনার খাতার ছবি",

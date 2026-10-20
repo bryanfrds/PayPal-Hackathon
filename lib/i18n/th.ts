@@ -265,7 +265,6 @@ export const th: Dictionary = {
   "scan.fewSeconds": "ใช้เวลาไม่กี่วินาที",
   "scan.progress": "ความคืบหน้าการอ่าน",
   // scan: check
-  "scan.backToCamera": "กลับไปที่กล้อง",
   "scan.checkPage": "ตรวจหน้าสมุด",
   "scan.checkReceipt": "ตรวจใบเสร็จ",
   "scan.photoNotebook": "รูปสมุดของคุณ",

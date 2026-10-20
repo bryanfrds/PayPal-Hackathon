@@ -265,7 +265,6 @@ export const vi: Dictionary = {
   "scan.fewSeconds": "Chỉ mất vài giây.",
   "scan.progress": "Tiến độ đọc",
   // scan: check
-  "scan.backToCamera": "Quay lại camera",
   "scan.checkPage": "Kiểm tra trang sổ",
   "scan.checkReceipt": "Kiểm tra biên lai",
   "scan.photoNotebook": "Ảnh sổ của bạn",

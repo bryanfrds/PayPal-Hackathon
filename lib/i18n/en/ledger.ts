@@ -139,7 +139,6 @@ export const ledger = {
   "scan.fewSeconds": "This takes a few seconds.",
   "scan.progress": "Reading progress",
   // Scan: check
-  "scan.backToCamera": "Back to camera",
   "scan.checkPage": "Check the page",
   "scan.checkReceipt": "Check the receipt",
   "scan.photoNotebook": "Your notebook photo",
