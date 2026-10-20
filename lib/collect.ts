@@ -2,7 +2,8 @@
 // Pure functions; the screens and the /api/invoices route use them.
 
 import { customerSlug } from "./customer-tab";
-import type { Debt } from "./debts";
+import { todayLocal, type Debt } from "./debts";
+import { isNotInvoiced, isOverdue } from "./tab-status";
 
 /**
  * An invoice request saved on the device before it goes to PayPal, and kept until the
@@ -21,10 +22,8 @@ export type PendingSend = {
   startedAt: string;
 };
 
-/** Tabs that haven't been invoiced yet: not sent, or already overdue without an invoice. */
-export function isInvoiceable(debt: Debt): boolean {
-  return debt.status === "unpaid" || debt.status === "overdue";
-}
+/** Tabs that haven't been invoiced yet: the shared rule, isNotInvoiced in lib/tab-status. */
+export const isInvoiceable = isNotInvoiced;
 
 export type CollectGroup = {
   customerName: string;
@@ -32,7 +31,7 @@ export type CollectGroup = {
   /** Oldest first. */
   debts: Debt[];
   totalSen: number;
-  /** "overdue" if any tab is overdue, otherwise "unpaid" (not sent). */
+  /** "overdue" if any tab is overdue (isOverdue: past due or marked), otherwise "unpaid" (not sent). */
   status: "overdue" | "unpaid";
   /** Saved email, if the shop has added one. */
   email?: string;
@@ -43,13 +42,15 @@ export type CollectGroup = {
 /**
  * One group per customer with tabs to invoice, overdue first, then biggest amount first.
  * A customer with an unfinished send is limited to that send's tabs, email and amount;
- * tabs added since then wait for the next invoice.
+ * tabs added since then wait for the next invoice. `today` (YYYY-MM-DD) decides which are late.
  */
 export function collectGroups(
   debts: Debt[],
   emails: Record<string, string>,
   pending: Record<string, PendingSend> = {},
+  today: string = todayLocal(),
 ): CollectGroup[] {
+  const late = (d: Debt) => isOverdue(d, today);
   const bySlug = new Map<string, CollectGroup>();
   for (const debt of debts) {
     if (!isInvoiceable(debt)) continue;
@@ -58,14 +59,14 @@ export function collectGroups(
     if (group) {
       group.debts.push(debt);
       group.totalSen += debt.amountSen;
-      if (debt.status === "overdue") group.status = "overdue";
+      if (late(debt)) group.status = "overdue";
     } else {
       bySlug.set(slug, {
         customerName: debt.customerName,
         slug,
         debts: [debt],
         totalSen: debt.amountSen,
-        status: debt.status === "overdue" ? "overdue" : "unpaid",
+        status: late(debt) ? "overdue" : "unpaid",
         email: emails[slug],
       });
     }
@@ -77,7 +78,7 @@ export function collectGroups(
       group.debts = held;
       group.totalSen = p.amountSen;
       group.email = p.email;
-      group.status = held.some((d) => d.status === "overdue") ? "overdue" : "unpaid";
+      group.status = held.some(late) ? "overdue" : "unpaid";
       group.pending = p;
     }
     group.debts.sort((a, b) => a.date.localeCompare(b.date));

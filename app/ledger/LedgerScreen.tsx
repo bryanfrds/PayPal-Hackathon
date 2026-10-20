@@ -196,7 +196,7 @@ export default function LedgerScreen() {
   const shown = filterByStatus(debts, filter, today);
   // Same list as Collect's "To send": customers with tabs not invoiced yet.
   const { emails, invoices, pending } = useCollect();
-  const toInvoice = collectGroups(debts, emails, pending).length;
+  const toInvoice = collectGroups(debts, emails, pending, today).length;
 
   // The newest invoice for each debt (an older, replaced invoice no longer counts).
   const invoiceRecordMap = useMemo(() => latestInvoiceByDebt(invoices), [invoices]);
