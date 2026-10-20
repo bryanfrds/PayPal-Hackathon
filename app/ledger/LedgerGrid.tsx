@@ -102,12 +102,13 @@ function DeleteButton(props: CustomCellRendererProps<LedgerRow, unknown, DeleteC
 
 // Minimum widths are set so the visible columns fit without cutting the status badges or the
 // date: phone columns (with the 34px tick box) total about 332px, under the ~340px grid on a
-// 390px phone; laptop columns total about 722px, under the ~730px grid at 1280px.
+// 390px phone; laptop columns total about 726px, under the ~730px grid at 1280px.
 function buildColumnDefs(mode: LayoutMode, t: T, today: string): ColDef<LedgerRow>[] {
   const phone = mode === "phone";
-  const label = (debt: Debt | undefined) => (debt ? tabStatusText(debt, today, t) : "");
+  // The pinned "Still owed" row has no date or status: it gets no label.
+  const label = (debt: Debt | undefined) => (debt?.status && debt.date ? tabStatusText(debt, today, t) : "");
   return [
-    { field: "customerName", headerName: t("ledger.colName"), flex: 1.3, minWidth: phone ? 88 : 130, tooltipField: "customerName" },
+    { field: "customerName", headerName: t("ledger.colName"), flex: 1.3, minWidth: phone ? 88 : 110, tooltipField: "customerName" },
     // Item gives up width first, so a late tab's two status badges fit beside it.
     { field: "item", headerName: t("ledger.colItem"), flex: 2, minWidth: 80, hide: phone, tooltipField: "item" },
     {
@@ -134,7 +135,7 @@ function buildColumnDefs(mode: LayoutMode, t: T, today: string): ColDef<LedgerRo
       headerName: t("ledger.colStatus"),
       flex: 1,
       // Phones show one badge; wider grids show the invoice state and a late badge side by side.
-      minWidth: phone ? 112 : 186,
+      minWidth: phone ? 112 : 210,
       cellRenderer: StatusCell,
       cellRendererParams: { today, compact: phone } satisfies StatusParams,
       // Search and filter by the words on the badges ("Invoice sent · Overdue"), not the stored value.
@@ -142,7 +143,7 @@ function buildColumnDefs(mode: LayoutMode, t: T, today: string): ColDef<LedgerRo
       filterValueGetter: (p) => label(p.data),
       // Header sort goes by urgency (overdue → invoice sent → not sent → paid), not A–Z.
       comparator: (_a, _b, nodeA, nodeB) =>
-        (nodeA.data ? statusRank(nodeA.data, today) : 9) - (nodeB.data ? statusRank(nodeB.data, today) : 9),
+        (nodeA.data?.status ? statusRank(nodeA.data, today) : 9) - (nodeB.data?.status ? statusRank(nodeB.data, today) : 9),
       valueFormatter: (p) => label(p.data),
     },
     {
