@@ -791,6 +791,12 @@ a {
 }
 
 .section-head a {
+  /* A 44px-tall tap area; the negative margins keep the heading row the same height. */
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin: -12px -0.5rem;
+  padding: 0 0.5rem;
   font-size: 0.85rem;
   font-weight: 700;
   color: var(--ink);
@@ -2436,9 +2442,13 @@ button.tab-back:focus-visible {
 }
 
 .collect-email {
+  /* About 28px tall to tap; the negative margins keep the row's spacing as it was. */
+  display: block;
   overflow: hidden;
   max-width: 100%;
-  padding: 0;
+  margin: -0.35rem 0;
+  padding: 0.35rem 0;
+  text-align: left;
   font: inherit;
   font-size: 0.78rem;
   color: var(--muted);
