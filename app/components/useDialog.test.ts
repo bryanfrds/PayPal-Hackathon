@@ -39,6 +39,24 @@ describe("inertOutside", () => {
     expect(script.inert).toBe(false);
   });
 
+  it("keeps a sheet's tap-to-close backdrop live (the walk starts from .sheet-layer)", () => {
+    // <body><header/><main/><div.sheet-layer><div.sheet-dim/><div sheet/></div></body>
+    const dim = el("DIV");
+    const sheet = el("DIV") as FakeEl & { closest?: (s: string) => FakeEl | null };
+    const layer = el("DIV", [dim, sheet]);
+    sheet.closest = (s) => (s === ".sheet-layer" ? layer : null);
+    const header = el("HEADER");
+    const main = el("MAIN");
+    el("HTML", [el("HEAD"), el("BODY", [header, main, layer])]);
+    const restore = inertOutside(sheet);
+    expect(dim.inert).toBe(false);
+    expect(sheet.inert).toBe(false);
+    expect(layer.inert).toBe(false);
+    expect([header.inert, main.inert]).toEqual([true, true]);
+    restore();
+    expect([header.inert, main.inert]).toEqual([false, false]);
+  });
+
   it("undoes only what it did", () => {
     const { dialog, h1, p, header, toast } = page();
     const restore = inertOutside(dialog);

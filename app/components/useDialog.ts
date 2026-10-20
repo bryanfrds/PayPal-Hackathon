@@ -35,16 +35,24 @@ function focusables(root: HTMLElement): HTMLElement[] {
 }
 
 /** The bits of an element inertOutside touches, so it can be tested without a browser. */
-type Node_ = { parentElement: Node_ | null; children: ArrayLike<Node_>; inert?: boolean; tagName: string };
+type Node_ = {
+  parentElement: Node_ | null;
+  children: ArrayLike<Node_>;
+  inert?: boolean;
+  tagName: string;
+  closest?: (selector: string) => Node_ | null;
+};
 
 /**
- * Makes everything outside `root` inert (no clicks, no focus, hidden from screen readers) by
- * marking the siblings of `root` and of each of its ancestors, up to <body>. Returns a function
- * that undoes exactly what it did; elements that were already inert are left alone.
+ * Makes everything outside the dialog inert (no clicks, no focus, hidden from screen readers) by
+ * marking the siblings of the dialog and of each of its ancestors, up to <body>. A sheet's dimmed
+ * backdrop (.sheet-dim) sits beside it inside .sheet-layer and closes it on tap, so the walk starts
+ * from that layer and the backdrop stays live. Returns a function that undoes exactly what it did;
+ * elements that were already inert are left alone.
  */
 export function inertOutside(root: Node_): () => void {
   const changed: Node_[] = [];
-  let node: Node_ | null = root;
+  let node: Node_ | null = root.closest?.(".sheet-layer") ?? root;
   while (node?.parentElement && node.tagName !== "BODY") {
     const parent: Node_ = node.parentElement;
     for (const sibling of Array.from(parent.children)) {
