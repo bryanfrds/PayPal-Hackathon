@@ -149,4 +149,59 @@ describe("debt-handoff", () => {
     expect(result.rejected.find((r) => r.entryId === "entry-ambiguous")?.reason).toMatch(/ambiguous/i);
     expect(result.rejected.find((r) => r.entryId === "entry-crossed")?.reason).toMatch(/crossed out|excluded/i);
   });
+
+  it("updates existing approved debt in place when entry is edited, without creating duplicate approved debts", async () => {
+    const entry: ExtractedEntry = {
+      id: "entry-edit-test",
+      scanId: "scan-1",
+      revision: 1,
+      rawText: "Pak Ali 100.00",
+      customerName: "Pak Ali",
+      item: "Beras",
+      amountSen: 10000, // RM100
+      rawAmountText: "100.00",
+      date: "2026-10-18",
+      classification: "debt",
+      confidence: 0.95,
+      isAmbiguous: false,
+      included: true,
+      confirmedCustomerId: "cust-1",
+      sourceRef: { lineIndex: 1 },
+      ownerEdited: false,
+      createdAt: "2026-10-18T00:00:00Z",
+      updatedAt: "2026-10-18T00:00:00Z",
+    };
+
+    await store.saveEntries([entry]);
+
+    // Initial approval for RM100
+    const firstResult = await approveDebtsForInvoicing(owner, ["entry-edit-test"], store);
+    expect(firstResult.approved).toHaveLength(1);
+    expect(firstResult.approved[0].amountSen).toBe(10000);
+    const initialApprovedId = firstResult.approved[0].id;
+
+    // Verify exactly one approved debt exists
+    let allDebts = await store.getApprovedDebts(owner);
+    expect(allDebts).toHaveLength(1);
+    expect(allDebts[0].amountSen).toBe(10000);
+
+    // Edit the entry to RM120
+    await store.updateEntry(owner, "entry-edit-test", {
+      amountSen: 12000,
+      item: "Beras Wangi",
+      ownerEdited: true,
+    });
+
+    // Re-approve the edited entry
+    const secondResult = await approveDebtsForInvoicing(owner, ["entry-edit-test"], store);
+    expect(secondResult.approved).toHaveLength(1);
+    expect(secondResult.approved[0].amountSen).toBe(12000);
+    expect(secondResult.approved[0].id).toBe(initialApprovedId); // Stable ID preserved!
+
+    // Verify there is STILL exactly one approved debt in the store, updated to RM120
+    allDebts = await store.getApprovedDebts(owner);
+    expect(allDebts).toHaveLength(1);
+    expect(allDebts[0].amountSen).toBe(12000);
+    expect(allDebts[0].item).toBe("Beras Wangi");
+  });
 });

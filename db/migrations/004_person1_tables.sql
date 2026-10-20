@@ -68,7 +68,8 @@ CREATE TABLE IF NOT EXISTS approved_debts (
   item TEXT NOT NULL,
   date TEXT NOT NULL,
   approved_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  handoff_key TEXT NOT NULL UNIQUE
+  handoff_key TEXT NOT NULL UNIQUE,
+  CONSTRAINT uq_approved_debts_owner_source UNIQUE (owner_email, source_entry_id)
 );
 
 CREATE TABLE IF NOT EXISTS reminder_rules (

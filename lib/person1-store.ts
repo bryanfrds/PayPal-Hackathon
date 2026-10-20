@@ -43,6 +43,7 @@ export interface Person1Store {
   saveApprovedDebts(debts: ApprovedDebtRecord[]): Promise<void>;
   getApprovedDebts(ownerEmail: string): Promise<ApprovedDebtRecord[]>;
   getApprovedDebtByHandoffKey(ownerEmail: string, handoffKey: string): Promise<ApprovedDebtRecord | null>;
+  getApprovedDebtBySourceEntryId(ownerEmail: string, sourceEntryId: string): Promise<ApprovedDebtRecord | null>;
 
   // Reminder Rules & Decisions
   getReminderRules(ownerEmail: string): Promise<ReminderRuleRecord>;
@@ -169,7 +170,20 @@ export function createMemoryPerson1Store(): Person1Store {
 
     async saveApprovedDebts(newDebts) {
       for (const d of newDebts) {
-        approvedDebts.set(d.id, { ...d });
+        let replaced = false;
+        for (const [key, existing] of approvedDebts.entries()) {
+          if (
+            existing.ownerEmail.toLowerCase() === d.ownerEmail.toLowerCase() &&
+            existing.sourceEntryId === d.sourceEntryId
+          ) {
+            approvedDebts.set(key, { ...existing, ...d, id: existing.id });
+            replaced = true;
+            break;
+          }
+        }
+        if (!replaced) {
+          approvedDebts.set(d.id, { ...d });
+        }
       }
     },
     async getApprovedDebts(ownerEmail) {
@@ -184,6 +198,14 @@ export function createMemoryPerson1Store(): Person1Store {
     async getApprovedDebtByHandoffKey(ownerEmail, handoffKey) {
       for (const d of approvedDebts.values()) {
         if (d.ownerEmail.toLowerCase() === ownerEmail.toLowerCase() && d.handoffKey === handoffKey) {
+          return { ...d };
+        }
+      }
+      return null;
+    },
+    async getApprovedDebtBySourceEntryId(ownerEmail, sourceEntryId) {
+      for (const d of approvedDebts.values()) {
+        if (d.ownerEmail.toLowerCase() === ownerEmail.toLowerCase() && d.sourceEntryId === sourceEntryId) {
           return { ...d };
         }
       }
