@@ -345,6 +345,13 @@ export function initialStateFor(kind: LayoutKind, tabs: TabsGrid, t: T = transla
   } as unknown as AgReportState<BukuRegistry>;
 }
 
+/**
+ * Studio's own words we change on every Studio screen. It adds an English "(sum)" to summed
+ * fields ("Belum dibayar (sum)"); our field names already say what they are, and the longer
+ * legend paged "1/2" on a 360px phone, hiding the second series.
+ */
+export const STUDIO_LOCALE_TEXT = { aggregationSumFieldName: "${name}" } as const;
+
 /** Rows of 16px in Home's single-chart tile. */
 export const HOME_CHART_ROWS = 13;
 

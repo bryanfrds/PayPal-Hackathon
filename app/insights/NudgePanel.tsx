@@ -6,6 +6,7 @@
 import type { AgPanelConfig, AgStudioLocaleText } from "ag-studio";
 import { translator, type MessageKey, type T } from "@/lib/i18n";
 import { useT } from "../useT";
+import { STUDIO_LOCALE_TEXT } from "./studio-config";
 
 /**
  * View mode with Studio's AI panel on the right. Studio's types list the AI panel for edit mode
@@ -24,6 +25,7 @@ export function nudgeLocaleText(t: T = translator()): AgStudioLocaleText {
     aiThinkingIndicator: t("nudge.thinking"),
     aiSubmitButton: t("nudge.send"),
     aiSubmitButtonAriaLabel: t("nudge.sendMessageAria"),
+    ...STUDIO_LOCALE_TEXT,
   } as AgStudioLocaleText;
 }
 
