@@ -354,7 +354,7 @@ export default function LedgerScreen() {
               onRowClick={(debt) => setDetailDebt(debt)}
               onSelectionChange={(selected) => setSelectedDebts(selected)}
             />
-            <aside className="card ledger-summary ledger-wide-only" aria-label={t("ledger.totalsLabel")}>
+            <aside className="card ledger-summary" aria-label={t("ledger.totalsLabel")}>
               <p className="ledger-summary-k">{t("ledger.stillOwed")}</p>
               <p className="ledger-summary-v">RM {formatSen(owedSen)}</p>
               {/* Overdue is part of what's owed, not a fourth pile, so it sits under the total. */}

@@ -188,6 +188,8 @@ export const ms: Dictionary = {
   "ledger.searchPlaceholder": "Cari nama, barang, status…",
   "ledger.delete": "Padam",
   "ledger.deleteRow": "Padam hutang {name} sebanyak RM {amount}",
+  "ledger.selectRow": "Pilih hutang {name} sebanyak RM {amount}",
+  "ledger.selectAll": "Pilih semua hutang yang ditunjuk",
   "ledger.colName": "Nama",
   "ledger.colItem": "Barang",
   "ledger.colAmount": "Jumlah (RM)",

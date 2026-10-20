@@ -58,6 +58,8 @@ export const ledger = {
   "ledger.searchPlaceholder": "Search name, item, status…",
   "ledger.delete": "Delete",
   "ledger.deleteRow": "Delete {name}'s tab of RM {amount}",
+  "ledger.selectRow": "Select {name}'s tab of RM {amount}",
+  "ledger.selectAll": "Select all shown tabs",
   "ledger.colName": "Name",
   "ledger.colItem": "Item",
   "ledger.colAmount": "Amount (RM)",

@@ -5100,13 +5100,189 @@ body.nudge-sheet-open {
   }
 }
 
-/* Ledger on a laptop: full-width grid with every column, status chips and a totals panel. */
-.ledger-wide-only {
-  display: none;
+/* Ledger on a laptop: full-width grid with every column, status chips and a totals panel.
+   Phones and tablets get the same totals as a compact card above the grid. */
+.ledger-cols {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
-.ledger-cols {
-  display: block;
+.ledger-summary {
+  order: -1;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  padding: 0.9rem 1rem;
+}
+
+.ledger-summary .ledger-summary-k {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.ledger-summary .ledger-summary-v {
+  grid-column: 1;
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+
+.ledger-summary ul {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.9rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ledger-summary li {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+}
+
+.ledger-summary .ledger-summary-late {
+  grid-column: 1;
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--overdue);
+}
+
+.ledger-summary-go {
+  grid-column: 2;
+  grid-row: 1 / span 3;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.ledger-summary-go .icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* Ledger grid cells. */
+.ag-cell.ledger-select-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+/* The row tick box: 18px to see, 24px to hit. */
+.ledger-select {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+}
+
+.ledger-select input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--ink);
+  cursor: pointer;
+}
+
+/* The header tick box gets the same 24px hit area around AG Grid's 16px box. */
+.ledger-grid .ag-header-select-all .ag-checkbox-input-wrapper::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+}
+
+.ledger-grid .ag-header-select-all .ag-checkbox-input {
+  inset: -4px;
+  width: 24px;
+  height: 24px;
+}
+
+.ag-cell.ledger-two-line {
+  display: flex;
+  align-items: center;
+  line-height: 1.2;
+}
+
+.ledger-name-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  width: 100%;
+}
+
+.ledger-name-main,
+.ledger-name-sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ledger-name-main {
+  font-weight: 600;
+}
+
+.ledger-name-sub {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+/* The "Still owed" row's count may take two lines rather than be cut. */
+.ledger-name-cell-total .ledger-name-sub {
+  display: -webkit-box;
+  white-space: normal;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.ledger-amount-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  width: 100%;
+}
+
+.ledger-amount-main {
+  font-variant-numeric: tabular-nums;
+}
+
+.ledger-amount-cell .badge {
+  height: 1.3rem;
+  padding: 0 0.5rem;
+  font-size: 0.72rem;
+}
+
+/* Wider grids: "Still owed" and its count across the name and item columns, two lines at most. */
+.ledger-total-label {
+  display: -webkit-box;
+  overflow: hidden;
+  line-height: 1.2;
+  white-space: normal;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.ledger-total-label span {
+  color: var(--muted);
+}
+
+.ledger-grid .ag-row-pinned .ag-cell[col-id="customerName"] {
+  display: flex;
+  align-items: center;
 }
 
 .ledger-page .ledger-chips {
@@ -5396,8 +5572,10 @@ body.nudge-sheet-open {
   }
 }
 
-/* Small laptops: the totals sit above the grid as a strip, so the grid keeps room for every column. */
-@media (min-width: 1024px) and (max-width: 1279px) {
+/* Laptops: the totals sit above the grid as a strip, so the grid gets the page's full width and
+   every column (a late tab's two status badges included) reads in full. Beside the grid, the
+   1180px page left the grid too narrow at any window size. */
+@media (min-width: 1024px) {
   .ledger-cols {
     grid-template-columns: minmax(0, 1fr);
   }

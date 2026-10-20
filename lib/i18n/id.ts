@@ -187,6 +187,8 @@ export const id: Dictionary = {
   "ledger.searchPlaceholder": "Cari nama, barang, status…",
   "ledger.delete": "Hapus",
   "ledger.deleteRow": "Hapus utang {name} sebesar RM {amount}",
+  "ledger.selectRow": "Pilih utang {name} sebesar RM {amount}",
+  "ledger.selectAll": "Pilih semua utang yang tampil",
   "ledger.colName": "Nama",
   "ledger.colItem": "Barang",
   "ledger.colAmount": "Jumlah (RM)",

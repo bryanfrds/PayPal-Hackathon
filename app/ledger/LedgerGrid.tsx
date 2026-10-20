@@ -46,21 +46,30 @@ const PHONE_PADDING = { cellHorizontalPaddingScale: 0.5 } as const;
 const ledgerPhoneTheme = ledgerTheme.withParams(PHONE_PADDING);
 const ledgerPhoneDarkTheme = ledgerDarkTheme.withParams(PHONE_PADDING);
 
-// Narrow grids hide Item and Date; medium ones hide Date; wide ones show every column.
-// Measured on the grid itself: on a phone it's about 340px wide ("phone"); on a laptop the
-// ledger page is wider and the grid is about 730px at a 1280px window ("desktop").
-const PHONE_MAX_WIDTH = 460;
-const TABLET_MAX_WIDTH = 700;
+// Narrow grids fold Item and Date under the name and the status under the amount; medium ones
+// hide Date; wide ones show every column. Measured on the grid itself: on a phone it's about
+// 340px wide ("phone"); on a laptop it's about 940px at a 1280px window ("desktop"). The
+// breakpoints sit where the next layout's minimum widths (below) stop fitting.
+const PHONE_MAX_WIDTH = 620;
+const TABLET_MAX_WIDTH = 950;
+// The status column on wider grids, in px (see buildColumnDefs).
+const STATUS_WIDTH = 272;
 
 type LayoutMode = "phone" | "tablet" | "desktop";
 
 // Fixed sizes so the grid can be given an exact height that follows the visible rows.
 const ROW_HEIGHT = 42;
+// Phone rows hold two lines: name over item and date, amount over the status badge.
+const PHONE_ROW_HEIGHT = 58;
 const HEADER_HEIGHT = 44;
 
 type LedgerRow = Debt;
 
-type DeleteContext = { onDelete: (debt: Debt) => void; t: T };
+type DeleteContext = {
+  onDelete: (debt: Debt) => void;
+  t: T;
+  formatDay: (day: string, opts?: { year?: boolean }) => string;
+};
 
 // Passed through the column (cellRendererParams), which the grid re-reads when the layout or
 // day changes; the grid context is only read once.
@@ -83,6 +92,73 @@ function statusRank(debt: Debt, today: string): number {
   return { sent: 1, unpaid: 2, paid: 3 }[invoiceState(debt)];
 }
 
+/** Phone name cell: the name, with the date and item on a second line (date first, so it never gets cut) so same-name rows differ. */
+function NameCell(props: CustomCellRendererProps<LedgerRow, unknown, DeleteContext>) {
+  const debt = props.data;
+  if (!debt) return null;
+  const pinned = !!props.node.rowPinned;
+  const sub = pinned
+    ? debt.item
+    : [debt.date ? props.context.formatDay(debt.date, { year: false }) : "", debt.item].filter(Boolean).join(" · ");
+  return (
+    <span className={`ledger-name-cell${pinned ? " ledger-name-cell-total" : ""}`}>
+      <span className="ledger-name-main">{debt.customerName}</span>
+      {sub && <span className="ledger-name-sub">{sub}</span>}
+    </span>
+  );
+}
+
+/** Pinned "Still owed" row on wider grids: its label and count share the name and item columns. */
+function TotalLabelCell(props: CustomCellRendererProps<LedgerRow, unknown, DeleteContext>) {
+  const debt = props.data;
+  if (!debt) return null;
+  if (!props.node.rowPinned) return <>{debt.customerName}</>;
+  return (
+    <span className="ledger-total-label">
+      <b>{debt.customerName}</b> <span>{debt.item}</span>
+    </span>
+  );
+}
+
+/** Phone amount cell: the amount with its (single, compact) status badge underneath. */
+function AmountStatusCell(props: CustomCellRendererProps<LedgerRow> & StatusParams) {
+  const debt = props.data;
+  if (!debt) return null;
+  return (
+    <span className="ledger-amount-cell">
+      <span className="ledger-amount-main">{props.valueFormatted ?? ""}</span>
+      {debt.status && !props.node.rowPinned && <TabStatus debt={debt} today={props.today} compact />}
+    </span>
+  );
+}
+
+/**
+ * The row's tick box, named after the customer and amount for screen readers (AG Grid's own box
+ * says "Press Space to toggle row" on every row), with a hit area of at least 24px.
+ */
+function SelectCell(props: CustomCellRendererProps<LedgerRow, unknown, DeleteContext>) {
+  const { node, context } = props;
+  const [checked, setChecked] = useState(() => node.isSelected() ?? false);
+  useEffect(() => {
+    const sync = () => setChecked(node.isSelected() ?? false);
+    node.addEventListener("rowSelected", sync);
+    return () => node.removeEventListener("rowSelected", sync);
+  }, [node]);
+  const debt = props.data;
+  if (!debt || node.rowPinned || !node.selectable) return null;
+  return (
+    <label className="ledger-select">
+      <input
+        type="checkbox"
+        checked={checked}
+        aria-label={context.t("ledger.selectRow", { name: debt.customerName, amount: formatSen(debt.amountSen) })}
+        onChange={(event) => node.setSelected(event.target.checked, false, "checkboxSelected")}
+        onClick={(event) => event.stopPropagation()}
+      />
+    </label>
+  );
+}
+
 function DeleteButton(props: CustomCellRendererProps<LedgerRow, unknown, DeleteContext>) {
   const debt = props.data;
   // The pinned "Still owed" row has no id to delete.
@@ -100,26 +176,42 @@ function DeleteButton(props: CustomCellRendererProps<LedgerRow, unknown, DeleteC
   );
 }
 
-// Minimum widths are set so the visible columns fit without cutting the status badges or the
-// date: phone columns (with the 34px tick box) total about 332px, under the ~340px grid on a
-// 390px phone; laptop columns total about 726px, under the ~730px grid at 1280px.
+// Minimum widths are set so every header and status badge reads in full, in English and in
+// Bahasa Melayu (a late invoiced tab shows "Invois dihantar" and "40 hari lewat" side by side):
+// laptop columns total about 950px, which is TABLET_MAX_WIDTH; tablet ones about 730px; phone
+// ones (two-line rows) about 300px, under the ~340px grid on a 390px phone.
 function buildColumnDefs(mode: LayoutMode, t: T, today: string): ColDef<LedgerRow>[] {
   const phone = mode === "phone";
+  const desktop = mode === "desktop";
   // The pinned "Still owed" row has no date or status: it gets no label.
   const label = (debt: Debt | undefined) => (debt?.status && debt.date ? tabStatusText(debt, today, t) : "");
   return [
-    { field: "customerName", headerName: t("ledger.colName"), flex: 1.3, minWidth: phone ? 88 : 110, tooltipField: "customerName" },
-    // Item gives up width first, so a late tab's two status badges fit beside it.
-    { field: "item", headerName: t("ledger.colItem"), flex: 2, minWidth: 80, hide: phone, tooltipField: "item" },
+    {
+      field: "customerName",
+      headerName: t("ledger.colName"),
+      flex: 1.3,
+      minWidth: phone ? 100 : desktop ? 150 : 130,
+      tooltipField: phone ? undefined : "customerName",
+      cellRenderer: phone ? NameCell : TotalLabelCell,
+      cellClass: phone ? "ledger-two-line" : undefined,
+      // Wider grids: the "Still owed" label and its count run across the name and item columns.
+      colSpan: (p) => (!phone && p.node?.rowPinned ? 2 : 1),
+    },
+    { field: "item", headerName: t("ledger.colItem"), flex: 2, minWidth: desktop ? 180 : 120, hide: phone, tooltipField: "item" },
     {
       field: "amountSen",
-      headerName: mode === "desktop" ? t("ledger.colAmount") : "RM",
-      flex: 1,
-      minWidth: phone ? 62 : 110,
+      headerName: desktop ? t("ledger.colAmount") : "RM",
+      // Only the phone column stretches; elsewhere spare room goes to the name and item.
+      flex: phone ? 1 : undefined,
+      width: phone ? undefined : desktop ? 130 : 110,
+      minWidth: phone ? 124 : desktop ? 130 : 110,
       type: "rightAligned",
       // Right-aligned headers put the filter button before the label, where it looks like an empty column.
       suppressHeaderFilterButton: true,
       valueFormatter: (p) => (p.value == null ? "" : formatSen(Number(p.value))),
+      cellRenderer: phone ? AmountStatusCell : undefined,
+      cellRendererParams: phone ? ({ today, compact: true } satisfies StatusParams) : undefined,
+      cellClass: phone ? "ledger-two-line" : undefined,
     },
     {
       field: "date",
@@ -127,15 +219,17 @@ function buildColumnDefs(mode: LayoutMode, t: T, today: string): ColDef<LedgerRo
       // Fixed: a YYYY-MM-DD date and the filter button need about 120px, and never more.
       width: 124,
       minWidth: 124,
-      hide: mode !== "desktop",
+      hide: !desktop,
       getQuickFilterText: (p) => p.data?.date ?? "",
     },
     {
       field: "status",
       headerName: t("ledger.colStatus"),
-      flex: 1,
-      // Phones show one badge; wider grids show the invoice state and a late badge side by side.
-      minWidth: phone ? 112 : 210,
+      // Fixed: fits a late invoiced tab's two badges ("Invois dihantar" + "40 hari lewat") and
+      // the filter button. Phones fold the status under the amount instead.
+      width: STATUS_WIDTH,
+      minWidth: STATUS_WIDTH,
+      hide: phone,
       cellRenderer: StatusCell,
       cellRendererParams: { today, compact: phone } satisfies StatusParams,
       // Search and filter by the words on the badges ("Invoice sent · Overdue"), not the stored value.
@@ -164,9 +258,10 @@ function buildColumnDefs(mode: LayoutMode, t: T, today: string): ColDef<LedgerRo
 // Tick boxes in their own column; the header box ticks only the rows the search leaves showing.
 // A plain row click opens the detail sheet instead of ticking, and the pinned "Still owed" row
 // can't be ticked (no box shows on it).
+// The row boxes are our own SelectCell (named per row); AG Grid draws only the header box.
 const ROW_SELECTION: RowSelectionOptions<LedgerRow> = {
   mode: "multiRow",
-  checkboxes: true,
+  checkboxes: false,
   headerCheckbox: true,
   selectAll: "filtered",
   enableClickSelection: false,
@@ -175,7 +270,9 @@ const ROW_SELECTION: RowSelectionOptions<LedgerRow> = {
 };
 
 const SELECTION_COLUMN: SelectionColumnDef = {
-  // The tick box (16px) plus the cell's side padding.
+  // The tick box's 24px hit area plus the cell's side padding.
+  cellRenderer: SelectCell,
+  cellClass: "ledger-select-cell",
   width: 48,
   minWidth: 48,
   maxWidth: 48,
@@ -185,7 +282,7 @@ const SELECTION_COLUMN: SelectionColumnDef = {
 };
 
 // Phones use half the side padding, so the tick box column can be narrower.
-const SELECTION_COLUMN_PHONE: SelectionColumnDef = { ...SELECTION_COLUMN, width: 34, minWidth: 34, maxWidth: 34 };
+const SELECTION_COLUMN_PHONE: SelectionColumnDef = { ...SELECTION_COLUMN, width: 40, minWidth: 40, maxWidth: 40 };
 
 /** What the ledger screen can ask of the grid. */
 export type LedgerGridHandle = {
@@ -252,7 +349,7 @@ export default function LedgerGrid({
   onRowClick?: (debt: Debt) => void;
   onSelectionChange?: (selected: Debt[]) => void;
 }) {
-  const { t, lang } = useT();
+  const { t, lang, formatDay } = useT();
   const [quickFilter, setQuickFilter] = useState("");
   const dark = useResolvedTheme() === "dark";
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -271,7 +368,10 @@ export default function LedgerGrid({
     onDeleteRef.current = onDelete;
   });
   // The grid is remounted when the language changes (key={lang}), so t is current here.
-  const gridContext = useMemo<DeleteContext>(() => ({ onDelete: (debt) => onDeleteRef.current(debt), t }), [t]);
+  const gridContext = useMemo<DeleteContext>(
+    () => ({ onDelete: (debt) => onDeleteRef.current(debt), t, formatDay }),
+    [t, formatDay],
+  );
   const columnDefs = useMemo(() => buildColumnDefs(layout, t, today), [layout, t, today]);
   // AG Grid's own words that actually show: the text filter popup and the empty overlay.
   const localeText = useMemo<Record<string, string>>(
@@ -288,6 +388,9 @@ export default function LedgerGrid({
       notBlank: t("ledger.grid.notBlank"),
       andCondition: t("ledger.grid.and"),
       orCondition: t("ledger.grid.or"),
+      // The header tick box, read out by screen readers.
+      ariaHeaderSelection: t("ledger.selectAll"),
+      ariaRowSelectAll: t("ledger.selectAll"),
     }),
     [t],
   );
@@ -330,7 +433,8 @@ export default function LedgerGrid({
   };
 
   // Header + visible rows + the pinned total row, plus the 1px borders.
-  const gridHeight = HEADER_HEIGHT + (view.visibleCount + 1) * ROW_HEIGHT + 2;
+  const rowHeight = layout === "phone" ? PHONE_ROW_HEIGHT : ROW_HEIGHT;
+  const gridHeight = HEADER_HEIGHT + (view.visibleCount + 1) * rowHeight + 2;
 
   return (
     <div className="ledger" ref={wrapperRef}>
@@ -355,9 +459,11 @@ export default function LedgerGrid({
           defaultColDef={{ sortable: true, filter: true, resizable: true }}
           pinnedBottomRowData={pinnedTotals}
           quickFilterText={quickFilter}
+          // Phones fold Item, Date and Status into other cells: search still finds them.
+          includeHiddenColumnsInQuickFilter
           onModelUpdated={onModelUpdated}
           theme={layout === "phone" ? (dark ? ledgerPhoneDarkTheme : ledgerPhoneTheme) : dark ? ledgerDarkTheme : ledgerTheme}
-          rowHeight={ROW_HEIGHT}
+          rowHeight={rowHeight}
           headerHeight={HEADER_HEIGHT}
           getRowId={(params) => params.data.id}
           context={gridContext}
@@ -377,7 +483,7 @@ export default function LedgerGrid({
           }}
           onRowClicked={(event) => {
             const target = event.event?.target as HTMLElement | null;
-            if (target?.closest(".row-delete, .ag-selection-checkbox, .ag-checkbox-input")) return;
+            if (target?.closest(".row-delete, .ledger-select, .ag-selection-checkbox, .ag-checkbox-input")) return;
             if (event.data && !event.node.isRowPinned()) {
               onRowClick?.(event.data);
             }
