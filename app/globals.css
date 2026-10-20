@@ -7396,14 +7396,15 @@ body.nudge-sheet-open {
 }
 
 @media (min-width: 1024px) {
+  /* Same look as the menu items above it (.site-nav a), current page included. */
   .side-settings {
     display: flex;
     align-items: center;
-    gap: 0.6rem;
-    padding: 0.55rem 0.6rem;
-    font-size: 0.85rem;
+    gap: 0.65rem;
+    padding: 0.65rem 0.75rem;
+    font-size: 0.9rem;
     font-weight: 700;
-    color: var(--ink);
+    color: var(--muted);
     text-decoration: none;
     border-radius: 12px;
   }
@@ -7414,9 +7415,16 @@ body.nudge-sheet-open {
   }
 
   .side-settings:hover,
-  .side-settings:focus-visible,
-  .side-settings[aria-current="page"] {
+  .side-settings:focus-visible {
+    color: var(--ink);
     background: var(--paper);
+  }
+
+  .side-settings[aria-current="page"],
+  .side-nudge[aria-current="page"],
+  .side-nudge[aria-current="page"] strong {
+    color: var(--on-ink);
+    background: var(--ink);
   }
 
   .set-toast-wrap {

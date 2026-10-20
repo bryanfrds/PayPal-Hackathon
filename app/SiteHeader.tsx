@@ -32,7 +32,7 @@ export default function SiteHeader({ links }: { links: NavLink[] }) {
         <NavLinks links={links} />
       </nav>
       {/* Laptop sidebar only: Nudge, one click from every screen. */}
-      <Link href="/nudge" className="side-nudge">
+      <Link href="/nudge" className="side-nudge" aria-current={pathname === "/nudge" ? "page" : undefined}>
         <strong>
           <SparkIcon />
           {t("nav.askNudge")}

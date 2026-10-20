@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { MessageKey } from "@/lib/i18n";
 import { BellIcon, BookIcon, ChartIcon, HomeIcon, ScanIcon, SendIcon } from "./components/icons";
+import { isNavActive } from "./navActive";
 import { useT } from "./useT";
 
 const ICONS = { home: HomeIcon, scan: ScanIcon, ledger: BookIcon, insights: ChartIcon, reminders: BellIcon, collect: SendIcon };
@@ -18,8 +19,7 @@ export default function NavLinks({ links }: { links: NavLink[] }) {
   return (
     <ul className="site-nav">
       {links.map((link) => {
-        const active =
-          link.href === "/" ? pathname === "/" : pathname === link.href || pathname.startsWith(`${link.href}/`);
+        const active = isNavActive(link.href, pathname);
         const Icon = ICONS[link.icon];
         return (
           <li key={link.href} className={link.wideOnly ? "nav-wide-only" : undefined}>
