@@ -6,7 +6,7 @@ import { useMemo } from "react";
 import { todayLocal, type Debt } from "@/lib/debts";
 import { toInsightRows } from "@/lib/insights";
 import { AgStudio, FILL, VIEW_PANELS, manropeFamily } from "../insights/studio-loader";
-import { HOME_CHART_ROWS, STUDIO_TILE, dataFor, homeChartState, themeFor, widgetRegistry } from "../insights/studio-config";
+import { HOME_CHART_ROWS, STUDIO_LOCALE_TEXT, STUDIO_TILE, dataFor, homeChartState, themeFor, widgetRegistry } from "../insights/studio-config";
 import { ROW_HEIGHT } from "../insights/tiles";
 import { useResolvedTheme } from "../usePrefs";
 import { useT } from "../useT";
@@ -32,6 +32,7 @@ export default function HomeChart({ debts }: { debts: Debt[] }) {
         panels={VIEW_PANELS}
         style={FILL}
         initialState={initialState}
+        localeText={STUDIO_LOCALE_TEXT}
       />
     </div>
   );

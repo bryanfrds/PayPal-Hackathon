@@ -25,9 +25,9 @@ export const insights = {
   "insights.field.collected": "Collected",
   "insights.field.daysLate": "Days late",
   "insights.field.overdue": "Overdue tabs",
-  "insights.late.notDue": "Not due yet",
-  "insights.late.upTo30": "1–30 days late",
-  "insights.late.over30": "31+ days late",
+  "insights.late.notDue": "Not due",
+  "insights.late.upTo30": "1–30 days",
+  "insights.late.over30": "31+ days",
   "insights.scoreboardAria": "Who owes you, biggest first",
   "insights.scoreMore": "and {count} more",
   // Nudge, on Insights and in its own chat.

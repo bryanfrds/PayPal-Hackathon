@@ -188,6 +188,8 @@ export const bn: Dictionary = {
   "ledger.searchPlaceholder": "নাম, জিনিস, অবস্থা খুঁজুন…",
   "ledger.delete": "মুছুন",
   "ledger.deleteRow": "{name}-এর RM {amount} বাকি মুছুন",
+  "ledger.selectRow": "{name}-এর RM {amount} বাকি বেছে নিন",
+  "ledger.selectAll": "দেখানো সব বাকি বেছে নিন",
   "ledger.colName": "নাম",
   "ledger.colItem": "জিনিস",
   "ledger.colAmount": "পরিমাণ (RM)",

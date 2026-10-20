@@ -186,6 +186,8 @@ export const vi: Dictionary = {
   "ledger.searchPlaceholder": "Tìm tên, món hàng, trạng thái…",
   "ledger.delete": "Xóa",
   "ledger.deleteRow": "Xóa khoản nợ RM {amount} của {name}",
+  "ledger.selectRow": "Chọn khoản nợ RM {amount} của {name}",
+  "ledger.selectAll": "Chọn tất cả khoản nợ đang hiện",
   "ledger.colName": "Tên",
   "ledger.colItem": "Món hàng",
   "ledger.colAmount": "Số tiền (RM)",

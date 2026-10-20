@@ -122,24 +122,38 @@ export function dayOf(date: Date): string {
   return `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}`;
 }
 
-function toEvents(items: ScheduleItem[], dark: boolean, t: T) {
+/** `day` at `hour` o'clock, local time. */
+function atHour(day: string, hour: number): Date {
+  const date = at(day);
+  date.setHours(hour, 0);
+  return date;
+}
+
+/** The Bryntum events for the schedule; exported for tests. */
+export function toEvents(items: ScheduleItem[], dark: boolean, t: T, wide: boolean) {
   const colours = dark ? DARK_COLOURS : COLOURS;
-  return items.map((item) => ({
-    id: item.id,
-    resourceId: item.slug,
-    name: `${item.label} · ${item.customer} · RM ${formatSen(item.amountSen)}`,
-    // Each item fills its day, so the bars line up with the day columns.
-    startDate: at(item.day),
-    endDate: at(addDays(item.day, 1)),
-    allDay: true,
-    eventColor: item.sent ? "#8a8579" : colours[item.kind],
-    // Only reminders still to go out can move; due dates, invoices and sent ones are facts.
-    draggable: item.kind === "reminder" && !item.sent,
-    resizable: false,
-    cls: item.moved ? "rb-moved" : "",
-    // Short words fit a day cell; the full name is in the tooltip.
-    short: item.kind === "reminder" ? (item.sent ? `${item.n} ✓` : `${item.n}`) : item.kind === "due" ? t("reminders.board.due") : t("reminders.board.invoice"),
-  }));
+  return items.map((item) => {
+    // The phone calendar's list shows a reminder at the hour it goes out ("10:00"), not "All
+    // day". The wide board keeps every item filling its day, so the bars line up with the day
+    // columns. Due dates and invoices have no time of day.
+    const timed = !wide && item.kind === "reminder";
+    return {
+      id: item.id,
+      resourceId: item.slug,
+      name: `${item.label} · ${item.customer} · RM ${formatSen(item.amountSen)}`,
+      startDate: timed ? atHour(item.day, item.hour) : at(item.day),
+      // No length: the list shows just the send time ("10:00"), not a range.
+      endDate: timed ? atHour(item.day, item.hour) : at(addDays(item.day, 1)),
+      allDay: !timed,
+      eventColor: item.sent ? "#8a8579" : colours[item.kind],
+      // Only reminders still to go out can move; due dates, invoices and sent ones are facts.
+      draggable: item.kind === "reminder" && !item.sent,
+      resizable: false,
+      cls: item.moved ? "rb-moved" : "",
+      // Short words fit a day cell; the full name is in the tooltip.
+      short: item.kind === "reminder" ? (item.sent ? `${item.n} ✓` : `${item.n}`) : item.kind === "due" ? t("reminders.board.due") : t("reminders.board.invoice"),
+    };
+  });
 }
 
 function toResources(items: ScheduleItem[]) {
@@ -175,7 +189,7 @@ export default function ReminderBoard({ items, today, wide, earliest, onMove }: 
   const [failed, setFailed] = useState(false);
   const mode = useResolvedTheme();
   const { t, lang } = useT();
-  const events = useMemo(() => toEvents(items, mode === "dark", t), [items, mode, t]);
+  const events = useMemo(() => toEvents(items, mode === "dark", t, wide), [items, mode, t, wide]);
   const resources = useMemo(() => toResources(items), [items]);
   // The view is built once per layout and day; data changes go into its stores below.
   const latest = useRef({ events, resources });
@@ -202,6 +216,12 @@ export default function ReminderBoard({ items, today, wide, earliest, onMove }: 
         const host = hostRef.current;
         if (cancelled || !host) return;
         const { events: ev, resources: res } = latest.current;
+        // The phone list: a reminder shows the hour it goes out ("10:00"), not a range;
+        // due dates and invoices keep Bryntum's own "All day" words.
+        const timeText = (event: { allDay?: boolean; startDate: string | Date }) =>
+          event.allDay
+            ? String((lib.LocaleManager.locale as { Calendar?: { allDay?: string } }).Calendar?.allDay ?? "All day")
+            : lib.DateHelper.format(new Date(event.startDate), "HH:mm");
         viewRef.current = wide
           ? new lib.Scheduler({
               appendTo: host,
@@ -244,10 +264,34 @@ export default function ReminderBoard({ items, today, wide, earliest, onMove }: 
               events: ev,
               date: at(today),
               mode: "monthagenda",
-              modes: { day: null, week: null, year: null, month: null, monthagenda: { title: t("reminders.board.month") }, agenda: { title: t("reminders.board.list") } },
+              modes: {
+                day: null,
+                week: null,
+                year: null,
+                month: null,
+                monthagenda: { title: t("reminders.board.month"), agenda: { eventTimeRenderer: timeText } },
+                agenda: { title: t("reminders.board.list"), eventTimeRenderer: timeText },
+              },
               sidebar: false,
               readOnly: true,
+              listeners: {
+                dateChange: () => showMonthName(),
+                activeItemChange: () => showMonthName(),
+              },
             });
+        // The month view's header said just "Today" (Bryntum's words for the picked day), with no
+        // month: it names the month shown instead ("October 2026"), in Bryntum's locale.
+        // Relies on Bryntum Calendar 7.3 internals: the toolbar's `widgetMap.viewDescription`
+        // widget and its "b-calendar-view-desc-text" span. Recheck after a Bryntum upgrade; if
+        // the widget is gone this does nothing and Bryntum's own header shows.
+        function showMonthName() {
+          const view = viewRef.current as (Calendar & { widgetMap?: Record<string, { html?: string }> }) | null;
+          const label = view?.widgetMap?.viewDescription;
+          if (!view || !label || view.mode !== "monthagenda") return;
+          const text = lib.StringHelper.encodeHtml(lib.DateHelper.format(new Date(view.date), "MMMM YYYY"));
+          label.html = `<span class="b-calendar-view-desc-text">${text}</span>`;
+        }
+        showMonthName();
       })
       .catch(() => {
         if (!cancelled) setFailed(true);

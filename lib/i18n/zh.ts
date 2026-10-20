@@ -186,6 +186,8 @@ export const zh: Dictionary = {
   "ledger.searchPlaceholder": "搜索名字、物品、状态…",
   "ledger.delete": "删除",
   "ledger.deleteRow": "删除 {name} 的 RM {amount} 赊账",
+  "ledger.selectRow": "选择 {name} 的 RM {amount} 赊账",
+  "ledger.selectAll": "选择显示的全部赊账",
   "ledger.colName": "名字",
   "ledger.colItem": "物品",
   "ledger.colAmount": "金额 (RM)",

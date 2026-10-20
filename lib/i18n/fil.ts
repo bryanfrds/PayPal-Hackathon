@@ -188,6 +188,8 @@ export const fil: Dictionary = {
   "ledger.searchPlaceholder": "Hanapin ang pangalan, item, status…",
   "ledger.delete": "Burahin",
   "ledger.deleteRow": "Burahin ang utang ni {name} na RM {amount}",
+  "ledger.selectRow": "Piliin ang utang ni {name} na RM {amount}",
+  "ledger.selectAll": "Piliin lahat ng utang na nakikita",
   "ledger.colName": "Pangalan",
   "ledger.colItem": "Item",
   "ledger.colAmount": "Halaga (RM)",

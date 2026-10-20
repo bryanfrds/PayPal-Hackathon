@@ -187,6 +187,8 @@ export const ta: Dictionary = {
   "ledger.searchPlaceholder": "பெயர், பொருள், நிலை தேடு…",
   "ledger.delete": "நீக்கு",
   "ledger.deleteRow": "{name}-இன் RM {amount} கடனை நீக்கு",
+  "ledger.selectRow": "{name}-இன் RM {amount} கடனைத் தேர்ந்தெடு",
+  "ledger.selectAll": "காட்டப்படும் எல்லா கடன்களையும் தேர்ந்தெடு",
   "ledger.colName": "பெயர்",
   "ledger.colItem": "பொருள்",
   "ledger.colAmount": "தொகை (RM)",

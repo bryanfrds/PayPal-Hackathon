@@ -186,6 +186,8 @@ export const th: Dictionary = {
   "ledger.searchPlaceholder": "ค้นหาชื่อ สินค้า สถานะ…",
   "ledger.delete": "ลบ",
   "ledger.deleteRow": "ลบยอดค้างของ {name} RM {amount}",
+  "ledger.selectRow": "เลือกยอดค้างของ {name} RM {amount}",
+  "ledger.selectAll": "เลือกยอดค้างทั้งหมดที่แสดง",
   "ledger.colName": "ชื่อ",
   "ledger.colItem": "สินค้า",
   "ledger.colAmount": "จำนวนเงิน (RM)",
