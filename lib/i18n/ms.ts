@@ -598,6 +598,7 @@ export const ms: Dictionary = {
   "tab.items_one": "{count} barang",
   "tab.items_other": "{count} barang",
   "tab.hello": "{name}, hutang anda di",
+  "tab.backToApp": "Kembali ke 555 Buku",
   "tab.youOwe": "Hutang anda",
   "tab.limitAria": "Bahagian had kredit yang digunakan",
   "tab.limitLeft": "Baki {left} daripada had {limit}",

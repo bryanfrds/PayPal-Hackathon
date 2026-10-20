@@ -14,6 +14,7 @@ export const tab = {
   "tab.items_one": "{count} item",
   "tab.items_other": "{count} items",
   "tab.hello": "{name}, your tab at",
+  "tab.backToApp": "Back to 555 Buku",
   "tab.youOwe": "You owe",
   "tab.limitAria": "Share of your credit limit used",
   "tab.limitLeft": "{left} left of your {limit} limit",

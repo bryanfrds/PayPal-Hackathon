@@ -594,6 +594,7 @@ export const th: Dictionary = {
   "tab.items_one": "{count} รายการ",
   "tab.items_other": "{count} รายการ",
   "tab.hello": "{name} ยอดค้างของคุณที่",
+  "tab.backToApp": "กลับไปที่ 555 Buku",
   "tab.youOwe": "ยอดที่คุณค้าง",
   "tab.limitAria": "สัดส่วนวงเงินเชื่อที่ใช้ไป",
   "tab.limitLeft": "เหลือ {left} จากวงเงิน {limit}",

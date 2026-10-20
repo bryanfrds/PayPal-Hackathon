@@ -597,6 +597,7 @@ export const ta: Dictionary = {
   "tab.items_one": "{count} பொருள்",
   "tab.items_other": "{count} பொருட்கள்",
   "tab.hello": "{name}, உங்கள் கடன் விவரம்:",
+  "tab.backToApp": "555 Buku-க்குத் திரும்பு",
   "tab.youOwe": "நீங்கள் செலுத்த வேண்டியது",
   "tab.limitAria": "பயன்படுத்திய கடன் வரம்பின் பங்கு",
   "tab.limitLeft": "உங்கள் {limit} வரம்பில் {left} மீதம்",

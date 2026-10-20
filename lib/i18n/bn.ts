@@ -607,6 +607,7 @@ export const bn: Dictionary = {
   "tab.items_one": "{count}টি জিনিস",
   "tab.items_other": "{count}টি জিনিস",
   "tab.hello": "{name}, আপনার বাকি এই দোকানে:",
+  "tab.backToApp": "555 Buku-তে ফিরে যান",
   "tab.youOwe": "আপনার বাকি",
   "tab.limitAria": "আপনার ক্রেডিট লিমিটের কতটা ব্যবহার হয়েছে",
   "tab.limitLeft": "আপনার {limit} লিমিটের {left} বাকি আছে",

@@ -597,6 +597,7 @@ export const id: Dictionary = {
   "tab.items_one": "{count} barang",
   "tab.items_other": "{count} barang",
   "tab.hello": "{name}, catatan utangmu di",
+  "tab.backToApp": "Kembali ke 555 Buku",
   "tab.youOwe": "Utangmu",
   "tab.limitAria": "Bagian batas utang yang sudah terpakai",
   "tab.limitLeft": "Sisa {left} dari batas {limit}",

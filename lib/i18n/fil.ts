@@ -607,6 +607,7 @@ export const fil: Dictionary = {
   "tab.items_one": "{count} item",
   "tab.items_other": "{count} item",
   "tab.hello": "{name}, ang utang mo sa",
+  "tab.backToApp": "Bumalik sa 555 Buku",
   "tab.youOwe": "Utang mo",
   "tab.limitAria": "Bahagi ng credit limit mo na nagamit na",
   "tab.limitLeft": "{left} pa ang natitira sa {limit} na limit mo",

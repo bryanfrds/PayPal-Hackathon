@@ -594,6 +594,7 @@ export const vi: Dictionary = {
   "tab.items_one": "{count} món",
   "tab.items_other": "{count} món",
   "tab.hello": "{name}, khoản nợ của bạn tại",
+  "tab.backToApp": "Quay lại 555 Buku",
   "tab.youOwe": "Bạn còn nợ",
   "tab.limitAria": "Phần hạn mức mua chịu đã dùng",
   "tab.limitLeft": "Còn {left} trong hạn mức {limit}",

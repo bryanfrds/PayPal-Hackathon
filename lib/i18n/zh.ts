@@ -596,6 +596,7 @@ export const zh: Dictionary = {
   "tab.items_one": "{count} 件物品",
   "tab.items_other": "{count} 件物品",
   "tab.hello": "{name}，你在这家店的赊账：",
+  "tab.backToApp": "返回 555 Buku",
   "tab.youOwe": "你欠",
   "tab.limitAria": "已用的赊账额度",
   "tab.limitLeft": "{limit} 额度还剩 {left}",
