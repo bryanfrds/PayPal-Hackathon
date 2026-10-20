@@ -129,7 +129,8 @@ function atHour(day: string, hour: number): Date {
   return date;
 }
 
-function toEvents(items: ScheduleItem[], dark: boolean, t: T, wide: boolean) {
+/** The Bryntum events for the schedule; exported for tests. */
+export function toEvents(items: ScheduleItem[], dark: boolean, t: T, wide: boolean) {
   const colours = dark ? DARK_COLOURS : COLOURS;
   return items.map((item) => {
     // The phone calendar's list shows a reminder at the hour it goes out ("10:00"), not "All
@@ -280,6 +281,9 @@ export default function ReminderBoard({ items, today, wide, earliest, onMove }: 
             });
         // The month view's header said just "Today" (Bryntum's words for the picked day), with no
         // month: it names the month shown instead ("October 2026"), in Bryntum's locale.
+        // Relies on Bryntum Calendar 7.3 internals: the toolbar's `widgetMap.viewDescription`
+        // widget and its "b-calendar-view-desc-text" span. Recheck after a Bryntum upgrade; if
+        // the widget is gone this does nothing and Bryntum's own header shows.
         function showMonthName() {
           const view = viewRef.current as (Calendar & { widgetMap?: Record<string, { html?: string }> }) | null;
           const label = view?.widgetMap?.viewDescription;
