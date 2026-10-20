@@ -73,7 +73,6 @@ export const fil: Dictionary = {
   "home.send": "Ipadala",
   "home.notInvoiced_one": "{count} utang na wala pang invoice",
   "home.notInvoiced_other": "{count} utang na wala pang invoice",
-  "home.markedPaid": "Minarkahang bayad sa listahan mo",
   "home.nothingToDo": "Walang gagawin sa ngayon.",
   "home.chartTitle": "Utang vs nasingil",
   "home.chartSub": "ayon sa buwan na isinulat",

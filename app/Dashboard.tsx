@@ -16,7 +16,7 @@ import Avatar from "./components/Avatar";
 import QuickTour from "./components/QuickTour";
 import { ShareButton, ShareTip, useShareTip } from "./components/ShareButton";
 import ShareSheet from "./components/ShareSheet";
-import { BellIcon, ChartIcon, CheckIcon, ChevronIcon, PlusIcon, ReceiptIcon, ScanIcon, SendIcon, SparkIcon } from "./components/icons";
+import { BellIcon, ChartIcon, ChevronIcon, PlusIcon, ReceiptIcon, ScanIcon, SendIcon, SparkIcon } from "./components/icons";
 import { useCollect } from "./useCollect";
 import { useDebts } from "./useDebts";
 import { useIsWide } from "./useIsWide";
@@ -102,6 +102,8 @@ export default function Dashboard() {
     lang === "en"
       ? m.label
       : new Intl.DateTimeFormat(locale, { month: "short", timeZone: "UTC" }).format(new Date(`${m.month}-01T00:00:00Z`));
+  // One per row in the Today list, so the "N things" above it always matches what's shown.
+  // Paid tabs aren't a job: they're on the Collected tile instead.
   const todo = (o.remindNow.length > 0 ? 1 : 0) + (o.notInvoiced.count > 0 ? 1 : 0);
 
   return (
@@ -303,20 +305,7 @@ export default function Dashboard() {
                 </Link>
               </li>
             )}
-            {o.paidTabs.count > 0 && (
-              <li className="home-todo-row">
-                <span className="home-todo-ic home-todo-good" aria-hidden="true">
-                  <CheckIcon />
-                </span>
-                <span className="home-todo-main">
-                  <span className="home-todo-n">
-                    {t("home.tabsPaid", { count: o.paidTabs.count })} · RM {formatSen(o.paidTabs.sen)}
-                  </span>
-                  <span className="home-todo-w">{t("home.markedPaid")}</span>
-                </span>
-              </li>
-            )}
-            {todo === 0 && o.paidTabs.count === 0 && (
+            {todo === 0 && (
               <li className="home-todo-row">
                 <span className="home-todo-main">
                   <span className="home-todo-w">{t("home.nothingToDo")}</span>

@@ -73,7 +73,6 @@ export const vi: Dictionary = {
   "home.send": "Gửi",
   "home.notInvoiced_one": "{count} khoản chưa có hóa đơn",
   "home.notInvoiced_other": "{count} khoản chưa có hóa đơn",
-  "home.markedPaid": "Đã đánh dấu là đã trả trong sổ",
   "home.nothingToDo": "Hiện chưa có việc gì.",
   "home.chartTitle": "Còn nợ và đã thu",
   "home.chartSub": "theo tháng ghi sổ",

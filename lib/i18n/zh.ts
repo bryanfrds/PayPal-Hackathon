@@ -73,7 +73,6 @@ export const zh: Dictionary = {
   "home.send": "发送",
   "home.notInvoiced_one": "{count} 笔赊账未开账单",
   "home.notInvoiced_other": "{count} 笔赊账未开账单",
-  "home.markedPaid": "已在账本中标记为已付",
   "home.nothingToDo": "目前没有要做的事。",
   "home.chartTitle": "欠款与已收回",
   "home.chartSub": "按记账月份",

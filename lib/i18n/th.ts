@@ -73,7 +73,6 @@ export const th: Dictionary = {
   "home.send": "ส่ง",
   "home.notInvoiced_one": "ยังไม่ได้ออกใบแจ้งหนี้ {count} รายการ",
   "home.notInvoiced_other": "ยังไม่ได้ออกใบแจ้งหนี้ {count} รายการ",
-  "home.markedPaid": "ทำเครื่องหมายว่าจ่ายแล้วในสมุดบัญชี",
   "home.nothingToDo": "ตอนนี้ไม่มีอะไรต้องทำ",
   "home.chartTitle": "ยอดค้าง เทียบ ยอดที่เก็บได้",
   "home.chartSub": "ตามเดือนที่จดไว้",

@@ -52,7 +52,6 @@ export const shell = {
   "home.send": "Send",
   "home.notInvoiced_one": "{count} tab not invoiced",
   "home.notInvoiced_other": "{count} tabs not invoiced",
-  "home.markedPaid": "Marked paid in your ledger",
   "home.nothingToDo": "Nothing to do right now.",
   "home.chartTitle": "Owed vs collected",
   "home.chartSub": "by month written down",
