@@ -2,9 +2,10 @@
 import { NextResponse } from "next/server";
 import { requireOwner } from "@/lib/auth-server";
 import { getPerson1Store } from "@/lib/person1-store";
+import { deliverScheduledReminder } from "@/lib/remind";
 
 export async function POST(
-  req: Request,
+  _req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const owner = await requireOwner();
@@ -25,24 +26,16 @@ export async function POST(
     );
   }
 
-  // Trigger safe delivery to Person 2
-  const host = req.headers.get("host") || "localhost:3000";
-  const protocol = host.startsWith("localhost") ? "http" : "https";
-  const cookie = req.headers.get("cookie") || "";
-
+  // Person 2's safe delivery, called in-process.
   try {
-    const res = await fetch(`${protocol}://${host}/api/invoices/${decision.invoiceId}/remind`, {
-      method: "POST",
-      headers: { cookie },
-    });
-    const data = await res.json().catch(() => ({}));
+    const delivery = await deliverScheduledReminder(decision.invoiceId);
 
-    if (res.ok) {
-      await store.updateReminderDecisionAction(owner.email, decisionId, "requested", "Approved by owner and sent");
-      return NextResponse.json({ ok: true, status: "requested", message: "Reminder approved and delivered." });
+    if (delivery.ok) {
+      await store.updateReminderDecisionAction(owner.email, decisionId, "requested", delivery.message || "Approved by owner and sent");
+      return NextResponse.json({ ok: true, status: "requested", message: delivery.message || "Reminder approved and delivered." });
     } else {
-      await store.updateReminderDecisionAction(owner.email, decisionId, "failed", data.error || "Delivery refused");
-      return NextResponse.json({ ok: false, error: data.error || "Delivery failed" }, { status: 502 });
+      await store.updateReminderDecisionAction(owner.email, decisionId, "failed", delivery.error || "Delivery refused");
+      return NextResponse.json({ ok: false, error: delivery.error || "Delivery failed" }, { status: 502 });
     }
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : "Delivery connection error";
