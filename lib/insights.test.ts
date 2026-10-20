@@ -54,10 +54,16 @@ describe("toInsightRows", () => {
       "2026-10-13",
     );
     expect(row).toMatchObject({
+      status: "Invoice sent",
       daysLate: 3,
       lateBucket: "1–30 days late",
       overdue: 1,
     });
+  });
+
+  it("shows a tab marked overdue before any invoice as Not sent, and still late", () => {
+    const [row] = toInsightRows([debt({})], "2026-10-13");
+    expect(row).toMatchObject({ status: "Not sent", overdue: 1 });
   });
 
   it("moves a paid debt to collected", () => {

@@ -3,8 +3,8 @@
 // Studio's data engine does the sums and grouping in the browser, so each debt becomes one
 // flat row with the numbers already split into "still owed" and "collected".
 
-import { dueDateFor, daysBetween } from "./customer-tab";
 import { STATUS_LABEL, type Debt, type DebtStatus } from "./debts";
+import { daysLate, invoiceState, isOverdue } from "./tab-status";
 
 export type LateBucket =
   "Not due yet" | "1–30 days late" | "31+ days late" | "Paid";
@@ -63,22 +63,21 @@ export function toInsightRows(debts: Debt[], today: string): InsightRow[] {
   return debts.map((debt) => {
     const monthKey = debt.date.slice(0, 7);
     const paid = debt.status === "paid";
-    const daysLate = paid
-      ? 0
-      : Math.max(0, daysBetween(dueDateFor(monthKey), today));
+    const late = daysLate(debt, today);
     const amount = debt.amountSen / 100;
     return {
       customer: debt.customerName,
       item: debt.item,
       month: monthKey,
-      status: STATUS_LABEL[debt.status],
+      // Where the invoice stands, like the ledger's badge; lateness has its own columns below.
+      status: STATUS_LABEL[invoiceState(debt)],
       amount,
       owed: paid ? 0 : amount,
       collected: paid ? amount : 0,
-      daysLate,
-      lateBucket: lateBucket(debt.status, daysLate),
-      // Past the due date or marked overdue: the same rule as the customer page (customer-tab.ts).
-      overdue: !paid && (daysLate > 0 || debt.status === "overdue") ? 1 : 0,
+      daysLate: late,
+      lateBucket: lateBucket(debt.status, late),
+      // The shared rule (lib/tab-status), so this tile matches Home's Overdue and the ledger's chip.
+      overdue: isOverdue(debt, today) ? 1 : 0,
     };
   });
 }
