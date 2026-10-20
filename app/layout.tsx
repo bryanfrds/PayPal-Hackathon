@@ -1,11 +1,11 @@
 import type { Metadata, Viewport } from "next";
 import { Manrope } from "next/font/google";
 import type { ReactNode } from "react";
-import { THEME_SCRIPT } from "@/lib/preferences";
 import type { NavLink } from "./NavLinks";
 import PaymentSync from "./PaymentSync";
 import SiteHeader from "./SiteHeader";
 import TabPublisher from "./TabPublisher";
+import ThemeScript from "./ThemeScript";
 import "./globals.css";
 
 const manrope = Manrope({ subsets: ["latin"], variable: "--font-manrope" });
@@ -39,7 +39,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en" className={manrope.variable} data-theme="light" suppressHydrationWarning>
       <head>
         {/* Before first paint: no flash of light for an owner who picked Dark. */}
-        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+        <ThemeScript />
       </head>
       <body>
         <SiteHeader links={NAV_LINKS} />
