@@ -18,22 +18,22 @@ function debt(amountSen: number, status: Debt["status"]): Debt {
 
 describe("summariseHome", () => {
   it("is all zeros with no debts", () => {
-    expect(summariseHome([])).toEqual({ owedSen: 0, openCount: 0, overdueCount: 0, paidSen: 0, collectedPct: 0 });
+    expect(summariseHome([], "2026-10-13")).toEqual({ owedSen: 0, openCount: 0, overdueCount: 0, paidSen: 0, collectedPct: 0 });
   });
 
   it("is 100% collected when everything is paid", () => {
-    const s = summariseHome([debt(1000, "paid"), debt(500, "paid")]);
+    const s = summariseHome([debt(1000, "paid"), debt(500, "paid")], "2026-10-13");
     expect(s).toMatchObject({ owedSen: 0, openCount: 0, paidSen: 1500, collectedPct: 100 });
   });
 
   it("adds up owed, overdue and paid separately", () => {
-    const s = summariseHome([debt(4850, "overdue"), debt(2240, "sent"), debt(500, "unpaid"), debt(1200, "paid")]);
+    const s = summariseHome([debt(4850, "overdue"), debt(2240, "sent"), debt(500, "unpaid"), debt(1200, "paid")], "2026-10-13");
     expect(s).toEqual({ owedSen: 7590, openCount: 3, overdueCount: 1, paidSen: 1200, collectedPct: 14 });
   });
 
   it("rounds the collected share", () => {
     // 1 of 3 sen paid = 33.33…%
-    expect(summariseHome([debt(1, "paid"), debt(2, "unpaid")]).collectedPct).toBe(33);
+    expect(summariseHome([debt(1, "paid"), debt(2, "unpaid")], "2026-10-13").collectedPct).toBe(33);
   });
 });
 
@@ -132,7 +132,27 @@ describe("Home redesign figures", () => {
 
   it("owedBoard calls a never-invoiced tab past its due date overdue, but not invoiced", () => {
     const [row] = owedBoard([d({ customerName: "Uncle Tan", amountSen: 1780, date: "2026-08-05", status: "unpaid" })], TODAY);
-    expect(row).toMatchObject({ status: "overdue", invoiced: false, daysLate: 33 });
+    expect(row).toMatchObject({ status: "overdue", next: "invoice", daysLate: 33 });
+  });
+
+  it("owedBoard's next step: remind a late invoiced tab, invoice a tab with no invoice, else view", () => {
+    const rows = owedBoard(
+      [
+        // Marked overdue but never invoiced: invoice first, there's nothing to remind about.
+        d({ customerName: "Mak Cik Siti" }),
+        // Invoice sent and late, plus a newer tab not invoiced yet: the late invoice wins.
+        d({ customerName: "Kak Lina", amountSen: 2240, date: "2026-09-28", status: "sent" }),
+        d({ customerName: "Kak Lina", amountSen: 480, date: "2026-10-06", status: "unpaid" }),
+        // Invoice sent, not due yet.
+        d({ customerName: "Puan Rosnah", amountSen: 920, date: "2026-10-06", status: "sent" }),
+      ],
+      TODAY,
+    );
+    expect(Object.fromEntries(rows.map((r) => [r.customerName, [r.status, r.next]]))).toEqual({
+      "Mak Cik Siti": ["overdue", "invoice"],
+      "Kak Lina": ["overdue", "remind"],
+      "Puan Rosnah": ["sent", "view"],
+    });
   });
 
   it("owedBoard puts the biggest balance first, with days late and bar lengths", () => {
@@ -161,11 +181,13 @@ describe("Home redesign figures", () => {
       overdueTabs: 2,
       oldestDaysLate: 33,
       customersOwing: 3,
-      notInvoiced: { count: 1, sen: 1780, names: ["Uncle Tan"] },
+      // Mak Cik Siti's tab is marked overdue but was never invoiced, so it counts here (Collect bills it).
+      notInvoiced: { count: 2, sen: 6630, customers: 2, names: ["Mak Cik Siti", "Uncle Tan"] },
       paidTabs: { count: 1, sen: 1200 },
     });
-    // Kak Lina's bill fell due on the 10th, so her first reminder is due today too.
-    expect(o.remindNow).toEqual(["Kak Lina", "Mak Cik Siti"]);
+    // Kak Lina's invoiced bill fell due on the 10th, so her first reminder is due today.
+    // Mak Cik Siti has no invoice yet, so there's nothing to remind her about.
+    expect(o.remindNow).toEqual(["Kak Lina"]);
     expect(o.overduePct).toBe(Math.round((7090 / (8870 + 1200)) * 100));
   });
 
