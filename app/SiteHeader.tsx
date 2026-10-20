@@ -12,15 +12,17 @@ import { useShop } from "./useShop";
 import { useT } from "./useT";
 
 // The shop owner's header and menu. Hidden on a customer's own tab page (/tab/...),
-// which is what the customer opens from the link the shop sends them, on the
-// full-screen scanner (/scan), which has its own close and back buttons, and on sign-in.
+// which is what the customer opens from the link the shop sends them, and on sign-in.
+// On /scan it shows on the first "take or upload a photo" screen; the full-screen camera,
+// reading and check screens hide it (globals.css, .scan-camera / .scan-no-chrome), since
+// they have their own close and back buttons.
 export default function SiteHeader({ links }: { links: NavLink[] }) {
   const pathname = usePathname();
   const { name } = useShop();
   const { t } = useT();
   const [accountOpen, setAccountOpen] = useState(false);
   // Also hidden on a customer's shared tab (/t/...), which is theirs, not the owner's.
-  if (pathname.startsWith("/tab/") || pathname.startsWith("/t/") || pathname === "/scan" || pathname.startsWith("/sign-in")) return null;
+  if (pathname.startsWith("/tab/") || pathname.startsWith("/t/") || pathname.startsWith("/sign-in")) return null;
   return (
     <header className="site-header">
       <Link href="/" className="brand">
@@ -30,7 +32,7 @@ export default function SiteHeader({ links }: { links: NavLink[] }) {
         <NavLinks links={links} />
       </nav>
       {/* Laptop sidebar only: Nudge, one click from every screen. */}
-      <Link href="/nudge" className="side-nudge">
+      <Link href="/nudge" className="side-nudge" aria-current={pathname === "/nudge" ? "page" : undefined}>
         <strong>
           <SparkIcon />
           {t("nav.askNudge")}

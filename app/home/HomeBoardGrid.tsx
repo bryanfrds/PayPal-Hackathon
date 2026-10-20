@@ -14,6 +14,7 @@ import { lateLabel, type BoardRow } from "@/lib/home";
 import Avatar from "../components/Avatar";
 import { DARK_GRID_COLOURS } from "../components/grid-theme";
 import { ShareButton } from "../components/ShareButton";
+import { customerPagePath } from "../customerLinks";
 import { useResolvedTheme } from "../usePrefs";
 import { useT } from "../useT";
 
@@ -52,7 +53,7 @@ function CustomerCell({ data }: CustomCellRendererProps<Row>) {
   if (!data) return null;
   if (isTotal(data)) return <strong>{t("home.grid.customers", { count: data.count })}</strong>;
   return (
-    <Link href={tabPath(data.slug)} className="hg-who">
+    <Link href={customerPagePath(data.customerName)} className="hg-who">
       <Avatar name={data.customerName} />
       <span className="hg-who-main">
         <span className="hg-who-name" title={data.customerName}>
@@ -84,18 +85,21 @@ function ShareCell({ data, context }: CustomCellRendererProps<Row, unknown, Shar
   );
 }
 
-/** The next step for this customer: invoice first if nothing's been sent, then remind once late. */
+/**
+ * The next step for this customer (owedBoard decides): remind once an invoiced tab is late,
+ * otherwise invoice any tab that has no invoice yet, otherwise view.
+ */
 function ActionCell({ data }: CustomCellRendererProps<Row>) {
   const { t } = useT();
   if (!data || isTotal(data)) return null;
-  if (!data.invoiced) {
+  if (data.next === "invoice") {
     return (
       <Link href="/collect" className="hg-act" aria-label={t("home.grid.invoiceAria", { name: data.customerName })}>
         {t("home.grid.invoice")}
       </Link>
     );
   }
-  if (data.status === "overdue") {
+  if (data.next === "remind") {
     return (
       <Link href="/reminders" className="hg-act hg-act-dark" aria-label={t("home.grid.remindAria", { name: data.customerName })}>
         {t("home.remind")}

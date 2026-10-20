@@ -4,8 +4,9 @@
 
 import { isInvoiceable, isValidEmail, type PendingSend } from "./collect";
 import { customerSlug } from "./customer-tab";
-import { createManualDebt, validateDebtInput, type Debt } from "./debts";
+import { createManualDebt, todayLocal, validateDebtInput, type Debt } from "./debts";
 import { translator, type T } from "./i18n";
+import { isNotInvoiced, isOverdue } from "./tab-status";
 
 /** What the owner types into the Add customer form. */
 export type AddCustomerInput = {
@@ -114,10 +115,11 @@ export type CustomerRow = {
   slug: string;
   email?: string;
   totalDebts: number;
-  /** Not invoiced yet ("Not sent"). */
-  unpaidCount: number;
+  /** Tabs with no PayPal invoice yet (isNotInvoiced in lib/tab-status): what Collect bills. */
+  notInvoicedCount: number;
   /** Invoiced, not paid yet ("Invoice sent"). */
   sentCount: number;
+  /** Overdue tabs (isOverdue), invoiced or not: the same rule as Home and the ledger. */
   overdueCount: number;
   /** Everything not paid, the same rule as Home's "Still owed" (outstanding() in lib/debts). */
   owedSen: number;
@@ -142,12 +144,14 @@ export function nameFromSlug(slug: string): string {
  * One row per customer, from their debts plus any saved email. Customers known only by an
  * email are named from `knownNames` (e.g. their last invoice), else from the slug. Biggest
  * balance first. `pending` is Collect's unfinished sends, which decide the invoice email.
+ * `today` (YYYY-MM-DD) decides which tabs are overdue.
  */
 export function customerRows(
   debts: Debt[],
   emails: Record<string, string>,
   knownNames: Map<string, string> = new Map(),
   pending: Record<string, PendingSend> = {},
+  today: string = todayLocal(),
 ): CustomerRow[] {
   const map = new Map<string, CustomerRow>();
   const held = new Set<string>(); // slugs whose unfinished send still holds an invoiceable tab
@@ -155,33 +159,34 @@ export function customerRows(
     const slug = customerSlug(d.customerName);
     let row = map.get(slug);
     if (!row) {
-      row = { name: d.customerName, slug, email: emails[slug], totalDebts: 0, unpaidCount: 0, sentCount: 0, overdueCount: 0, owedSen: 0, lastDate: d.date };
+      row = { name: d.customerName, slug, email: emails[slug], totalDebts: 0, notInvoicedCount: 0, sentCount: 0, overdueCount: 0, owedSen: 0, lastDate: d.date };
       map.set(slug, row);
     }
     row.totalDebts += 1;
     // Same rule as outstanding(): anything not paid is still owed.
     if (d.status !== "paid") row.owedSen += d.amountSen;
-    if (d.status === "unpaid") row.unpaidCount += 1;
+    if (isNotInvoiced(d)) row.notInvoicedCount += 1;
     else if (d.status === "sent") row.sentCount += 1;
-    else if (d.status === "overdue") row.overdueCount += 1;
+    if (isOverdue(d, today)) row.overdueCount += 1;
     if (isInvoiceable(d) && pending[slug]?.debtIds.includes(d.id)) held.add(slug);
     if (!row.lastDate || d.date > row.lastDate) row.lastDate = d.date;
   }
   for (const [slug, email] of Object.entries(emails)) {
     const row = map.get(slug);
     if (row) row.email = email;
-    else map.set(slug, { name: knownNames.get(slug) ?? nameFromSlug(slug), slug, email, totalDebts: 0, unpaidCount: 0, sentCount: 0, overdueCount: 0, owedSen: 0 });
+    else map.set(slug, { name: knownNames.get(slug) ?? nameFromSlug(slug), slug, email, totalDebts: 0, notInvoicedCount: 0, sentCount: 0, overdueCount: 0, owedSen: 0 });
   }
   for (const row of map.values()) row.invoiceEmail = held.has(row.slug) ? pending[row.slug].email : row.email;
   return [...map.values()].sort((a, b) => b.owedSen - a.owedSen || a.name.localeCompare(b.name));
 }
 
 /**
- * Collect can invoice this customer now: they have a tab Collect would pick up (isInvoiceable:
- * not sent yet, or overdue) and an address to send it to (an unfinished send's, or the saved one).
+ * Ready to invoice: they have a tab with no invoice yet, so they're on Collect's list (the
+ * same customers as collectGroups, and Collect's "N customers not invoiced yet"). Whether
+ * there's an email to send it to is a separate step: see invoiceEmail and Missing email.
  */
 export function isReadyToInvoice(row: CustomerRow): boolean {
-  return row.unpaidCount + row.overdueCount > 0 && Boolean(row.invoiceEmail);
+  return row.notInvoicedCount > 0;
 }
 
 export type CustomerTotals = {
@@ -190,7 +195,7 @@ export type CustomerTotals = {
   /** Customers who owe anything. */
   owing: number;
   missingEmail: number;
-  /** isReadyToInvoice: Collect can invoice them now. */
+  /** isReadyToInvoice: matches Collect's customer count and the ledger's "Invoice N customers". */
   readyToInvoice: number;
 };
 

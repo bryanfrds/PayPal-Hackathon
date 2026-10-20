@@ -4,8 +4,9 @@
 // roster showing Nudge working with Studio's agents (Studio's panel lists only the agent you talk to).
 
 import type { AgPanelConfig, AgStudioLocaleText } from "ag-studio";
-import { translator, type T } from "@/lib/i18n";
+import { translator, type MessageKey, type T } from "@/lib/i18n";
 import { useT } from "../useT";
+import { STUDIO_LOCALE_TEXT } from "./studio-config";
 
 /**
  * View mode with Studio's AI panel on the right. Studio's types list the AI panel for edit mode
@@ -22,11 +23,14 @@ export function nudgeLocaleText(t: T = translator()): AgStudioLocaleText {
     aiNewChat: t("nudge.newChat"),
     aiNewConversation: t("nudge.newChat"),
     aiThinkingIndicator: t("nudge.thinking"),
+    aiSubmitButton: t("nudge.send"),
+    aiSubmitButtonAriaLabel: t("nudge.sendMessageAria"),
+    ...STUDIO_LOCALE_TEXT,
   } as AgStudioLocaleText;
 }
 
-/** Studio's agents as the roster names them: short and plain (names, so they stay as they are). */
-const HELPERS = ["Builder", "Query", "Layout", "Widget", "Planner"];
+/** Studio's agents (Builder, Query, Layout, Widget, Planner), named by what they do, in plain words. */
+const HELPERS: MessageKey[] = ["nudge.helper.charts", "nudge.helper.numbers", "nudge.helper.arrange", "nudge.helper.tiles", "nudge.helper.plans"];
 
 /** Nudge, plus the dashboard helpers it hands chart and layout work to. Sits under the panel's title. */
 export function NudgeRoster() {
@@ -36,8 +40,8 @@ export function NudgeRoster() {
       <span className="nudge-roster-on">Nudge</span>
       <span className="nudge-roster-label">{t("nudge.helpersLabel")}</span>
       <ul aria-label={t("nudge.helpersAria")}>
-        {HELPERS.map((name) => (
-          <li key={name}>{name}</li>
+        {HELPERS.map((key) => (
+          <li key={key}>{t(key)}</li>
         ))}
       </ul>
     </div>

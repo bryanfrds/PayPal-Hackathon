@@ -17,25 +17,36 @@ const d = (id: string, status: Debt["status"], amountSen: number): Debt => ({
 
 const DEBTS = [d("a", "overdue", 1000), d("b", "overdue", 500), d("c", "sent", 200), d("d", "unpaid", 300), d("e", "paid", 900)];
 
+const TODAY = "2026-10-13";
+
 describe("ledgerTotals", () => {
-  it("counts and sums each status, and leaves paid out of what's owed", () => {
-    expect(ledgerTotals(DEBTS)).toEqual({
-      counts: { all: 5, overdue: 2, sent: 1, unpaid: 1, paid: 1 },
-      sen: { overdue: 1500, sent: 200, unpaid: 300, paid: 900 },
+  it("counts each chip with the shared rules, and leaves paid out of what's owed", () => {
+    // Marked overdue before any invoice went out: Overdue and Not sent both count them.
+    expect(ledgerTotals(DEBTS, TODAY)).toEqual({
+      counts: { all: 5, overdue: 2, sent: 1, unpaid: 3, paid: 1 },
+      sen: { overdue: 1500, sent: 200, unpaid: 1800, paid: 900 },
       owedSen: 2000,
     });
   });
 
+  it("counts an invoiced tab past its due date as both Invoice sent and Overdue", () => {
+    const late = { ...d("f", "sent", 2240), date: "2026-09-28" };
+    const totals = ledgerTotals([late], TODAY);
+    expect(totals.counts).toMatchObject({ overdue: 1, sent: 1, unpaid: 0 });
+    expect(totals.owedSen).toBe(2240);
+  });
+
   it("is all zeros with no tabs", () => {
-    expect(ledgerTotals([]).owedSen).toBe(0);
+    expect(ledgerTotals([], TODAY).owedSen).toBe(0);
   });
 });
 
 describe("filterByStatus", () => {
-  it("keeps everything for All and only one status otherwise", () => {
-    expect(filterByStatus(DEBTS, "all")).toHaveLength(5);
-    expect(filterByStatus(DEBTS, "overdue").map((x) => x.id)).toEqual(["a", "b"]);
-    expect(filterByStatus(DEBTS, "paid").map((x) => x.id)).toEqual(["e"]);
+  it("keeps everything for All and only the matching tabs otherwise", () => {
+    expect(filterByStatus(DEBTS, "all", TODAY)).toHaveLength(5);
+    expect(filterByStatus(DEBTS, "overdue", TODAY).map((x) => x.id)).toEqual(["a", "b"]);
+    expect(filterByStatus(DEBTS, "unpaid", TODAY).map((x) => x.id)).toEqual(["a", "b", "d"]);
+    expect(filterByStatus(DEBTS, "paid", TODAY).map((x) => x.id)).toEqual(["e"]);
   });
 });
 

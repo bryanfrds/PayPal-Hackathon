@@ -352,6 +352,13 @@ a {
   height: 100%;
 }
 
+/* Invoice state plus a late badge side by side ("Invoice sent" · "10 days late"). */
+.tab-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
 .badge {
   display: inline-flex;
   align-items: center;
@@ -784,6 +791,12 @@ a {
 }
 
 .section-head a {
+  /* A 44px-tall tap area; the negative margins keep the heading row the same height. */
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin: -12px -0.5rem;
+  padding: 0 0.5rem;
   font-size: 0.85rem;
   font-weight: 700;
   color: var(--ink);
@@ -1355,7 +1368,93 @@ a.tab-back:focus-visible,
   outline-offset: 4px;
 }
 
-/* Scanner (app/scan): full-screen camera, reading sheet, check screen */
+/* Scanner (app/scan): a choice screen, then full-screen camera, reading sheet, check screen */
+
+/* The camera, reading and check screens have their own close and back buttons: no app menu. */
+body:has(.scan-camera, .scan-no-chrome) > .site-header {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  /* html > : outranks the sidebar grid (body:has(> .site-header)) further down. */
+  html > body:has(.scan-camera, .scan-no-chrome) {
+    display: block;
+  }
+}
+
+.scan-choose-mode button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.scan-choose-mode .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.scan-choose-options {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.scan-option {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  min-height: 5rem;
+  padding: 1rem 1.1rem;
+  font: inherit;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  background: var(--card);
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.scan-option-primary {
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.scan-option:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.scan-option-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 50%;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.scan-option-icon .icon {
+  width: 22px;
+  height: 22px;
+}
+
+.scan-option-text {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.scan-option-text strong {
+  font-size: 1.02rem;
+  font-weight: 800;
+}
+
+.scan-option-text small {
+  font-size: 0.82rem;
+  opacity: 0.75;
+}
 .scan-camera {
   position: fixed;
   inset: 0;
@@ -2429,9 +2528,13 @@ button.tab-back:focus-visible {
 }
 
 .collect-email {
+  /* About 28px tall to tap; the negative margins keep the row's spacing as it was. */
+  display: block;
   overflow: hidden;
   max-width: 100%;
-  padding: 0;
+  margin: -0.35rem 0;
+  padding: 0.35rem 0;
+  text-align: left;
   font: inherit;
   font-size: 0.78rem;
   color: var(--muted);
@@ -3703,8 +3806,35 @@ body.nudge-sheet-open {
   }
 }
 
+/* Phone: tall enough for the month and four 40px rows of the day's list; a busier day scrolls
+   inside the list instead of being clipped by the card. */
 .reminder-board-phone {
-  height: 30rem;
+  height: 33rem;
+}
+
+.reminder-board-phone .b-month-agenda-agenda {
+  min-height: 0;
+}
+
+/* Today's date number: Bryntum's #1e88e5 blue is 2.3:1 on the light card. Our ink is well over
+   4.5:1 in both themes (it follows the light and dark tokens). */
+.reminder-board {
+  --b-date-picker-today-color: var(--ink);
+  --b-calendar-today-color: var(--ink);
+  --b-month-view-today-day-num-color: var(--ink);
+}
+
+/* Bryntum's date picker sets its own today colour on the cell, so it's overridden there too. */
+.reminder-board .b-calendar-panel-cell.b-today,
+.reminder-board .b-calendar-panel-cell.b-today .b-date-picker-cell-inner {
+  --b-calendar-panel-color: var(--ink);
+  --b-date-picker-today-color: var(--ink);
+  color: var(--ink);
+}
+
+/* Keeps "RM" and its amount on one line. */
+.nowrap {
+  white-space: nowrap;
 }
 
 .reminder-board .b-widget,
@@ -4278,9 +4408,14 @@ body.nudge-sheet-open {
 .home-act {
   display: grid;
   justify-items: center;
+  /* A label that needs two lines ("Tambah hutang") stays centred under its icon, and every icon
+     stays on the same line. */
+  align-content: start;
   gap: 0.35rem;
   font-size: 0.74rem;
   font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
   color: var(--ink);
   text-decoration: none;
 }
@@ -4670,6 +4805,11 @@ body.nudge-sheet-open {
   margin-top: 0.5rem;
 }
 
+/* Studio's tile ran 2px taller than its box and drew a scrollbar inside the chart card. */
+.home-studio .ag-studio-layout {
+  overflow: hidden;
+}
+
 /* The sidebar's Nudge box: laptop only. */
 .side-nudge,
 .nav-wide-only {
@@ -4997,13 +5137,189 @@ body.nudge-sheet-open {
   }
 }
 
-/* Ledger on a laptop: full-width grid with every column, status chips and a totals panel. */
-.ledger-wide-only {
-  display: none;
+/* Ledger on a laptop: full-width grid with every column, status chips and a totals panel.
+   Phones and tablets get the same totals as a compact card above the grid. */
+.ledger-cols {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
-.ledger-cols {
-  display: block;
+.ledger-summary {
+  order: -1;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  padding: 0.9rem 1rem;
+}
+
+.ledger-summary .ledger-summary-k {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.ledger-summary .ledger-summary-v {
+  grid-column: 1;
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+
+.ledger-summary ul {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.9rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ledger-summary li {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+}
+
+.ledger-summary .ledger-summary-late {
+  grid-column: 1;
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--overdue);
+}
+
+.ledger-summary-go {
+  grid-column: 2;
+  grid-row: 1 / span 3;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.ledger-summary-go .icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* Ledger grid cells. */
+.ag-cell.ledger-select-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+/* The row tick box: 18px to see, 24px to hit. */
+.ledger-select {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+}
+
+.ledger-select input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--ink);
+  cursor: pointer;
+}
+
+/* The header tick box gets the same 24px hit area around AG Grid's 16px box. */
+.ledger-grid .ag-header-select-all .ag-checkbox-input-wrapper::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+}
+
+.ledger-grid .ag-header-select-all .ag-checkbox-input {
+  inset: -4px;
+  width: 24px;
+  height: 24px;
+}
+
+.ag-cell.ledger-two-line {
+  display: flex;
+  align-items: center;
+  line-height: 1.2;
+}
+
+.ledger-name-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  width: 100%;
+}
+
+.ledger-name-main,
+.ledger-name-sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ledger-name-main {
+  font-weight: 600;
+}
+
+.ledger-name-sub {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+/* The "Still owed" row's count may take two lines rather than be cut. */
+.ledger-name-cell-total .ledger-name-sub {
+  display: -webkit-box;
+  white-space: normal;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.ledger-amount-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  width: 100%;
+}
+
+.ledger-amount-main {
+  font-variant-numeric: tabular-nums;
+}
+
+.ledger-amount-cell .badge {
+  height: 1.3rem;
+  padding: 0 0.5rem;
+  font-size: 0.72rem;
+}
+
+/* Wider grids: "Still owed" and its count across the name and item columns, two lines at most. */
+.ledger-total-label {
+  display: -webkit-box;
+  overflow: hidden;
+  line-height: 1.2;
+  white-space: normal;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.ledger-total-label span {
+  color: var(--muted);
+}
+
+.ledger-grid .ag-row-pinned .ag-cell[col-id="customerName"] {
+  display: flex;
+  align-items: center;
 }
 
 .ledger-page .ledger-chips {
@@ -5217,6 +5533,13 @@ body.nudge-sheet-open {
     letter-spacing: -0.03em;
   }
 
+  .ledger-summary-late {
+    margin-top: -0.4rem !important;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--overdue);
+  }
+
   .ledger-summary ul {
     margin: 0;
     padding: 0;
@@ -5286,8 +5609,10 @@ body.nudge-sheet-open {
   }
 }
 
-/* Small laptops: the totals sit above the grid as a strip, so the grid keeps room for every column. */
-@media (min-width: 1024px) and (max-width: 1279px) {
+/* Laptops: the totals sit above the grid as a strip, so the grid gets the page's full width and
+   every column (a late tab's two status badges included) reads in full. Beside the grid, the
+   1180px page left the grid too narrow at any window size. */
+@media (min-width: 1024px) {
   .ledger-cols {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -5305,7 +5630,7 @@ body.nudge-sheet-open {
     flex-wrap: wrap;
     gap: 0.4rem 1.1rem;
     grid-column: 2;
-    grid-row: 1 / span 2;
+    grid-row: 1 / span 3;
   }
 
   .ledger-summary li {
@@ -5315,13 +5640,18 @@ body.nudge-sheet-open {
   }
 
   .ledger-summary-k,
-  .ledger-summary-v {
+  .ledger-summary-v,
+  .ledger-summary-late {
     grid-column: 1;
+  }
+
+  .ledger-summary-late {
+    margin-top: 0 !important;
   }
 
   .ledger-summary-go {
     grid-column: 3;
-    grid-row: 1 / span 2;
+    grid-row: 1 / span 3;
   }
 }
 
@@ -7281,14 +7611,15 @@ body.nudge-sheet-open {
 }
 
 @media (min-width: 1024px) {
+  /* Same look as the menu items above it (.site-nav a), current page included. */
   .side-settings {
     display: flex;
     align-items: center;
-    gap: 0.6rem;
-    padding: 0.55rem 0.6rem;
-    font-size: 0.85rem;
+    gap: 0.65rem;
+    padding: 0.65rem 0.75rem;
+    font-size: 0.9rem;
     font-weight: 700;
-    color: var(--ink);
+    color: var(--muted);
     text-decoration: none;
     border-radius: 12px;
   }
@@ -7299,9 +7630,16 @@ body.nudge-sheet-open {
   }
 
   .side-settings:hover,
-  .side-settings:focus-visible,
-  .side-settings[aria-current="page"] {
+  .side-settings:focus-visible {
+    color: var(--ink);
     background: var(--paper);
+  }
+
+  .side-settings[aria-current="page"],
+  .side-nudge[aria-current="page"],
+  .side-nudge[aria-current="page"] strong {
+    color: var(--on-ink);
+    background: var(--ink);
   }
 
   .set-toast-wrap {

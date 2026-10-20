@@ -10,7 +10,7 @@ function debt(over: Partial<Debt>): Debt {
     item: "Beras",
     amountSen: 4850,
     date: "2026-08-02",
-    status: "overdue",
+    status: "sent",
     source: "manual",
     createdAt: "2026-08-02T09:00:00.000Z",
     ...over,

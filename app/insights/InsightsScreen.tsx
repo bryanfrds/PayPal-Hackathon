@@ -197,7 +197,11 @@ export default function InsightsScreen() {
     };
   }, [sheetOpen, closeSlot, closeSheet]);
 
-  const height = kind === null || values === null ? undefined : isWide && fillHeight !== null ? fillHeight : canvasHeight(kind, values);
+  // Never shorter than the tiles: a dashboard cut to the window scrolled inside the page (a
+  // second scroll area, with its own grey scrollbar beside Nudge). On a short window the page
+  // scrolls instead; on a tall one the dashboard still fills it.
+  const contentHeight = kind === null || values === null ? undefined : canvasHeight(kind, values);
+  const height = contentHeight === undefined ? undefined : isWide && fillHeight !== null ? Math.max(fillHeight, contentHeight) : contentHeight;
 
   return (
     <div className={`insights${isWide ? " insights-wide" : ""}${sheetOpen ? " insights-asking" : ""}`}>

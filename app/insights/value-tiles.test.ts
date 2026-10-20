@@ -53,15 +53,20 @@ describe("value tile room", () => {
     // screen, layout, value tiles a row, room for the amount
     [360, "phone", 1, 276],
     [390, "phone", 1, 306],
-    [1024, "wide", 1, 371],
-    [1280, "wide", 3, 185],
-    [1600, "wide", 3, 225],
+    [1024, "wide", 1, 391],
+    [1280, "wide", 3, 191],
+    [1600, "wide", 3, 231],
   ] as const)("%ipx screen (%s): %i value tiles a row, %ipx for the amount", (screen, kind, values, room) => {
     const estimate = estimatedCanvas(screen);
     expect(estimate.kind).toBe(kind);
     expect(valueTilesFor(estimate.canvas, kind)).toBe(values);
     expect(valueTileRoom(estimate.canvas, kind, values)).toBe(room);
     expect(room).toBeGreaterThanOrEqual(VALUE_AMOUNT_WIDTH);
+  });
+
+  it("keeps three value tiles a row at 1280px even with a classic 15px scrollbar", () => {
+    const { canvas } = estimatedCanvas(1280);
+    expect(valueTilesFor(canvas - 15, "wide")).toBe(3);
   });
 
   it("stacks the value tiles on the measured 1024px-with-Nudge canvas too", () => {

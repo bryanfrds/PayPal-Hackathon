@@ -1,9 +1,10 @@
 "use client";
 
-// Scan a buku 555 page or a receipt, Shopee "Scan & Pay" style: full-screen camera,
-// a short "reading" wait, then a check screen where the owner fixes lines and saves them.
+// Scan a buku 555 page or a receipt: first a choice (take a photo or upload one, inside the
+// normal app screen, so the camera never starts on its own), then, Shopee "Scan & Pay" style, a
+// full-screen camera, a short "reading" wait, and a check screen where the owner fixes lines
+// and saves them.
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
 import { DebtStoreError, newDebtId } from "@/lib/debt-store";
@@ -20,12 +21,12 @@ import {
   type ScanMode,
   scanDraftKey,
 } from "@/lib/scan";
-import { BackIcon, BoltIcon, CheckIcon, CloseIcon, ImageIcon, NoteIcon, ReceiptIcon } from "../components/icons";
+import { BackIcon, BoltIcon, CheckIcon, CloseIcon, ImageIcon, NoteIcon, ReceiptIcon, ScanIcon } from "../components/icons";
 import { useDialog } from "../components/useDialog";
 import { useDebts } from "../useDebts";
 import { useT } from "../useT";
 
-type Phase = "camera" | "reading" | "check";
+type Phase = "choose" | "camera" | "reading" | "check";
 
 function readingSteps(mode: ScanMode, t: T): string[] {
   const found = sampleRead(mode, todayLocal(), t).length;
@@ -55,7 +56,7 @@ function useFocusOnMount<T extends HTMLElement>(enabled = true) {
 }
 
 export default function ScanFlow() {
-  const [phase, setPhase] = useState<Phase>("camera");
+  const [phase, setPhase] = useState<Phase>("choose");
   const [mode, setMode] = useState<ScanMode>("notebook");
   const [photo, setPhoto] = useState<string | null>(null);
 
@@ -75,7 +76,22 @@ export default function ScanFlow() {
   // On first load the page itself has focus; only move it when coming back from Retake.
   const [returned, setReturned] = useState(false);
 
-  if (phase === "camera") return <Camera mode={mode} onMode={setMode} onPhoto={onPhoto} focusTitle={returned} />;
+  if (phase === "choose") {
+    return <Choose mode={mode} onMode={setMode} onPhoto={onPhoto} onCamera={() => setPhase("camera")} focusTitle={returned} />;
+  }
+  if (phase === "camera") {
+    return (
+      <Camera
+        mode={mode}
+        onMode={setMode}
+        onPhoto={onPhoto}
+        onClose={() => {
+          setReturned(true);
+          setPhase("choose");
+        }}
+      />
+    );
+  }
   if (phase === "reading") return <Reading mode={mode} photo={photo} onDone={onRead} />;
   return (
     <Check
@@ -84,13 +100,82 @@ export default function ScanFlow() {
       onRetake={() => {
         clearDraft(mode);
         setReturned(true);
-        setPhase("camera");
+        setPhase("choose");
       }}
     />
   );
 }
 
-/* 1 · Camera */
+/* 1 · Choose: take a photo (opens the camera) or upload one */
+
+function Choose({
+  mode,
+  onMode,
+  onPhoto,
+  onCamera,
+  focusTitle,
+}: {
+  mode: ScanMode;
+  onMode: (m: ScanMode) => void;
+  onPhoto: (url: string) => void;
+  onCamera: () => void;
+  focusTitle: boolean;
+}) {
+  const { t } = useT();
+  const titleRef = useFocusOnMount<HTMLHeadingElement>(focusTitle);
+  const uploadRef = useRef<HTMLInputElement>(null);
+
+  function onFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (file) onPhoto(URL.createObjectURL(file));
+  }
+
+  return (
+    <div className="scan-choose">
+      <h1 ref={titleRef} tabIndex={-1} className="page-title">
+        {t("scan.title")}
+      </h1>
+      <p className="page-intro">{t("scan.chooseIntro")}</p>
+
+      <div className="chips scan-choose-mode" role="group" aria-label={t("scan.modeGroup")}>
+        <button type="button" aria-pressed={mode === "notebook"} onClick={() => onMode("notebook")}>
+          <NoteIcon />
+          {t("scan.notebook")}
+        </button>
+        <button type="button" aria-pressed={mode === "receipt"} onClick={() => onMode("receipt")}>
+          <ReceiptIcon />
+          {t("scan.receipt")}
+        </button>
+      </div>
+
+      <div className="scan-choose-options">
+        <button type="button" className="scan-option scan-option-primary" onClick={onCamera}>
+          <span className="scan-option-icon" aria-hidden="true">
+            <ScanIcon />
+          </span>
+          <span className="scan-option-text">
+            <strong>{t("scan.takePhoto")}</strong>
+            <small>{t("scan.takePhotoHint")}</small>
+          </span>
+        </button>
+        <button type="button" className="scan-option" onClick={() => uploadRef.current?.click()}>
+          <span className="scan-option-icon" aria-hidden="true">
+            <ImageIcon />
+          </span>
+          <span className="scan-option-text">
+            <strong>{t("scan.uploadPhoto")}</strong>
+            <small>{t("scan.uploadPhotoHint")}</small>
+          </span>
+        </button>
+      </div>
+
+      <input ref={uploadRef} type="file" accept="image/*" hidden onChange={onFile} />
+    </div>
+  );
+}
+
+/* 2 · Camera */
 
 type CameraState = "starting" | "live" | "unavailable";
 
@@ -98,15 +183,16 @@ function Camera({
   mode,
   onMode,
   onPhoto,
-  focusTitle,
+  onClose,
 }: {
   mode: ScanMode;
   onMode: (m: ScanMode) => void;
   onPhoto: (url: string) => void;
-  focusTitle: boolean;
+  onClose: () => void;
 }) {
   const { t } = useT();
-  const titleRef = useFocusOnMount<HTMLHeadingElement>(focusTitle);
+  // Opened by a tap on "Take a photo", so the heading takes focus and the new screen is announced.
+  const titleRef = useFocusOnMount<HTMLHeadingElement>();
   // True once the video has a frame to capture; the shutter waits for it.
   const [videoReady, setVideoReady] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -204,9 +290,9 @@ function Camera({
       )}
 
       <div className="scan-camtop">
-        <Link href="/" className="scan-round" aria-label={t("scan.close")}>
+        <button type="button" className="scan-round" aria-label={t("scan.close")} onClick={onClose}>
           <CloseIcon />
-        </Link>
+        </button>
         <h1 ref={titleRef} tabIndex={-1}>
           {t("scan.title")}
         </h1>
@@ -298,7 +384,7 @@ function Camera({
   );
 }
 
-/* 2 · Reading */
+/* 3 · Reading */
 
 function Reading({ mode, photo, onDone }: { mode: ScanMode; photo: string | null; onDone: () => void }) {
   const { t } = useT();
@@ -342,7 +428,7 @@ function Reading({ mode, photo, onDone }: { mode: ScanMode; photo: string | null
   );
 }
 
-/* 3 · Check */
+/* 4 · Check */
 
 const NEW_NAME = "__new__";
 
@@ -521,9 +607,9 @@ function Check({ mode, photo, onRetake }: { mode: ScanMode; photo: string | null
   const receipt = mode === "receipt" ? lines[0] : null;
 
   return (
-    <div className="tab-page">
+    <div className="tab-page scan-no-chrome">
       <div className="tab-top">
-        <button type="button" className="tab-back" aria-label={t("scan.backToCamera")} onClick={onRetake}>
+        <button type="button" className="tab-back" aria-label={t("common.back")} onClick={onRetake}>
           <BackIcon />
         </button>
         <h1 ref={titleRef} tabIndex={-1}>

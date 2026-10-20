@@ -3,31 +3,47 @@
 import type { InvoiceRecord } from "./collect-store";
 import { formatSen, type Debt, type DebtStatus } from "./debts";
 import { translator, type T } from "./i18n";
+import { isNotInvoiced, isOverdue } from "./tab-status";
 
+/**
+ * The ledger's filter chips, using the shared rules in lib/tab-status. Invoice sent, Not sent
+ * and Paid split every tab by where its invoice stands; Overdue is the late ones among them,
+ * invoiced or not, so a late "Invoice sent" tab shows under both.
+ */
 export type LedgerFilter = "all" | DebtStatus;
 export const LEDGER_FILTERS: LedgerFilter[] = ["all", "overdue", "sent", "unpaid", "paid"];
 
+export function matchesFilter(debt: Debt, filter: LedgerFilter, today: string): boolean {
+  if (filter === "all") return true;
+  if (filter === "overdue") return isOverdue(debt, today);
+  if (filter === "unpaid") return isNotInvoiced(debt);
+  return debt.status === filter;
+}
+
 export type LedgerTotals = {
-  /** Tabs per status, and all of them. */
+  /** Tabs per filter chip, and all of them. */
   counts: Record<LedgerFilter, number>;
-  /** Sen per status. */
+  /** Sen per filter chip. Overdue overlaps the others. */
   sen: Record<DebtStatus, number>;
-  /** Everything not paid, in sen. */
+  /** Everything not paid, in sen: Invoice sent plus Not sent. */
   owedSen: number;
 };
 
-export function ledgerTotals(debts: Debt[]): LedgerTotals {
+export function ledgerTotals(debts: Debt[], today: string): LedgerTotals {
   const counts: Record<LedgerFilter, number> = { all: debts.length, overdue: 0, sent: 0, unpaid: 0, paid: 0 };
   const sen: Record<DebtStatus, number> = { overdue: 0, sent: 0, unpaid: 0, paid: 0 };
   for (const d of debts) {
-    counts[d.status] += 1;
-    sen[d.status] += d.amountSen;
+    for (const f of ["overdue", "sent", "unpaid", "paid"] as const) {
+      if (!matchesFilter(d, f, today)) continue;
+      counts[f] += 1;
+      sen[f] += d.amountSen;
+    }
   }
-  return { counts, sen, owedSen: sen.overdue + sen.sent + sen.unpaid };
+  return { counts, sen, owedSen: sen.sent + sen.unpaid };
 }
 
-export function filterByStatus(debts: Debt[], filter: LedgerFilter): Debt[] {
-  return filter === "all" ? debts : debts.filter((d) => d.status === filter);
+export function filterByStatus(debts: Debt[], filter: LedgerFilter, today: string): Debt[] {
+  return filter === "all" ? debts : debts.filter((d) => matchesFilter(d, filter, today));
 }
 
 // Spreadsheet apps run a cell that starts with one of these as a formula (CSV injection),

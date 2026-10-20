@@ -50,6 +50,12 @@
     border-radius 0.25s ease;
 }
 
+/* The "send their tab on WhatsApp" tip on Home waits until the tour has closed, so it never
+   sits bright on top of the dimmed page. visibility keeps its space, so nothing moves. */
+body:has(.qt) .wa-tip-wrap {
+  visibility: hidden;
+}
+
 /* ----- Buttons ----- */
 .qt-btn {
   display: inline-flex;

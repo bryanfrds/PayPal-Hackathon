@@ -151,11 +151,19 @@ describe("customerRows and customerTotals", () => {
     expect(rows.find((r) => r.slug === "nurul")?.owedSen).toBe(0);
   });
 
-  it("ready to invoice means an email and something Collect can still invoice", () => {
+  it("ready to invoice means something Collect can still invoice; a missing email is counted on its own", () => {
     const rows = customerRows(debts, { "kak-lina": "lina@x.co", "puan-rosnah": "r@x.co", nurul: "n@x.co" });
-    // Kak Lina has a not-sent tab; Puan Rosnah's only tab is already invoiced; Nurul paid up.
-    expect(customerTotals(rows).readyToInvoice).toBe(1);
+    // Kak Lina has a not-sent tab and Mak Cik Siti one marked overdue before any invoice;
+    // Puan Rosnah's only tab is already invoiced; Nurul paid up.
+    expect(customerTotals(rows).readyToInvoice).toBe(2);
     expect(customerTotals(rows).missingEmail).toBe(1);
+  });
+
+  it("counts overdue tabs by the shared rule: an invoiced tab past its due date counts", () => {
+    const rows = customerRows(debts, {}, new Map(), {}, "2026-11-11");
+    // October tabs fall due on 10 November: Kak Lina's invoiced and not-sent tabs are both late.
+    expect(rows.find((r) => r.slug === "kak-lina")).toMatchObject({ overdueCount: 2, sentCount: 1, notInvoicedCount: 1 });
+    expect(rows.find((r) => r.slug === "nurul")?.overdueCount).toBe(0);
   });
 
   it("names a customer known only by email from a known name, else from the slug", () => {
@@ -171,17 +179,19 @@ describe("isReadyToInvoice", () => {
   });
   const row = (slug: string, rows: ReturnType<typeof customerRows>) => rows.find((r) => r.slug === slug)!;
 
-  it("matches what Collect can send: a not-sent or overdue tab, plus an email", () => {
+  it("matches Collect's list: anyone with a tab not invoiced yet, email or not", () => {
     const debts = [mk("1", "Ali", "unpaid"), mk("2", "Bala", "overdue"), mk("3", "Chong", "sent"), mk("4", "Dev", "paid"), mk("5", "Esah", "unpaid")];
-    const rows = customerRows(debts, { ali: "a@x.co", bala: "b@x.co", chong: "c@x.co", dev: "d@x.co" });
+    const emails = { ali: "a@x.co", bala: "b@x.co", chong: "c@x.co", dev: "d@x.co" };
+    const rows = customerRows(debts, emails);
     expect(isReadyToInvoice(row("ali", rows))).toBe(true);
     expect(isReadyToInvoice(row("bala", rows))).toBe(true);
     expect(isReadyToInvoice(row("chong", rows))).toBe(false); // only an "Invoice sent" tab: nothing to send
     expect(isReadyToInvoice(row("dev", rows))).toBe(false); // paid up
-    expect(isReadyToInvoice(row("esah", rows))).toBe(false); // no email yet
-    // The same customers collectGroups would put in "To send" with an address.
+    expect(isReadyToInvoice(row("esah", rows))).toBe(true); // on Collect's list, which asks for her email
+    expect(row("esah", rows).invoiceEmail).toBeUndefined();
+    // The same customers collectGroups puts in "To send".
     const ready = rows.filter(isReadyToInvoice).map((r) => r.slug).sort();
-    const groups = collectGroups(debts, { ali: "a@x.co", bala: "b@x.co", chong: "c@x.co", dev: "d@x.co" }).filter((g) => g.email).map((g) => g.slug).sort();
+    const groups = collectGroups(debts, emails).map((g) => g.slug).sort();
     expect(ready).toEqual(groups);
   });
 

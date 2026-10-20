@@ -277,7 +277,7 @@ export default function RemindersScreen() {
                   <span className="reminder-main">
                     <span className="reminder-name">{item.customer}</span>
                     <span className="reminder-meta">
-                      {item.label} · RM {formatSen(item.amountSen)}
+                      {item.label} · <span className="nowrap">RM {formatSen(item.amountSen)}</span>
                       {item.day < today ? ` · ${t("reminders.since", { day: dayText(item.day) })}` : ""}
                     </span>
                   </span>
@@ -328,7 +328,7 @@ export default function RemindersScreen() {
                 <span className="reminder-main">
                   <span className="reminder-name">{item.customer}</span>
                   <span className="reminder-meta">
-                    {item.label} · RM {formatSen(item.amountSen)}
+                    {item.label} · <span className="nowrap">RM {formatSen(item.amountSen)}</span>
                     {item.moved ? ` · ${t("reminders.moved")}` : ""}
                   </span>
                 </span>
@@ -359,7 +359,7 @@ export default function RemindersScreen() {
                 <span className="reminder-main">
                   <span className="reminder-name">{item.customer}</span>
                   <span className="reminder-meta">
-                    {item.label} · RM {formatSen(item.amountSen)} · {t("reminders.history.sent")}
+                    {item.label} · <span className="nowrap">RM {formatSen(item.amountSen)}</span> · {t("reminders.history.sent")}
                   </span>
                 </span>
                 <span className="reminder-actions">

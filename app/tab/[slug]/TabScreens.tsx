@@ -215,7 +215,7 @@ function OwnerLinkNotice({ slug, name }: { slug: string; name: string }) {
 /* 1 · Your tab */
 export function TabHome({ slug }: { slug: string }) {
   const { t, formatDay, formatMonth } = useT();
-  const { base, shopName } = useTabSource(slug);
+  const { base, shopName, shared } = useTabSource(slug);
   return (
     <WithTab slug={slug}>
       {({ tab, today }) => {
@@ -225,6 +225,12 @@ export function TabHome({ slug }: { slug: string }) {
         const year = Number(today.slice(0, 4));
         return (
           <div className="tab-page">
+            {/* The owner previewing this tab in the app gets a way back; a customer on their shared link (/t/...) doesn't. */}
+            {!shared && (
+              <Link href="/" className="cust-back tab-owner-back">
+                <BackIcon /> {t("tab.backToApp")}
+              </Link>
+            )}
             <div className="app-head">
               <Logo />
             </div>

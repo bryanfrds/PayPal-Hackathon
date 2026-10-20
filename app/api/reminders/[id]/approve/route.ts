@@ -2,10 +2,10 @@
 import { NextResponse } from "next/server";
 import { requireOwner } from "@/lib/auth-server";
 import { getPerson1Store } from "@/lib/person1-store";
-import { sendReminderForOwner } from "@/app/api/invoices/[id]/remind/route";
+import { deliverScheduledReminder } from "@/lib/remind";
 
 export async function POST(
-  req: Request,
+  _req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const owner = await requireOwner();
@@ -29,16 +29,16 @@ export async function POST(
   const claimed = await store.claimPendingReminder(owner.email, decisionId);
   if (!claimed) return NextResponse.json({ error: "Reminder was already taken for delivery." }, { status: 409 });
 
+  // Person 2's safe delivery, called in-process.
   try {
-    const res = await sendReminderForOwner(owner.email, decision.invoiceId);
-    const data = await res.json().catch(() => ({}));
+    const delivery = await deliverScheduledReminder(decision.invoiceId);
 
-    if (res.ok) {
-      await store.updateReminderDecisionAction(owner.email, decisionId, "requested", "Approved by owner and sent");
-      return NextResponse.json({ ok: true, status: "requested", message: "Reminder approved and delivered." });
+    if (delivery.ok) {
+      await store.updateReminderDecisionAction(owner.email, decisionId, "requested", delivery.message || "Approved by owner and sent");
+      return NextResponse.json({ ok: true, status: "requested", message: delivery.message || "Reminder approved and delivered." });
     } else {
-      await store.updateReminderDecisionAction(owner.email, decisionId, "failed", data.error || "Delivery refused");
-      return NextResponse.json({ ok: false, error: data.error || "Delivery failed" }, { status: 502 });
+      await store.updateReminderDecisionAction(owner.email, decisionId, "failed", delivery.error || "Delivery refused");
+      return NextResponse.json({ ok: false, error: delivery.error || "Delivery failed" }, { status: 502 });
     }
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : "Delivery connection error";

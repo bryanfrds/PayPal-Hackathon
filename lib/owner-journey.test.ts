@@ -167,11 +167,12 @@ describe("Person 3: End-to-End Owner Journeys", () => {
         { id: "3", customerName: "Bala", item: "Susu", amountSen: 1200, date: "2026-10-03", status: "overdue", source: "manual", createdAt: "2026-10-03T00:00:00Z" },
       ];
 
-      const totals = ledgerTotals(debts);
+      const totals = ledgerTotals(debts, "2026-10-13");
       // Paid amounts excluded from still owed: 300 + 1200 = 1500 sen
       expect(totals.owedSen).toBe(1500);
       expect(totals.counts.paid).toBe(1);
-      expect(totals.counts.unpaid).toBe(1);
+      // Not sent counts every tab with no invoice yet, Bala's overdue one included.
+      expect(totals.counts.unpaid).toBe(2);
       expect(totals.counts.overdue).toBe(1);
 
       // Export CSV with PayPal invoice mapping
@@ -217,7 +218,7 @@ describe("Person 3: End-to-End Owner Journeys", () => {
           item: "Beras",
           amountSen: 4500,
           date: "2026-09-01",
-          status: "overdue",
+          status: "sent",
           source: "manual",
           createdAt: "2026-09-01T00:00:00Z",
         },
@@ -244,7 +245,7 @@ describe("Person 3: End-to-End Owner Journeys", () => {
   // Journey 8: Empty, Error, and Demo Reset
   describe("Journey 8: Empty states and comprehensive demo reset", () => {
     it("handles empty ledger calculations safely", () => {
-      const totals = ledgerTotals([]);
+      const totals = ledgerTotals([], "2026-10-13");
       expect(totals.owedSen).toBe(0);
       expect(totals.counts.all).toBe(0);
 

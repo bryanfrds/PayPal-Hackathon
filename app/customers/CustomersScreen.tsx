@@ -26,12 +26,12 @@ import { useT } from "../useT";
 type FilterTab = "all" | "owed" | "missing_email" | "ready";
 
 
-export default function CustomersScreen() {
+export default function CustomersScreen({ initialQuery = "" }: { initialQuery?: string }) {
   const { t, formatDay, formatNumber } = useT();
   const { debts } = useDebts();
   const { emails, invoices, pending } = useCollect();
 
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const [filter, setFilter] = useState<FilterTab>("all");
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<CustomerRow | null>(null);
@@ -42,7 +42,7 @@ export default function CustomersScreen() {
     const knownNames = new Map<string, string>();
     for (const inv of invoices) if (!knownNames.has(inv.slug)) knownNames.set(inv.slug, inv.customerName);
     for (const p of Object.values(pending)) if (!knownNames.has(p.slug)) knownNames.set(p.slug, p.customerName);
-    return customerRows(debts, emails, knownNames, pending);
+    return customerRows(debts, emails, knownNames, pending, todayLocal());
   }, [debts, emails, invoices, pending]);
 
   // Filtered customer list
@@ -220,8 +220,9 @@ export default function CustomersScreen() {
                 <Link href={`/tab/${c.slug}`} className="button button-sm">
                   {t("customers.row.viewTab")}
                 </Link>
-                {/* Only when Collect has something to send them, so "Invoice sent" tabs get no dead button. */}
-                {isReadyToInvoice(c) && (
+                {/* Only when Collect has something to send them and an address to send it to:
+                    "Invoice sent" tabs get no dead button, and a missing email has its own button above. */}
+                {isReadyToInvoice(c) && c.invoiceEmail && (
                   <Link href="/collect" className="button button-sm button-primary cust-invoice">
                     <SendIcon /> {t("customers.row.invoice")}
                   </Link>
