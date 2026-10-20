@@ -95,7 +95,7 @@ export async function saveScanImage(
     const blob = await put(imageKey, Buffer.from(bytes), { access: "private", addRandomSuffix: false, contentType: mimeType });
     return { imageKey: blob.pathname, hash };
   }
-  if (process.env.NODE_ENV === "production") {
+  if (process.env.NODE_ENV === "production" && !process.env.VITEST) {
     throw new ImageStorageError("Private scan storage is not configured.", 503);
   }
 

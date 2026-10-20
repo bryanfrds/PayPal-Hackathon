@@ -108,9 +108,14 @@ export async function extractNotebookEntries(
   const now = new Date().toISOString();
 
   const connected = Boolean(process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN);
-  const rawLines = fixtureScenario || !connected
-    ? buildSyntheticLines(fixtureScenario, today)
-    : await extractWithGateway(imageBytes, mimeType);
+  let rawLines: RawExtractedLine[];
+  if (fixtureScenario) {
+    rawLines = buildSyntheticLines(fixtureScenario, today);
+  } else if (!connected) {
+    throw new Error("AI document scanning is not configured. Missing AI_GATEWAY_API_KEY.");
+  } else {
+    rawLines = await extractWithGateway(imageBytes, mimeType);
+  }
 
   return rawLines.map((l, index) => {
     const amountSen = moneyToSen(l.amount) ?? 0;

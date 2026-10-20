@@ -35,6 +35,9 @@ export async function POST(req: Request) {
   if (file.size > MAX_SCAN_IMAGE_BYTES) return NextResponse.json({ error: "Image file exceeds the 10MB limit." }, { status: 413 });
 
   const mode = formData.get("mode") === "receipt" ? "receipt" : "notebook";
+  const fixtureScenario = typeof formData.get("fixtureScenario") === "string"
+    ? (formData.get("fixtureScenario") as any)
+    : undefined;
   const bytes = new Uint8Array(await file.arrayBuffer());
   const mimeType = file.type || "image/jpeg";
   const store = getPerson1Store();
@@ -73,14 +76,21 @@ export async function POST(req: Request) {
 
   let entries;
   try {
-    entries = await extractNotebookEntries(bytes, mimeType, { scanId, revision: 1, today: malaysiaDate() });
+    entries = await extractNotebookEntries(bytes, mimeType, { scanId, revision: 1, today: malaysiaDate(), fixtureScenario });
     await store.saveEntries(entries);
     await store.updateScanStatus(owner.email, scanId, "completed");
     scan.status = "completed";
   } catch (error) {
     const message = error instanceof Error ? error.message : "Image extraction failed.";
     await store.updateScanStatus(owner.email, scanId, "failed", message);
-    return NextResponse.json({ scan: { ...scan, status: "failed", error: message }, error: "Image extraction failed. Retry this scan." }, { status: 502 });
+    const isUnconfigured = message.includes("not configured");
+    return NextResponse.json(
+      {
+        scan: { ...scan, status: "failed", error: message },
+        error: isUnconfigured ? "AI document scanning is not configured." : "Image extraction failed. Retry this scan.",
+      },
+      { status: isUnconfigured ? 503 : 502 },
+    );
   }
 
   return NextResponse.json(
