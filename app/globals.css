@@ -4408,9 +4408,14 @@ body.nudge-sheet-open {
 .home-act {
   display: grid;
   justify-items: center;
+  /* A label that needs two lines ("Tambah hutang") stays centred under its icon, and every icon
+     stays on the same line. */
+  align-content: start;
   gap: 0.35rem;
   font-size: 0.74rem;
   font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
   color: var(--ink);
   text-decoration: none;
 }
