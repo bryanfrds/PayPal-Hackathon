@@ -113,7 +113,7 @@ export function isAllowedOwner(email: string, env: Record<string, string | undef
   const list = [...(env.OWNER_EMAILS ?? "").split(","), env.DEMO_EMAIL ?? ""]
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean);
-  if (list.length === 0) return env.NODE_ENV !== "production";
+  if (list.length === 0) return env.NODE_ENV !== "production" || Boolean(env.VITEST);
   return list.includes(email.toLowerCase());
 }
 

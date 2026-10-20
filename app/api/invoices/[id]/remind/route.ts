@@ -5,6 +5,7 @@
 
 import { NextResponse } from "next/server";
 import { requireOwner } from "@/lib/auth-server";
+import { paymentDb } from "@/lib/payment-db";
 import { sendInvoiceReminder } from "@/lib/remind";
 
 export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -12,6 +13,11 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   if (owner instanceof Response) return owner;
 
   const { id } = await params;
+  const db = paymentDb();
+  if (db?.getOwnerInvoice && !(await db.getOwnerInvoice(owner.email, id))) {
+    return NextResponse.json({ error: "Unknown invoice." }, { status: 404 });
+  }
+
   const outcome = await sendInvoiceReminder(id);
   if (outcome.ok) return NextResponse.json({ ok: true, status: outcome.status });
   const { ok: _ok, httpStatus, ...body } = outcome;
