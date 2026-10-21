@@ -141,7 +141,7 @@ export const zh: Dictionary = {
   "signin.sendCode": "发送验证码",
   "signin.codeTitle": "请查看电邮",
   "signin.sentTo": "验证码已发送到",
-  "signin.codeLasts": "10 分钟内有效。",
+  "signin.codeLasts": "10 分钟内有效。收件箱里没有？请查看垃圾邮件。",
   "signin.codeLabel": "登录验证码",
   "signin.didntGet": "没收到？",
   "signin.resendIn": "{time} 后可重新发送",

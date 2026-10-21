@@ -141,7 +141,7 @@ export const bn: Dictionary = {
   "signin.sendCode": "কোড পাঠান",
   "signin.codeTitle": "আপনার ইমেইল দেখুন",
   "signin.sentTo": "আমরা কোড পাঠিয়েছি",
-  "signin.codeLasts": "এটা ১০ মিনিট কাজ করবে।",
+  "signin.codeLasts": "এটা ১০ মিনিট কাজ করবে। ইনবক্সে নেই? স্প্যাম ফোল্ডার দেখুন।",
   "signin.codeLabel": "সাইন ইন কোড",
   "signin.didntGet": "পাননি?",
   "signin.resendIn": "{time} পরে আবার পাঠান",

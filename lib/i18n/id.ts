@@ -140,7 +140,7 @@ export const id: Dictionary = {
   "signin.sendCode": "Kirim kode",
   "signin.codeTitle": "Cek email kamu",
   "signin.sentTo": "Kami kirim kode ke",
-  "signin.codeLasts": "Berlaku 10 menit.",
+  "signin.codeLasts": "Berlaku 10 menit. Tidak ada di kotak masuk? Cek folder spam.",
   "signin.codeLabel": "Kode masuk",
   "signin.didntGet": "Belum terima?",
   "signin.resendIn": "Kirim ulang dalam {time}",

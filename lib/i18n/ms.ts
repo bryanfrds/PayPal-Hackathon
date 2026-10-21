@@ -141,7 +141,7 @@ export const ms: Dictionary = {
   "signin.sendCode": "Hantar kod",
   "signin.codeTitle": "Semak e-mel anda",
   "signin.sentTo": "Kami telah hantar kod ke",
-  "signin.codeLasts": "Kod ini sah selama 10 minit.",
+  "signin.codeLasts": "Kod ini sah selama 10 minit. Tiada dalam peti masuk? Semak folder spam.",
   "signin.codeLabel": "Kod log masuk",
   "signin.didntGet": "Tak terima?",
   "signin.resendIn": "Hantar semula dalam {time}",
