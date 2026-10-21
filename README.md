@@ -69,7 +69,7 @@ You need Node.js 22 or newer (`node -v` to check).
    - **Currency:** invoices use MYR by default, but PayPal only accepts MYR between two Malaysia-country accounts. Create both the sandbox business (seller) and the sandbox personal (buyer) accounts with country **Malaysia**. If you can't, set `PAYPAL_CURRENCY=USD` in `.env.local` as a fallback.
    - Set `AUTH_SECRET` to any random string of 32+ characters. Every other variable is explained in `.env.example`.
    - Optional, for **Log in with PayPal**: in the same PayPal app, tick *Log in with PayPal*, add `http://localhost:3000/api/auth/paypal/callback` as a return URL (PayPal may only accept https ones; then test it on a deployed copy), and tick the email scope. Without it, use email sign-in.
-4. Start the app: `npm run dev`, then open http://localhost:3000. Locally, with the owner list and the Resend key left empty, any email can sign in and the code is printed in the terminal.
+4. Start the app: `npm run dev`, then open http://localhost:3000. Locally, with the owner list and the email settings (Gmail or Resend) left empty, any email can sign in and the code is printed in the terminal.
 5. Send one test invoice: `npm run paypal:test-invoice`. It prints the invoice id and payer link.
 
 Other useful commands: `npm test` (unit tests), `npm run typecheck`, `npm run build`.
