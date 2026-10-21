@@ -38,8 +38,11 @@ describe("sendSignInCode", () => {
     vi.stubEnv("GMAIL_USER", "shop@example.test");
     vi.stubEnv("GMAIL_APP_PASSWORD", "abcdefghijklmnop");
     const gmail = vi.fn<GmailSend>().mockRejectedValue(new Error("535 bad login"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
 
-    await expect(sendSignInCode("owner@example.test", "AB12CD", vi.fn(), gmail)).rejects.toThrow(SignInEmailError);
+    const sent = sendSignInCode("owner@example.test", "AB12CD", vi.fn(), gmail);
+    await expect(sent).rejects.toThrow(SignInEmailError);
+    await expect(sent).rejects.toThrow("The code couldn't be emailed just now. Try again in a minute.");
   });
 
   it("falls back to Resend when only the Resend key is set", async () => {

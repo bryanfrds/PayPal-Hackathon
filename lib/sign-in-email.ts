@@ -35,7 +35,14 @@ export function emailIsSetUp(): boolean {
 }
 
 const sendWithGmail: GmailSend = async (user, password, mail) => {
-  const transport = nodemailer.createTransport({ service: "gmail", auth: { user, pass: password } });
+  const transport = nodemailer.createTransport({
+    service: "gmail",
+    auth: { user, pass: password },
+    // Fail fast rather than hold the sign-in request open if Gmail doesn't answer.
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 15_000,
+  });
   await transport.sendMail({ from: `555 Buku <${user}>`, ...mail });
 };
 
@@ -64,7 +71,10 @@ export async function sendSignInCode(
   if (gmail) {
     try {
       await gmailSend(gmail.user, gmail.password, { to: email, subject, text, html });
-    } catch {
+    } catch (e) {
+      // Only the error codes, never the login, so a revoked app password shows up in the logs.
+      const { code, responseCode } = e as { code?: string; responseCode?: number };
+      console.error("[sign-in] Gmail send failed", code, responseCode);
       throw new SignInEmailError("The code couldn't be emailed just now. Try again in a minute.");
     }
     return;
