@@ -120,7 +120,7 @@ export const shell = {
   "signin.sendCode": "Send code",
   "signin.codeTitle": "Check your email",
   "signin.sentTo": "We sent a code to",
-  "signin.codeLasts": "It works for 10 minutes.",
+  "signin.codeLasts": "It works for 10 minutes. Not in your inbox? Check spam.",
   "signin.codeLabel": "Sign-in code",
   "signin.didntGet": "Didn't get it?",
   "signin.resendIn": "Send again in {time}",
