@@ -48,7 +48,7 @@ describe("POST /api/invoices/standings", () => {
     db.value = { latestFacts: vi.fn().mockResolvedValue([FACTS]), webhookSeenSince: vi.fn().mockResolvedValue(true) };
     const body = await (await post({ ids: ["INV2-A", "INV2-A", "INV2-B"] })).json();
     expect(body).toEqual({ available: true, webhook: true, results: [FACTS] });
-    expect(db.value.latestFacts).toHaveBeenCalledWith(["INV2-A", "INV2-B"]);
+    expect(db.value.latestFacts).toHaveBeenCalledWith("owner@example.com", ["INV2-A", "INV2-B"]);
     expect(db.value.webhookSeenSince).toHaveBeenCalledWith(24);
   });
 
