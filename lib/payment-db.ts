@@ -41,8 +41,8 @@ export type PaymentDb = {
    * Returns the settlement, or null if we have no such invoice (or a newer answer).
    */
   saveFacts(id: string, facts: InvoiceFacts, checkedAt: Date, by: CheckedBy): Promise<Settlement | null>;
-  /** The latest PayPal answer for each of these invoices that has one. */
-  latestFacts(ids: string[]): Promise<StoredFacts[]>;
+  /** The latest PayPal answer for each of these invoices that has one and that this owner sent. */
+  latestFacts(ownerEmail: string, ids: string[]): Promise<StoredFacts[]>;
   /** True if a webhook event was handled within `hours`: proof the webhook really works. */
   webhookSeenSince(hours: number): Promise<boolean>;
   /**
@@ -87,12 +87,12 @@ export function createPaymentDb(query: Query): PaymentDb {
       return updated.length ? settlement : null;
     },
 
-    async latestFacts(ids) {
+    async latestFacts(ownerEmail, ids) {
       if (ids.length === 0) return [];
       const rows = await query(
         `SELECT id, status, currency, reported_currency, total_sen, paid_sen, due_sen, checked_at, checked_by
-         FROM invoices WHERE id = ANY($1) AND checked_at IS NOT NULL`,
-        [ids],
+         FROM invoices WHERE id = ANY($1) AND owner_email = $2 AND checked_at IS NOT NULL`,
+        [ids, ownerEmail.trim().toLowerCase()],
       );
       const num = (v: unknown) => (v === null || v === undefined ? undefined : Number(v));
       return rows.map((r) => ({
