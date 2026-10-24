@@ -4,7 +4,7 @@ import { requireOwner } from "@/lib/auth-server";
 import { computeImageHash, MAX_SCAN_IMAGE_BYTES, saveScanImage } from "@/lib/image-storage";
 import { getPerson1Store } from "@/lib/person1-store";
 import type { ScanRecord } from "@/lib/person1-types";
-import { extractNotebookEntries } from "@/lib/vision-extractor";
+import { extractNotebookEntries, resolveFixtureScenario } from "@/lib/vision-extractor";
 import { malaysiaDate } from "@/lib/person1-validation";
 import { clientIp, createThrottle } from "@/lib/throttle";
 
@@ -35,9 +35,12 @@ export async function POST(req: Request) {
   if (file.size > MAX_SCAN_IMAGE_BYTES) return NextResponse.json({ error: "Image file exceeds the 10MB limit." }, { status: 413 });
 
   const mode = formData.get("mode") === "receipt" ? "receipt" : "notebook";
-  const fixtureScenario = typeof formData.get("fixtureScenario") === "string"
-    ? (formData.get("fixtureScenario") as any)
-    : undefined;
+  const rawFixture = formData.get("fixtureScenario");
+  const resolvedFixture = resolveFixtureScenario(typeof rawFixture === "string" ? rawFixture : undefined);
+  if (resolvedFixture.error) {
+    return NextResponse.json({ error: resolvedFixture.error }, { status: 400 });
+  }
+  const fixtureScenario = resolvedFixture.scenario;
   const bytes = new Uint8Array(await file.arrayBuffer());
   const mimeType = file.type || "image/jpeg";
   const store = getPerson1Store();

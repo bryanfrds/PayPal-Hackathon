@@ -32,6 +32,7 @@ describe("Person 1 Section 2.4 Comprehensive Acceptance Test Suite", () => {
   }
 
   beforeEach(() => {
+    vi.stubEnv("ALLOW_SCAN_FIXTURES", "true");
     store = createMemoryPerson1Store();
   });
 

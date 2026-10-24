@@ -12,7 +12,10 @@ describe("vision-extractor", () => {
     today: "2026-10-18",
   };
 
-  beforeEach(() => vi.stubEnv("AI_GATEWAY_API_KEY", ""));
+  beforeEach(() => {
+    vi.stubEnv("AI_GATEWAY_API_KEY", "");
+    vi.stubEnv("ALLOW_SCAN_FIXTURES", "true");
+  });
   afterEach(() => vi.unstubAllEnvs());
 
   it("sends the uploaded image to AI Gateway when configured", async () => {

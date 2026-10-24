@@ -18,8 +18,9 @@ describe("Scans API", () => {
   const dummyJpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46]);
 
   beforeEach(() => {
+    vi.stubEnv("ALLOW_SCAN_FIXTURES", "true");
     signedIn.value = true;
-    signedIn.email = "owner@example.com";
+    signedIn.email = `owner-${Date.now()}-${Math.random()}@example.com`;
   });
 
   function makeUploadRequest(bytes: Uint8Array, mime = "image/jpeg", mode = "notebook", fixtureScenario?: string) {
@@ -124,5 +125,72 @@ describe("Scans API", () => {
     const data = await res.json();
     expect(data.scan.revision).toBe(2);
     expect(data.entries.every((e: { revision: number }) => e.revision === 2)).toBe(true);
+  });
+
+  it("rejects unknown fixtureScenario across create, rescan, and retry without saving fake entries", async () => {
+    const badCreate = await createScan(makeUploadRequest(new Uint8Array([0xff, 0xd8, 0xff, 0xe4]), "image/jpeg", "notebook", "bogus_scenario"));
+    expect(badCreate.status).toBe(400);
+    const badCreateData = await badCreate.json();
+    expect(badCreateData.entries).toBeUndefined();
+
+    const validCreate = await createScan(makeUploadRequest(new Uint8Array([0xff, 0xd8, 0xff, 0xe5]), "image/jpeg", "notebook", "missing_date"));
+    expect(validCreate.status).toBe(201);
+    const { scan } = await validCreate.json();
+
+    const badRescan = await rescanScan(
+      new Request(`http://localhost:3000/api/scans/${scan.id}/rescan?fixtureScenario=bogus_scenario`, { method: "POST" }),
+      { params: Promise.resolve({ id: scan.id }) },
+    );
+    expect(badRescan.status).toBe(400);
+
+    const badRetry = await retryScan(
+      new Request(`http://localhost:3000/api/scans/${scan.id}/retry`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ fixtureScenario: "bogus_scenario" }),
+      }),
+      { params: Promise.resolve({ id: scan.id }) },
+    );
+    expect(badRetry.status).toBe(400);
+  });
+
+  it("blocks fixtureScenario in production unless ALLOW_SCAN_FIXTURES=true across create, rescan, and retry", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("ALLOW_SCAN_FIXTURES", "");
+    try {
+      const prodCreate = await createScan(makeUploadRequest(new Uint8Array([0xff, 0xd8, 0xff, 0xe8]), "image/jpeg", "notebook", "clear_handwriting"));
+      expect(prodCreate.status).toBe(400);
+      const prodCreateData = await prodCreate.json();
+      expect(prodCreateData.entries).toBeUndefined();
+
+      vi.stubEnv("ALLOW_SCAN_FIXTURES", "true");
+      const validCreate = await createScan(makeUploadRequest(new Uint8Array([0xff, 0xd8, 0xff, 0xe9]), "image/jpeg", "notebook", "clear_handwriting"));
+      expect(validCreate.status).toBe(201);
+      const { scan } = await validCreate.json();
+
+      vi.stubEnv("NODE_ENV", "production");
+      vi.stubEnv("ALLOW_SCAN_FIXTURES", "");
+
+      const prodRescan = await rescanScan(
+        new Request(`http://localhost:3000/api/scans/${scan.id}/rescan?fixtureScenario=clear_handwriting`, { method: "POST" }),
+        { params: Promise.resolve({ id: scan.id }) },
+      );
+      expect(prodRescan.status).toBe(400);
+
+      const prodRetry = await retryScan(
+        new Request(`http://localhost:3000/api/scans/${scan.id}/retry?fixtureScenario=clear_handwriting`, { method: "POST" }),
+        { params: Promise.resolve({ id: scan.id }) },
+      );
+      expect(prodRetry.status).toBe(400);
+
+      vi.stubEnv("ALLOW_SCAN_FIXTURES", "true");
+      const allowedRetry = await retryScan(
+        new Request(`http://localhost:3000/api/scans/${scan.id}/retry?fixtureScenario=clear_handwriting`, { method: "POST" }),
+        { params: Promise.resolve({ id: scan.id }) },
+      );
+      expect(allowedRetry.status).toBe(200);
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });

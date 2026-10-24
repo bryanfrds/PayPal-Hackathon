@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { requireOwner } from "@/lib/auth-server";
 import { getScanImage } from "@/lib/image-storage";
 import { getPerson1Store } from "@/lib/person1-store";
-import { extractNotebookEntries, type SyntheticScenario } from "@/lib/vision-extractor";
+import { extractNotebookEntries, resolveFixtureScenario } from "@/lib/vision-extractor";
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const owner = await requireOwner();
@@ -22,16 +22,22 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: "Source scan image unavailable." }, { status: 410 });
   }
 
-  let fixtureScenario: SyntheticScenario | undefined;
+  let rawFixture: unknown;
   try {
     const url = new URL(req.url);
     const fixtureParam = url.searchParams.get("fixtureScenario");
-    if (fixtureParam) fixtureScenario = fixtureParam as SyntheticScenario;
-    if (!fixtureScenario) {
+    if (fixtureParam !== null) rawFixture = fixtureParam;
+    if (rawFixture === undefined) {
       const body = await req.clone().json().catch(() => null);
-      if (body?.fixtureScenario) fixtureScenario = body.fixtureScenario;
+      if (body && "fixtureScenario" in body) rawFixture = body.fixtureScenario;
     }
   } catch {}
+
+  const resolvedFixture = resolveFixtureScenario(rawFixture);
+  if (resolvedFixture.error) {
+    return NextResponse.json({ error: resolvedFixture.error }, { status: 400 });
+  }
+  const fixtureScenario = resolvedFixture.scenario;
 
   const newRevision = scan.revision + 1;
   const now = new Date().toISOString();

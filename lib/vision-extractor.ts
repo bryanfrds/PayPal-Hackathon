@@ -4,12 +4,41 @@ import { z } from "zod";
 import { moneyToSen } from "./payments";
 import type { EntryClassification, ExtractedEntry } from "./person1-types";
 
-export type SyntheticScenario =
-  | "clear_handwriting"
-  | "ambiguous_handwriting"
-  | "crossed_out_debt"
-  | "partial_repayment"
-  | "missing_date";
+export const SYNTHETIC_SCENARIOS = [
+  "clear_handwriting",
+  "ambiguous_handwriting",
+  "crossed_out_debt",
+  "partial_repayment",
+  "missing_date",
+] as const;
+
+export type SyntheticScenario = (typeof SYNTHETIC_SCENARIOS)[number];
+
+export function isSyntheticScenario(value: unknown): value is SyntheticScenario {
+  return typeof value === "string" && (SYNTHETIC_SCENARIOS as readonly string[]).includes(value);
+}
+
+export function areScanFixturesEnabled(env: Record<string, string | undefined> = process.env): boolean {
+  if (env.ALLOW_SCAN_FIXTURES === "true") return true;
+  if (env.ALLOW_SCAN_FIXTURES === "false") return false;
+  return env.NODE_ENV !== "production";
+}
+
+export function resolveFixtureScenario(
+  raw: unknown,
+  env: Record<string, string | undefined> = process.env,
+): { scenario?: SyntheticScenario; error?: string } {
+  if (raw === undefined || raw === null || raw === "") {
+    return {};
+  }
+  if (!areScanFixturesEnabled(env)) {
+    return { error: "Scan fixtures are disabled in this environment." };
+  }
+  if (!isSyntheticScenario(raw)) {
+    return { error: "Unknown scan fixture scenario." };
+  }
+  return { scenario: raw };
+}
 
 export type ExtractionOptions = {
   scanId: string;
@@ -63,7 +92,7 @@ async function extractWithGateway(imageBytes: Uint8Array, mimeType: string): Pro
   return result.output.entries;
 }
 
-function buildSyntheticLines(scenario: SyntheticScenario | undefined, today: string): RawExtractedLine[] {
+function buildSyntheticLines(scenario: SyntheticScenario, today: string): RawExtractedLine[] {
   switch (scenario) {
     case "clear_handwriting":
       return [
@@ -91,11 +120,7 @@ function buildSyntheticLines(scenario: SyntheticScenario | undefined, today: str
         { customerName: "Kak Nab", item: "Minyak masak", amount: "15.00", classification: "debt", rawText: "Kak Nab - Minyak RM15.00" },
       ];
     default:
-      return [
-        { customerName: "Mak Cik Siti", item: "Beras", amount: "48.50", date: today, classification: "debt", rawText: "Mak Cik Siti - Beras 48.50" },
-        { customerName: "Pak Ali", item: "Rokok", amount: "36.00", date: today, classification: "debt", rawText: "Pak Ali - Rokok 36.00" },
-        { customerName: "Encik Hafiz", item: "Roti x3", amount: "13.50", date: today, classification: "ambiguous", isAmbiguous: true, ambiguityReason: "Could be 13.50 or 18.50", rawText: "Encik Hafiz - Roti 13.50?" },
-      ];
+      throw new Error("Unknown scan fixture scenario.");
   }
 }
 
@@ -109,8 +134,12 @@ export async function extractNotebookEntries(
 
   const connected = Boolean(process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN);
   let rawLines: RawExtractedLine[];
-  if (fixtureScenario) {
-    rawLines = buildSyntheticLines(fixtureScenario, today);
+  if (fixtureScenario !== undefined) {
+    const resolved = resolveFixtureScenario(fixtureScenario);
+    if (resolved.error || !resolved.scenario) {
+      throw new Error(resolved.error || "Unknown scan fixture scenario.");
+    }
+    rawLines = buildSyntheticLines(resolved.scenario, today);
   } else if (!connected) {
     throw new Error("AI document scanning is not configured. Missing AI_GATEWAY_API_KEY.");
   } else {
