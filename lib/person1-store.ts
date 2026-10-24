@@ -40,10 +40,11 @@ export interface Person1Store {
   confirmCustomer(ownerEmail: string, customerId: string): Promise<CustomerRecord | null>;
 
   // Approved Debts Handoff
-  saveApprovedDebts(debts: ApprovedDebtRecord[]): Promise<void>;
+  saveApprovedDebts(debts: ApprovedDebtRecord[]): Promise<ApprovedDebtRecord[]>;
   getApprovedDebts(ownerEmail: string): Promise<ApprovedDebtRecord[]>;
   getApprovedDebtByHandoffKey(ownerEmail: string, handoffKey: string): Promise<ApprovedDebtRecord | null>;
   getApprovedDebtBySourceEntryId(ownerEmail: string, sourceEntryId: string): Promise<ApprovedDebtRecord | null>;
+  getApprovedDebtByScanAndLine(ownerEmail: string, scanId: string, lineIndex: number): Promise<ApprovedDebtRecord | null>;
 
   // Reminder Rules & Decisions
   getReminderRules(ownerEmail: string): Promise<ReminderRuleRecord>;
@@ -169,6 +170,7 @@ export function createMemoryPerson1Store(): Person1Store {
     },
 
     async saveApprovedDebts(newDebts) {
+      const stored: ApprovedDebtRecord[] = [];
       for (const d of newDebts) {
         let replaced = false;
         for (const [key, existing] of approvedDebts.entries()) {
@@ -176,15 +178,20 @@ export function createMemoryPerson1Store(): Person1Store {
             existing.ownerEmail.toLowerCase() === d.ownerEmail.toLowerCase() &&
             existing.sourceEntryId === d.sourceEntryId
           ) {
-            approvedDebts.set(key, { ...existing, ...d, id: existing.id });
+            const updated = { ...existing, ...d, id: existing.id };
+            approvedDebts.set(key, updated);
+            stored.push({ ...updated });
             replaced = true;
             break;
           }
         }
         if (!replaced) {
-          approvedDebts.set(d.id, { ...d });
+          const created = { ...d };
+          approvedDebts.set(created.id, created);
+          stored.push({ ...created });
         }
       }
+      return stored;
     },
     async getApprovedDebts(ownerEmail) {
       const result: ApprovedDebtRecord[] = [];
@@ -207,6 +214,17 @@ export function createMemoryPerson1Store(): Person1Store {
       for (const d of approvedDebts.values()) {
         if (d.ownerEmail.toLowerCase() === ownerEmail.toLowerCase() && d.sourceEntryId === sourceEntryId) {
           return { ...d };
+        }
+      }
+      return null;
+    },
+    async getApprovedDebtByScanAndLine(ownerEmail, scanId, lineIndex) {
+      for (const d of approvedDebts.values()) {
+        if (d.ownerEmail.toLowerCase() === ownerEmail.toLowerCase() && d.scanId === scanId) {
+          const entry = entries.get(d.sourceEntryId);
+          if (entry && entry.sourceRef.lineIndex === lineIndex) {
+            return { ...d };
+          }
         }
       }
       return null;

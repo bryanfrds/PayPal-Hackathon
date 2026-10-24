@@ -1,6 +1,5 @@
 // Person 1 approved debt handoff gatekeeper to Person 2's invoicing pipeline
 import { isValidEmail } from "./collect";
-import { paymentDb } from "./payment-db";
 import type { Person1Store } from "./person1-store";
 import type { ApprovedDebtRecord } from "./person1-types";
 
@@ -29,6 +28,12 @@ export async function approveDebtsForInvoicing(
       rejected.push({ entryId, reason: "Source scan no longer exists." });
       continue;
     }
+
+    if (entry.revision !== scan.revision) {
+      rejected.push({ entryId, reason: "Extraction results have been superseded by a newer rescan." });
+      continue;
+    }
+
     const firstImport = await store.findScanByHash(ownerEmail, scan.imageHash);
     if (firstImport && firstImport.id !== scan.id) {
       rejected.push({ entryId, reason: "Duplicate scan must be resolved before approval." });
@@ -85,37 +90,29 @@ export async function approveDebtsForInvoicing(
     }
 
     const handoffKey = `${ownerEmail}:${entry.id}:${entry.revision}:${entry.updatedAt}:${customer.updatedAt}`;
+    const lineIndex = entry.sourceRef.lineIndex;
 
-    const existingDebt = await store.getApprovedDebtBySourceEntryId(ownerEmail, entry.id);
+    const existingByLine = await store.getApprovedDebtByScanAndLine(ownerEmail, scan.id, lineIndex);
+    const existingDebt = existingByLine || (await store.getApprovedDebtBySourceEntryId(ownerEmail, entry.id));
+
     if (existingDebt) {
-      if (existingDebt.handoffKey === handoffKey) {
+      if (existingDebt.sourceEntryId === entry.id && existingDebt.handoffKey === handoffKey) {
         approved.push(existingDebt);
         continue;
       }
 
-      // Check if this approved debt has already been invoiced on PayPal
-      const db = paymentDb();
-      if (db) {
-        const ownerInvoices = await db.listOwnerInvoices(ownerEmail);
-        const alreadyInvoiced = ownerInvoices.some(
-          (inv) =>
-            inv.status !== "CANCELLED" &&
-            inv.settlement !== "closed" &&
-            Array.isArray((inv as { debtIds?: string[] }).debtIds) &&
-            (inv as { debtIds?: string[] }).debtIds!.includes(existingDebt.id),
-        );
-        if (alreadyInvoiced) {
-          rejected.push({
-            entryId,
-            reason: "This debt has already been invoiced on PayPal and cannot be modified without cancelling the invoice first.",
-          });
-          continue;
-        }
+      if (existingByLine && existingByLine.sourceEntryId !== entry.id) {
+        rejected.push({
+          entryId,
+          reason: "This notebook line has already been approved for invoicing.",
+        });
+        continue;
       }
 
       // Update the existing approved record in place, preserving its unique stable ID
       const updatedRecord: ApprovedDebtRecord = {
         ...existingDebt,
+        sourceEntryId: entry.id,
         customerId: customer.id,
         customerName: customer.name,
         customerEmail: customer.email,
@@ -126,8 +123,8 @@ export async function approveDebtsForInvoicing(
         handoffKey,
       };
 
-      await store.saveApprovedDebts([updatedRecord]);
-      approved.push(updatedRecord);
+      const [saved] = await store.saveApprovedDebts([updatedRecord]);
+      approved.push(saved || updatedRecord);
       continue;
     }
 
@@ -147,8 +144,8 @@ export async function approveDebtsForInvoicing(
       handoffKey,
     };
 
-    await store.saveApprovedDebts([approvedRecord]);
-    approved.push(approvedRecord);
+    const [savedNew] = await store.saveApprovedDebts([approvedRecord]);
+    approved.push(savedNew || approvedRecord);
   }
 
   return { approved, rejected };

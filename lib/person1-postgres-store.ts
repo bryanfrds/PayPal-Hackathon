@@ -29,10 +29,25 @@ export function createPostgresPerson1Store(query: Query): Person1Store {
     async listCustomers(email){ return (await query(`SELECT * FROM customer_directory WHERE owner_email=$1 ORDER BY name`,[owner(email)])).map(customerRow); },
     async updateCustomer(email,id,patch){ const current=await this.getCustomer(email,id); if(!current)return null; const updated={...current,...patch,updatedAt:new Date().toISOString()}; await this.saveCustomer(updated); return updated; },
     async confirmCustomer(email,id){ return this.updateCustomer(email,id,{confirmedAt:new Date().toISOString()}); },
-    async saveApprovedDebts(debts){ for(const d of debts) await query(`INSERT INTO approved_debts(id,owner_email,source_entry_id,scan_id,customer_id,customer_name,customer_email,amount_sen,currency,item,date,approved_at,handoff_key) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) ON CONFLICT(owner_email, source_entry_id) DO UPDATE SET customer_id=$5,customer_name=$6,customer_email=$7,amount_sen=$8,currency=$9,item=$10,date=$11,approved_at=$12,handoff_key=$13`,[d.id,owner(d.ownerEmail),d.sourceEntryId,d.scanId,d.customerId,d.customerName,d.customerEmail,d.amountSen,d.currency,d.item,d.date,d.approvedAt,d.handoffKey]); },
+    async saveApprovedDebts(debts){
+      const out: ApprovedDebtRecord[] = [];
+      for(const d of debts) {
+        const [r] = await query(
+          `INSERT INTO approved_debts(id,owner_email,source_entry_id,scan_id,customer_id,customer_name,customer_email,amount_sen,currency,item,date,approved_at,handoff_key)
+           VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+           ON CONFLICT(owner_email, source_entry_id) DO UPDATE SET
+             customer_id=$5,customer_name=$6,customer_email=$7,amount_sen=$8,currency=$9,item=$10,date=$11,approved_at=$12,handoff_key=$13
+           RETURNING *`,
+          [d.id,owner(d.ownerEmail),d.sourceEntryId,d.scanId,d.customerId,d.customerName,d.customerEmail,d.amountSen,d.currency,d.item,d.date,d.approvedAt,d.handoffKey]
+        );
+        if (r) out.push(debtRow(r));
+      }
+      return out;
+    },
     async getApprovedDebts(email){ return (await query(`SELECT * FROM approved_debts WHERE owner_email=$1 ORDER BY approved_at DESC`,[owner(email)])).map(debtRow); },
     async getApprovedDebtByHandoffKey(email,key){ const [r]=await query(`SELECT * FROM approved_debts WHERE owner_email=$1 AND handoff_key=$2`,[owner(email),key]); return r?debtRow(r):null; },
     async getApprovedDebtBySourceEntryId(email,sourceEntryId){ const [r]=await query(`SELECT * FROM approved_debts WHERE owner_email=$1 AND source_entry_id=$2`,[owner(email),sourceEntryId]); return r?debtRow(r):null; },
+    async getApprovedDebtByScanAndLine(email,scanId,lineIndex){ const [r]=await query(`SELECT a.* FROM approved_debts a JOIN extracted_entries e ON e.id = a.source_entry_id WHERE a.owner_email=$1 AND a.scan_id=$2 AND (e.source_ref->>'lineIndex')::int=$3 ORDER BY a.approved_at ASC LIMIT 1`,[owner(email),scanId,lineIndex]); return r?debtRow(r):null; },
     async getReminderRules(email){ const [r]=await query(`SELECT * FROM reminder_rules WHERE owner_email=$1`,[owner(email)]); return r?{ownerEmail:String(r.owner_email),enabled:Boolean(r.enabled),firstAfterDays:Number(r.first_after_days),minIntervalDays:Number(r.min_interval_days),maxAttempts:Number(r.max_attempts),sendHour:Number(r.send_hour),skipFridayPrayers:Boolean(r.skip_friday_prayers),requireApproval:Boolean(r.require_approval),updatedAt:iso(r.updated_at)}:{ownerEmail:email,...DEFAULT_PERSON1_RULES,updatedAt:new Date().toISOString()}; },
     async setReminderRules(r){ await query(`INSERT INTO reminder_rules(owner_email,enabled,first_after_days,min_interval_days,max_attempts,send_hour,skip_friday_prayers,require_approval,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(owner_email) DO UPDATE SET enabled=$2,first_after_days=$3,min_interval_days=$4,max_attempts=$5,send_hour=$6,skip_friday_prayers=$7,require_approval=$8,updated_at=$9`,[owner(r.ownerEmail),r.enabled,r.firstAfterDays,r.minIntervalDays,r.maxAttempts,r.sendHour,r.skipFridayPrayers,r.requireApproval,r.updatedAt]); },
     async saveReminderDecision(d){ await query(`INSERT INTO reminder_decisions(id,owner_email,invoice_id,action,reason,idempotency_key,attempt_number,delivery_result,created_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(idempotency_key) DO NOTHING`,[d.id,owner(d.ownerEmail),d.invoiceId,d.action,d.reason,d.idempotencyKey,d.attemptNumber,d.deliveryResult??null,d.createdAt]); },

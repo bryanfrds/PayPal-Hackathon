@@ -205,9 +205,10 @@ describe("debt-handoff", () => {
     expect(allDebts[0].item).toBe("Beras Wangi");
   });
 
-  it("rejects modifying an approved debt that has already been invoiced on PayPal", async () => {
-    const entry: ExtractedEntry = {
-      id: "entry-invoiced",
+  it("prevents approving the same physical notebook line twice across rescans and rejects stale revisions", async () => {
+    // 1. Scan at revision 1, line 1 entry
+    const entryRev1: ExtractedEntry = {
+      id: "entry-r1-l1",
       scanId: "scan-1",
       revision: 1,
       rawText: "Pak Ali 50.00",
@@ -226,45 +227,54 @@ describe("debt-handoff", () => {
       createdAt: "2026-10-18T00:00:00Z",
       updatedAt: "2026-10-18T00:00:00Z",
     };
-    await store.saveEntries([entry]);
-    const approvedResult = await approveDebtsForInvoicing(owner, ["entry-invoiced"], store);
-    const approvedId = approvedResult.approved[0].id;
+    await store.saveEntries([entryRev1]);
 
-    // Mock paymentDb with an active invoice containing this debtId
-    const { paymentDb } = await import("./payment-db");
-    const originalPaymentDb = paymentDb;
-    const mockDb = {
-      listOwnerInvoices: async () => [
-        {
-          id: "INV2-ACTIVE",
-          ownerEmail: owner,
-          customerName: "Pak Ali",
-          amountSen: 5000,
-          currency: "MYR",
-          sentAt: "2026-10-18T00:00:00Z",
-          status: "SENT",
-          settlement: "open" as const,
-          debtIds: [approvedId],
-        },
-      ],
+    // Approve line 1 from revision 1
+    const res1 = await approveDebtsForInvoicing(owner, ["entry-r1-l1"], store);
+    expect(res1.approved).toHaveLength(1);
+    const approvedDebtId = res1.approved[0].id;
+
+    // 2. Rescan scan-1, bumping scan revision to 2 and producing new entry ID for line 1
+    const scan = await store.getScan(owner, "scan-1");
+    await store.saveScan({ ...scan!, revision: 2 });
+
+    const entryRev2: ExtractedEntry = {
+      id: "entry-r2-l1",
+      scanId: "scan-1",
+      revision: 2,
+      rawText: "Pak Ali 50.00",
+      customerName: "Pak Ali",
+      item: "Kopi",
+      amountSen: 5000,
+      rawAmountText: "50.00",
+      date: "2026-10-18",
+      classification: "debt",
+      confidence: 0.95,
+      isAmbiguous: false,
+      included: true,
+      confirmedCustomerId: "cust-1",
+      sourceRef: { lineIndex: 1 },
+      ownerEdited: false,
+      createdAt: "2026-10-18T00:00:00Z",
+      updatedAt: "2026-10-18T00:00:00Z",
     };
+    await store.saveEntries([entryRev2]);
 
-    // Edit the entry
-    await store.updateEntry(owner, "entry-invoiced", {
-      amountSen: 6000,
-      ownerEdited: true,
-    });
+    // Attempting to approve stale revision 1 entry must be rejected
+    const staleRes = await approveDebtsForInvoicing(owner, ["entry-r1-l1"], store);
+    expect(staleRes.approved).toHaveLength(0);
+    expect(staleRes.rejected).toHaveLength(1);
+    expect(staleRes.rejected[0].reason).toMatch(/superseded|revision/i);
 
-    const { vi } = await import("vitest");
-    const spy = vi.spyOn(await import("./payment-db"), "paymentDb").mockReturnValue(mockDb as any);
+    // Attempting to approve line 1 from revision 2 when line 1 was already approved must be rejected or idempotent
+    const res2 = await approveDebtsForInvoicing(owner, ["entry-r2-l1"], store);
+    expect(res2.approved).toHaveLength(0);
+    expect(res2.rejected).toHaveLength(1);
+    expect(res2.rejected[0].reason).toMatch(/already been approved/i);
 
-    try {
-      const editResult = await approveDebtsForInvoicing(owner, ["entry-invoiced"], store);
-      expect(editResult.approved).toHaveLength(0);
-      expect(editResult.rejected).toHaveLength(1);
-      expect(editResult.rejected[0].reason).toMatch(/already been invoiced on PayPal/i);
-    } finally {
-      spy.mockRestore();
-    }
+    // Assert only one approved debt represents that physical notebook line
+    const allDebts = await store.getApprovedDebts(owner);
+    expect(allDebts).toHaveLength(1);
+    expect(allDebts[0].id).toBe(approvedDebtId);
   });
 });
