@@ -68,7 +68,8 @@ describe("reminder-scheduler", () => {
     expect(result.skipped).toHaveLength(1);
     expect(result.skipped[0].reason).toMatch(/paid|settled/i);
     expect(deps.sendReminder).not.toHaveBeenCalled();
-    expect((await store.listReminderDecisions(owner))[0].action).toBe("skipped");
+    // Routine scheduler skips should not be persisted to reminder_decisions so they don't crowd out real activity
+    expect(await store.listReminderDecisions(owner)).toHaveLength(0);
   });
 
   it("only runs during the configured Malaysian reminder hour", async () => {

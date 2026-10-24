@@ -74,33 +74,23 @@ export async function processEligibleReminders(
     failed: [],
   };
 
-  const recordSkip = async (invoiceId: string, reason: string) => {
+  const recordSkip = (invoiceId: string, reason: string) => {
     result.skipped.push({ invoiceId, reason });
-    await store.saveReminderDecision({
-      id: `dec-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      ownerEmail,
-      invoiceId,
-      action: "skipped",
-      reason,
-      idempotencyKey: `skip:${ownerEmail}:${invoiceId}:${todayStr}:${reason}`,
-      attemptNumber: 0,
-      createdAt: now.toISOString(),
-    });
   };
 
   if (!rules.enabled) {
-    await recordSkip("all", "Reminders are disabled by owner rules.");
+    recordSkip("all", "Reminders are disabled by owner rules.");
     return result;
   }
 
   // Friday prayer suppression: Friday between 12:00 and 14:59 Malaysian time (Asia/Kuala_Lumpur)
   if (rules.skipFridayPrayers && dayOfWeek === 5 && hour >= 12 && hour < 15) {
-    await recordSkip("all", "Suppressed during Friday prayer hours (12:00-15:00).");
+    recordSkip("all", "Suppressed during Friday prayer hours (12:00-15:00).");
     return result;
   }
 
   if (deps.enforceSendHour && hour !== rules.sendHour) {
-    await recordSkip("all", `Outside the configured reminder hour (${rules.sendHour}:00 Malaysia time).`);
+    recordSkip("all", `Outside the configured reminder hour (${rules.sendHour}:00 Malaysia time).`);
     return result;
   }
 
@@ -112,19 +102,19 @@ export async function processEligibleReminders(
   for (const inv of invoices) {
     // Check settlement: skip paid, closed, or check
     if (inv.settlement === "paid" || inv.status === "PAID") {
-      await recordSkip(inv.id, "Invoice is already paid or settled.");
+      recordSkip(inv.id, "Invoice is already paid or settled.");
       continue;
     }
 
     if (inv.settlement === "closed") {
-      await recordSkip(inv.id, "Invoice was cancelled or refunded.");
+      recordSkip(inv.id, "Invoice was cancelled or refunded.");
       continue;
     }
 
     // Overdue days check
     const overdueDays = daysBetween(inv.dueDate, todayStr);
     if (isNaN(overdueDays) || overdueDays < rules.firstAfterDays) {
-      await recordSkip(inv.id, isNaN(overdueDays)
+      recordSkip(inv.id, isNaN(overdueDays)
         ? "Invalid or missing due date on invoice."
         : `Only ${overdueDays} days overdue, below first after days threshold (${rules.firstAfterDays}).`);
       continue;
@@ -137,7 +127,7 @@ export async function processEligibleReminders(
 
     const attemptsCount = invDecisions.length;
     if (attemptsCount >= rules.maxAttempts) {
-      await recordSkip(inv.id, `Reached maximum allowed reminder attempts (${rules.maxAttempts}).`);
+      recordSkip(inv.id, `Reached maximum allowed reminder attempts (${rules.maxAttempts}).`);
       continue;
     }
 
@@ -147,7 +137,7 @@ export async function processEligibleReminders(
       const lastDay = lastAttempt.createdAt.slice(0, 10);
       const gapDays = daysBetween(lastDay, todayStr);
       if (gapDays < rules.minIntervalDays) {
-        await recordSkip(inv.id, `Only ${gapDays} days since last reminder, below minimum interval (${rules.minIntervalDays} days).`);
+        recordSkip(inv.id, `Only ${gapDays} days since last reminder, below minimum interval (${rules.minIntervalDays} days).`);
         continue;
       }
     }
