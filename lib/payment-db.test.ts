@@ -63,18 +63,26 @@ describe.skipIf(!db)("payment database", () => {
   it("reads back the latest answer for the invoices asked about", async () => {
     const id = `${run}-C`;
     await db!.saveInvoice(invoice(id));
-    expect(await db!.latestFacts([id])).toEqual([]); // not checked yet
+    expect(await db!.latestFacts("owner@shop.my", [id])).toEqual([]); // not checked yet
     await db!.saveFacts(id, { status: "PAID", currency: "MYR", totalSen: 1000, paidSen: 1000, dueSen: 0 }, new Date("2026-10-15T11:00:00Z"), "webhook");
-    expect(await db!.latestFacts([id, `${run}-NONE`])).toEqual([
+    expect(await db!.latestFacts(" OWNER@shop.my", [id, `${run}-NONE`])).toEqual([
       { id, status: "PAID", currency: "MYR", billedCurrency: "MYR", totalSen: 1000, paidSen: 1000, dueSen: 0, checkedAt: "2026-10-15T11:00:00.000Z", checkedBy: "webhook" },
     ]);
+  });
+
+  it("only gives an owner the invoices they sent", async () => {
+    const id = `${run}-OWN`;
+    await db!.saveInvoice(invoice(id));
+    await db!.saveFacts(id, { status: "PAID", currency: "MYR", totalSen: 1000, dueSen: 0 }, new Date("2026-10-15T11:00:00Z"), "webhook");
+    expect(await db!.latestFacts("someone-else@shop.my", [id])).toEqual([]);
+    expect(await db!.latestFacts("owner@shop.my", [id])).toHaveLength(1);
   });
 
   it("keeps the currency PayPal reported apart from the one billed", async () => {
     const id = `${run}-USD`;
     await db!.saveInvoice(invoice(id));
     expect(await db!.saveFacts(id, { status: "PAID", currency: "USD", totalSen: 1000, dueSen: 0 }, new Date("2026-10-15T11:00:00Z"), "webhook")).toBe("check");
-    const [facts] = await db!.latestFacts([id]);
+    const [facts] = await db!.latestFacts("owner@shop.my", [id]);
     expect(facts).toMatchObject({ currency: "USD", billedCurrency: "MYR" });
   });
 

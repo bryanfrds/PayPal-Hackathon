@@ -141,7 +141,7 @@ export const vi: Dictionary = {
   "signin.sendCode": "Gửi mã",
   "signin.codeTitle": "Kiểm tra email",
   "signin.sentTo": "Chúng tôi đã gửi mã tới",
-  "signin.codeLasts": "Mã dùng được trong 10 phút.",
+  "signin.codeLasts": "Mã dùng được trong 10 phút. Không thấy trong hộp thư? Hãy xem mục thư rác.",
   "signin.codeLabel": "Mã đăng nhập",
   "signin.didntGet": "Chưa nhận được?",
   "signin.resendIn": "Gửi lại sau {time}",

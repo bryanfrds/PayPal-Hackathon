@@ -141,7 +141,7 @@ export const th: Dictionary = {
   "signin.sendCode": "ส่งรหัส",
   "signin.codeTitle": "เช็กอีเมลของคุณ",
   "signin.sentTo": "เราส่งรหัสไปที่",
-  "signin.codeLasts": "ใช้ได้ 10 นาที",
+  "signin.codeLasts": "ใช้ได้ 10 นาที ไม่เจอในกล่องจดหมาย? ลองดูในโฟลเดอร์สแปม",
   "signin.codeLabel": "รหัสเข้าสู่ระบบ",
   "signin.didntGet": "ไม่ได้รับใช่ไหม?",
   "signin.resendIn": "ส่งใหม่ได้ใน {time}",

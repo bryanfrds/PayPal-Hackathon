@@ -140,7 +140,7 @@ export const ta: Dictionary = {
   "signin.sendCode": "குறியீடு அனுப்பு",
   "signin.codeTitle": "உங்கள் மின்னஞ்சலைப் பாருங்கள்",
   "signin.sentTo": "குறியீட்டை இங்கு அனுப்பினோம்:",
-  "signin.codeLasts": "இது 10 நிமிடங்கள் செல்லும்.",
+  "signin.codeLasts": "இது 10 நிமிடங்கள் செல்லும். இன்பாக்ஸில் இல்லையா? ஸ்பேம் கோப்புறையைப் பாருங்கள்.",
   "signin.codeLabel": "உள்நுழைவுக் குறியீடு",
   "signin.didntGet": "கிடைக்கவில்லையா?",
   "signin.resendIn": "{time}-இல் மீண்டும் அனுப்பலாம்",

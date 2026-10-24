@@ -31,7 +31,8 @@ export async function POST(request: Request) {
   try {
     const [results, webhookWorks] = await within(
       Promise.all([
-        db.latestFacts([...new Set(ids as string[])]),
+        // Only invoices this owner sent, even if someone else knows the ids.
+        db.latestFacts(owner.email, [...new Set(ids as string[])]),
         // Set up is not enough: PayPal must actually have called in the last day.
         process.env.PAYPAL_WEBHOOK_ID?.trim() ? db.webhookSeenSince(24) : Promise.resolve(false),
       ]),

@@ -108,12 +108,14 @@ export function normaliseEmail(value: unknown): string | null {
 /**
  * Who may sign in: OWNER_EMAILS (comma-separated) plus DEMO_EMAIL. When neither is set, nobody in
  * production, and anyone in local development (so the app can be tried without setup).
+ * A "*" in OWNER_EMAILS lets any email in (temporary, while the team tries the live site).
  */
 export function isAllowedOwner(email: string, env: Record<string, string | undefined> = process.env): boolean {
   const list = [...(env.OWNER_EMAILS ?? "").split(","), env.DEMO_EMAIL ?? ""]
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean);
-  if (list.length === 0) return env.NODE_ENV !== "production" || Boolean(env.VITEST);
+  if (list.length === 0) return env.NODE_ENV !== "production";
+  if (list.includes("*")) return true;
   return list.includes(email.toLowerCase());
 }
 

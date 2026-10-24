@@ -141,7 +141,7 @@ export const fil: Dictionary = {
   "signin.sendCode": "Ipadala ang code",
   "signin.codeTitle": "Tingnan ang email mo",
   "signin.sentTo": "Nagpadala kami ng code sa",
-  "signin.codeLasts": "Gumagana ito nang 10 minuto.",
+  "signin.codeLasts": "Gumagana ito nang 10 minuto. Wala sa inbox? Tingnan ang spam.",
   "signin.codeLabel": "Sign-in code",
   "signin.didntGet": "Hindi natanggap?",
   "signin.resendIn": "Ipadala ulit sa loob ng {time}",

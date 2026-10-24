@@ -13,7 +13,7 @@ Corner shops in Malaysia still run credit on a "buku 555", a small notebook of w
 ## How it works
 
 1. **Scan**: photograph a page of the notebook. AI reads names, amounts and dates, and the owner checks every line before anything is saved.
-2. **Collect**: one tap sends each customer a PayPal invoice. When PayPal says it's paid in full, the debt ticks itself off. With the payments database set up, PayPal's webhook tells the server within seconds, even while the app is closed. Without it, the app asks PayPal every minute while it's open.
+2. **Collect**: one tap sends each customer a PayPal invoice. When PayPal says it's paid in full, the debt ticks itself off. With the payments database set up, PayPal's webhook tells the server within about half a minute, even while the app is closed. Without it, the app asks PayPal every minute while it's open.
 3. **Remind**: a reminder schedule from the owner's rules (when to start, how often, how many, and no reminders during Friday prayers), shown on a calendar. On a laptop the owner can drag a reminder to move it. Each reminder goes out with one tap, by WhatsApp or as an email from PayPal. Nudge, an AI assistant, answers questions like "who should I chase this week?" and drafts polite messages.
 4. **Ledger and Insights**: an AG Grid ledger of who owes what, overdue first, and an AG Studio dashboard of totals and trends.
 5. **Customer page**: a page for each customer's tab: what they owe, monthly bills with due dates, and a way to pay their PayPal invoices.
@@ -38,7 +38,7 @@ It works on a phone and on a laptop; laptops get a sidebar and wider layouts.
 | What | Used for |
 |---|---|
 | **PayPal** Invoicing API (v2) | Creating and sending invoices, checking which are paid, and emailing reminders |
-| **PayPal** webhooks | Hearing about payments, cancellations and refunds within seconds |
+| **PayPal** webhooks | Hearing about payments, cancellations and refunds within about half a minute |
 | **Log in with PayPal** | Shop owners can sign in with their PayPal account |
 | **AG Grid** | The Ledger and Home tables |
 | **AG Studio** | The Insights dashboard and its custom scoreboard widget |
@@ -69,14 +69,14 @@ You need Node.js 22 or newer (`node -v` to check).
    - **Currency:** invoices use MYR by default, but PayPal only accepts MYR between two Malaysia-country accounts. Create both the sandbox business (seller) and the sandbox personal (buyer) accounts with country **Malaysia**. If you can't, set `PAYPAL_CURRENCY=USD` in `.env.local` as a fallback.
    - Set `AUTH_SECRET` to any random string of 32+ characters. Every other variable is explained in `.env.example`.
    - Optional, for **Log in with PayPal**: in the same PayPal app, tick *Log in with PayPal*, add `http://localhost:3000/api/auth/paypal/callback` as a return URL (PayPal may only accept https ones; then test it on a deployed copy), and tick the email scope. Without it, use email sign-in.
-4. Start the app: `npm run dev`, then open http://localhost:3000. Locally, with the owner list and the Resend key left empty, any email can sign in and the code is printed in the terminal.
+4. Start the app: `npm run dev`, then open http://localhost:3000. Locally, with the owner list and the email settings (Gmail or Resend) left empty, any email can sign in and the code is printed in the terminal.
 5. Send one test invoice: `npm run paypal:test-invoice`. It prints the invoice id and payer link.
 
 Other useful commands: `npm test` (unit tests), `npm run typecheck`, `npm run build`.
 
 ## Payments database and webhook
 
-Both are optional. Without them, the app keeps payment records on the owner's device and asks PayPal about open invoices every minute while it's open. With them, PayPal tells the server the moment an invoice is paid, cancelled or refunded. The app shows a payment or cancellation within about 10 seconds, and a refund of an invoice it already shows as paid within about an hour.
+Both are optional. Without them, the app keeps payment records on the owner's device and asks PayPal about open invoices every minute while it's open. With them, PayPal tells the server when an invoice is paid, cancelled or refunded, about half a minute later in our sandbox test. The app picks that up within about 10 seconds, so a payment or cancellation shows within about 40 seconds. A refund of an invoice the app already shows as paid shows within about an hour.
 
 ### 1. The database
 
@@ -99,7 +99,7 @@ PayPal has to reach the webhook over the internet, so set it up on the deployed 
 
 To try it locally, expose your dev server with a tunnel such as `npx cloudflared tunnel --url http://localhost:3000`, register the tunnel's address as a second webhook, and set its id in `.env.local`. Delete that webhook when you're done, because the tunnel's address changes every time.
 
-**Check it works:** send an invoice, pay it as the sandbox buyer, and keep the app open. The debt should show Paid within about 10 seconds. The Vercel logs show any delivery that failed. The app slows its own checks to every 5 minutes only while the webhook has handled a real event in the last day, so a webhook that has never worked, or has gone quiet for a day, leaves it checking every minute.
+**Check it works:** send an invoice, pay it as the sandbox buyer, and keep the app open. The debt should show Paid within about 40 seconds. On the live sandbox, PayPal took about 28 seconds to send the webhook and the app showed Paid 4 seconds after that. The Vercel logs show any delivery that failed. The app slows its own checks to every 5 minutes only while the webhook has handled a real event in the last day, so a webhook that has never worked, or has gone quiet for a day, leaves it checking every minute.
 
 **How it stays safe:** every delivery is checked with PayPal before anything is saved, and a repeated delivery is skipped. The server reads each invoice fresh from PayPal and keeps only answers newer than the one it has. A payment counts only when the amount and currency match what was billed.
 

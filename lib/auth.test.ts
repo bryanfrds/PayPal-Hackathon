@@ -140,6 +140,12 @@ describe("isAllowedOwner", () => {
     expect(isAllowedOwner("a@b.co", { NODE_ENV: "production" })).toBe(false);
     expect(isAllowedOwner("a@b.co", { NODE_ENV: "development" })).toBe(true);
   });
+
+  it("lets any email in when the list has a *", () => {
+    const env = { OWNER_EMAILS: "owner@shop.com, *", NODE_ENV: "production" };
+    expect(isAllowedOwner("stranger@shop.com", env)).toBe(true);
+    expect(isAllowedOwner("owner@shop.com", env)).toBe(true);
+  });
 });
 
 describe("normaliseEmail", () => {
