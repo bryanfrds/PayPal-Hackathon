@@ -62,6 +62,7 @@ export type PaymentDb = {
   releaseReminder(invoiceId: string): Promise<void>;
   getOwnerInvoice(ownerEmail: string, invoiceId: string): Promise<StoredInvoice | null>;
   listOwnerInvoices(ownerEmail: string): Promise<StoredInvoice[]>;
+  invoiceExists(invoiceId: string): Promise<boolean>;
 };
 
 export function createPaymentDb(query: Query): PaymentDb {
@@ -151,13 +152,39 @@ export function createPaymentDb(query: Query): PaymentDb {
       await query(`DELETE FROM reminder_holds WHERE invoice_id = $1`, [invoiceId]);
     },
     async getOwnerInvoice(ownerEmail, invoiceId) {
-      const [row] = await query(`SELECT id,owner_email,customer_name,amount_sen,currency,sent_at,debt_ids,COALESCE(status,'UNKNOWN') status,COALESCE(settlement,'check') settlement FROM invoices WHERE owner_email=$1 AND id=$2`, [ownerEmail.trim().toLowerCase(), invoiceId]);
-      return row ? { id:String(row.id),ownerEmail:String(row.owner_email),customerName:String(row.customer_name),amountSen:Number(row.amount_sen),currency:String(row.currency),sentAt:new Date(row.sent_at as string|Date).toISOString(),status:String(row.status),settlement:row.settlement as Settlement,debtIds:Array.isArray(row.debt_ids) ? (row.debt_ids as string[]) : [] } : null;
+      const [row] = await query(
+        `SELECT ${STORED_INVOICE_COLS} FROM invoices WHERE owner_email=$1 AND id=$2`,
+        [ownerEmail.trim().toLowerCase(), invoiceId],
+      );
+      return row ? toStoredInvoice(row) : null;
     },
     async listOwnerInvoices(ownerEmail) {
-      const rows = await query(`SELECT id,owner_email,customer_name,amount_sen,currency,sent_at,debt_ids,COALESCE(status,'UNKNOWN') status,COALESCE(settlement,'check') settlement FROM invoices WHERE owner_email=$1 ORDER BY sent_at`, [ownerEmail.trim().toLowerCase()]);
-      return rows.map(row => ({ id:String(row.id),ownerEmail:String(row.owner_email),customerName:String(row.customer_name),amountSen:Number(row.amount_sen),currency:String(row.currency),sentAt:new Date(row.sent_at as string|Date).toISOString(),status:String(row.status),settlement:row.settlement as Settlement,debtIds:Array.isArray(row.debt_ids) ? (row.debt_ids as string[]) : [] }));
+      const rows = await query(
+        `SELECT ${STORED_INVOICE_COLS} FROM invoices WHERE owner_email=$1 ORDER BY sent_at`,
+        [ownerEmail.trim().toLowerCase()],
+      );
+      return rows.map(toStoredInvoice);
     },
+    async invoiceExists(invoiceId) {
+      const rows = await query(`SELECT 1 FROM invoices WHERE id = $1 LIMIT 1`, [invoiceId]);
+      return rows.length > 0;
+    },
+  };
+}
+
+const STORED_INVOICE_COLS = `id,owner_email,customer_name,amount_sen,currency,sent_at,debt_ids,COALESCE(status,'UNKNOWN') status,COALESCE(settlement,'check') settlement`;
+
+function toStoredInvoice(row: Record<string, unknown>): StoredInvoice {
+  return {
+    id: String(row.id),
+    ownerEmail: String(row.owner_email),
+    customerName: String(row.customer_name),
+    amountSen: Number(row.amount_sen),
+    currency: String(row.currency),
+    sentAt: new Date(row.sent_at as string | Date).toISOString(),
+    status: String(row.status),
+    settlement: row.settlement as Settlement,
+    debtIds: Array.isArray(row.debt_ids) ? (row.debt_ids as string[]) : [],
   };
 }
 

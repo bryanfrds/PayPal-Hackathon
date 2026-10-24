@@ -14,8 +14,14 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
 
   const { id } = await params;
   const db = paymentDb();
-  if (db?.getOwnerInvoice && !(await db.getOwnerInvoice(owner.email, id))) {
-    return NextResponse.json({ error: "Unknown invoice." }, { status: 404 });
+  if (db?.getOwnerInvoice) {
+    const ownerInvoice = await db.getOwnerInvoice(owner.email, id);
+    if (!ownerInvoice) {
+      const exists = await db.invoiceExists(id);
+      if (exists) {
+        return NextResponse.json({ error: "Unknown invoice." }, { status: 404 });
+      }
+    }
   }
 
   const outcome = await sendInvoiceReminder(id);
