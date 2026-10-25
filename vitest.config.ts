@@ -17,6 +17,7 @@ export default defineConfig({
       OWNER_EMAILS: "*",
     },
     // Agent worktrees (copies of the repo) live under .claude/; never run their tests here.
-    exclude: [...configDefaults.exclude, ".claude/**"],
+    // End-to-end tests live under e2e/ and are run with Playwright.
+    exclude: [...configDefaults.exclude, ".claude/**", "e2e/**"],
   },
 });
