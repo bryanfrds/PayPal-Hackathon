@@ -17,6 +17,8 @@ function isPublic(req: NextRequest): boolean {
   if (pathname.startsWith("/api/auth/")) return true;
   // PayPal's webhook: PayPal isn't signed in; the route checks each delivery's signature with PayPal.
   if (pathname === "/api/paypal/webhook" && req.method === "POST") return true;
+  // Vercel's daily reminder cron: the route itself validates Authorization: Bearer <CRON_SECRET>.
+  if (pathname === "/api/reminders/process" && req.method === "GET") return true;
   // One invoice's live status for the customer's pay page: GET /api/invoices/<id> only.
   const invoice = pathname.match(/^\/api\/invoices\/([^/]+)$/);
   if (invoice && req.method === "GET" && invoice[1] !== "status") return true;

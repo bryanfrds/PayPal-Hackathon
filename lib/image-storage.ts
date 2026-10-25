@@ -22,7 +22,7 @@ function hashOwner(email: string): string {
 }
 
 function assertOwnerKey(ownerEmail: string, imageKey: string): void {
-  if (!imageKey.startsWith(`scans/${hashOwner(ownerEmail)}/`)) {
+  if (imageKey.includes("..") || !imageKey.startsWith(`scans/${hashOwner(ownerEmail)}/`)) {
     throw new ImageStorageError("Unauthorized access to image record.", 403);
   }
 }

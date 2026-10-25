@@ -143,7 +143,7 @@ export async function processEligibleReminders(
     }
 
     const nextAttemptNum = attemptsCount + 1;
-    const idempotencyKey = `remind:${ownerEmail}:${inv.id}:${nextAttemptNum}:${todayStr}`;
+    const idempotencyKey = `remind:${ownerEmail.trim().toLowerCase()}:${inv.id}:${nextAttemptNum}:${todayStr}`;
 
     // Approval requirement
     if (rules.requireApproval) {

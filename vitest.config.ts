@@ -13,6 +13,9 @@ export default defineConfig({
   },
   test: {
     environment: "node",
+    env: {
+      OWNER_EMAILS: "*",
+    },
     // Agent worktrees (copies of the repo) live under .claude/; never run their tests here.
     exclude: [...configDefaults.exclude, ".claude/**"],
   },

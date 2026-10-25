@@ -55,6 +55,7 @@ export interface Person1Store {
   getReminderDecision(ownerEmail: string, decisionId: string): Promise<ReminderDecision | null>;
   updateReminderDecisionAction(ownerEmail: string, decisionId: string, action: ReminderDecision["action"], deliveryResult?: string): Promise<void>;
   claimPendingReminder(ownerEmail: string, decisionId: string): Promise<boolean>;
+  rejectPendingReminder(ownerEmail: string, decisionId: string, reason?: string): Promise<boolean>;
   listEnabledReminderOwners(): Promise<string[]>;
 }
 
@@ -283,6 +284,13 @@ export function createMemoryPerson1Store(): Person1Store {
       if (!d || d.ownerEmail.toLowerCase() !== ownerEmail.toLowerCase() || d.action !== "pending_approval") return false;
       d.action = "requested";
       d.deliveryResult = "Claimed for delivery";
+      return true;
+    },
+    async rejectPendingReminder(ownerEmail, decisionId, reason = "Rejected by owner") {
+      const d = decisions.get(decisionId);
+      if (!d || d.ownerEmail.toLowerCase() !== ownerEmail.toLowerCase() || d.action !== "pending_approval") return false;
+      d.action = "skipped";
+      d.deliveryResult = reason;
       return true;
     },
     async listEnabledReminderOwners() {

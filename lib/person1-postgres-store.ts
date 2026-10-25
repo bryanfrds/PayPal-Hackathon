@@ -61,6 +61,7 @@ export function createPostgresPerson1Store(query: Query): Person1Store {
     async getReminderDecision(email,id){ const [r]=await query(`SELECT * FROM reminder_decisions WHERE owner_email=$1 AND id=$2`,[owner(email),id]); return r?decisionRow(r):null; },
     async updateReminderDecisionAction(email,id,action,result){ await query(`UPDATE reminder_decisions SET action=$3,delivery_result=COALESCE($4,delivery_result) WHERE owner_email=$1 AND id=$2`,[owner(email),id,action,result??null]); },
     async claimPendingReminder(email,id){ return (await query(`UPDATE reminder_decisions SET action='requested',delivery_result='Claimed for delivery' WHERE owner_email=$1 AND id=$2 AND action='pending_approval' RETURNING id`,[owner(email),id])).length===1; },
+    async rejectPendingReminder(email,id,reason="Rejected by owner"){ return (await query(`UPDATE reminder_decisions SET action='skipped',delivery_result=$3 WHERE owner_email=$1 AND id=$2 AND action='pending_approval' RETURNING id`,[owner(email),id,reason])).length===1; },
     async listEnabledReminderOwners(){ return (await query(`SELECT owner_email FROM reminder_rules WHERE enabled=true ORDER BY owner_email`,[])).map(r=>String(r.owner_email)); },
   };
 }
