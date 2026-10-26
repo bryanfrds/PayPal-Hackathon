@@ -95,9 +95,7 @@ export async function processEligibleReminders(
   }
 
   const invoices = await getInvoices();
-  const priorRequested = await store.listReminderDecisions(ownerEmail, 1000, "requested");
-  const priorPending = await store.listReminderDecisions(ownerEmail, 1000, "pending_approval");
-  const priorDecisions = [...priorRequested, ...priorPending].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const priorDecisions = await store.listReminderDecisions(ownerEmail, 1000);
 
   for (const inv of invoices) {
     // Check settlement: skip paid, closed, or check
@@ -121,9 +119,7 @@ export async function processEligibleReminders(
     }
 
     // History check for this invoice
-    const invDecisions = priorDecisions.filter(
-      (d) => d.invoiceId === inv.id && (d.action === "requested" || d.action === "pending_approval"),
-    );
+    const invDecisions = priorDecisions.filter((d) => d.invoiceId === inv.id);
 
     const attemptsCount = invDecisions.length;
     if (attemptsCount >= rules.maxAttempts) {

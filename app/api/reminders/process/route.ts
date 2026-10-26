@@ -87,7 +87,7 @@ export async function GET(req: Request) {
   const results = [];
   for (const ownerEmail of owners) {
     try {
-      results.push({ ownerEmail, ok: true, outcome: await processOwner(ownerEmail, undefined, false) });
+      results.push({ ownerEmail, ok: true, outcome: await processOwner(ownerEmail, undefined, true) });
     } catch (error) {
       results.push({ ownerEmail, ok: false, error: error instanceof Error ? error.message : "Failed" });
     }

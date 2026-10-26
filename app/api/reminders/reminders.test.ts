@@ -254,6 +254,8 @@ describe("Reminder Orchestration APIs", () => {
 
     it("loops over every enabled owner and records an outcome for each, isolating per-owner failures", async () => {
       vi.stubEnv("CRON_SECRET", "super-secret-cron-token");
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-10-26T01:00:00Z")); // 09:00 in Malaysia
       const ownerA = "cron-owner-a@example.com";
       const ownerB = "cron-owner-b@example.com";
       try {
@@ -263,7 +265,7 @@ describe("Reminder Orchestration APIs", () => {
           firstAfterDays: 2,
           minIntervalDays: 3,
           maxAttempts: 3,
-          sendHour: 10,
+          sendHour: 9,
           skipFridayPrayers: false,
           requireApproval: false,
           updatedAt: new Date().toISOString(),
@@ -274,7 +276,7 @@ describe("Reminder Orchestration APIs", () => {
           firstAfterDays: 2,
           minIntervalDays: 3,
           maxAttempts: 3,
-          sendHour: 10,
+          sendHour: 9,
           skipFridayPrayers: false,
           requireApproval: false,
           updatedAt: new Date().toISOString(),
@@ -324,6 +326,56 @@ describe("Reminder Orchestration APIs", () => {
         });
         expect(resultB.outcome.requested.map((d: { invoiceId: string }) => d.invoiceId)).toContain("INV-CRON-B");
       } finally {
+        vi.useRealTimers();
+        vi.unstubAllEnvs();
+      }
+    });
+
+    it("enforces each owner's configured send hour", async () => {
+      vi.stubEnv("CRON_SECRET", "super-secret-cron-token");
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-10-26T01:00:00Z")); // 09:00 in Malaysia
+      const cronOwner = "cron-hour-owner@example.com";
+      try {
+        await store.setReminderRules({
+          ownerEmail: cronOwner,
+          enabled: true,
+          firstAfterDays: 0,
+          minIntervalDays: 1,
+          maxAttempts: 3,
+          sendHour: 10,
+          skipFridayPrayers: false,
+          requireApproval: false,
+          updatedAt: new Date().toISOString(),
+        });
+        payments.listOwnerInvoices.mockImplementation(async (email: string) =>
+          email === cronOwner
+            ? [{
+                id: "INV-WRONG-HOUR",
+                ownerEmail: cronOwner,
+                customerName: "Siti",
+                amountSen: 2500,
+                currency: "MYR",
+                sentAt: "2026-10-01T00:00:00Z",
+                status: "SENT",
+                settlement: "open",
+              }]
+            : [],
+        );
+
+        const res = await cronProcessReminders(
+          new Request("http://localhost:3000/api/reminders/process", {
+            headers: { authorization: "Bearer super-secret-cron-token" },
+          }),
+        );
+        const data = await res.json();
+        const result = data.results.find((item: { ownerEmail: string }) => item.ownerEmail === cronOwner);
+
+        expect(result.outcome.requested).toHaveLength(0);
+        expect(result.outcome.skipped[0].reason).toMatch(/configured reminder hour/i);
+        expect(remindMock.deliverScheduledReminder).not.toHaveBeenCalledWith("INV-WRONG-HOUR");
+      } finally {
+        vi.useRealTimers();
         vi.unstubAllEnvs();
       }
     });

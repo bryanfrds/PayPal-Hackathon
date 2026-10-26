@@ -1,12 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const signedIn = vi.hoisted(() => ({ value: true, email: "owner@example.com" }));
+const blob = vi.hoisted(() => ({ put: vi.fn(), get: vi.fn(), del: vi.fn() }));
 vi.mock("@/lib/auth-server", () => ({
   requireOwner: async () =>
     signedIn.value
       ? { email: signedIn.email, method: "email", exp: 9999999999 }
       : Response.json({ error: "Sign in to do that." }, { status: 401 }),
 }));
+vi.mock("@vercel/blob", () => blob);
 
 import { POST as createScan } from "./route";
 import { GET as getScan } from "./[id]/route";
@@ -19,6 +21,9 @@ describe("Scans API", () => {
 
   beforeEach(() => {
     vi.stubEnv("ALLOW_SCAN_FIXTURES", "true");
+    vi.stubEnv("BLOB_READ_WRITE_TOKEN", "test-blob-token");
+    blob.put.mockImplementation(async (pathname: string) => ({ pathname }));
+    blob.get.mockImplementation(async () => ({ statusCode: 200, stream: new Blob([dummyJpeg]).stream() }));
     signedIn.value = true;
     signedIn.email = `owner-${Date.now()}-${Math.random()}@example.com`;
   });
@@ -164,6 +169,9 @@ describe("Scans API", () => {
       expect(prodCreateData.entries).toBeUndefined();
 
       vi.stubEnv("ALLOW_SCAN_FIXTURES", "true");
+      vi.stubEnv("BLOB_READ_WRITE_TOKEN", "test-blob-token");
+      blob.put.mockImplementation(async (pathname: string) => ({ pathname }));
+      blob.get.mockImplementation(async () => ({ statusCode: 200, stream: new Blob([dummyJpeg]).stream() }));
       const validCreate = await createScan(makeUploadRequest(new Uint8Array([0xff, 0xd8, 0xff, 0xe9]), "image/jpeg", "notebook", "clear_handwriting"));
       expect(validCreate.status).toBe(201);
       const { scan } = await validCreate.json();

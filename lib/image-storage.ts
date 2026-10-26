@@ -95,7 +95,7 @@ export async function saveScanImage(
     const blob = await put(imageKey, Buffer.from(bytes), { access: "private", addRandomSuffix: false, contentType: mimeType });
     return { imageKey: blob.pathname, hash };
   }
-  if (process.env.NODE_ENV === "production" && !process.env.VITEST) {
+  if (process.env.NODE_ENV === "production" && !process.env.BLOB_READ_WRITE_TOKEN) {
     throw new ImageStorageError("Private scan storage is not configured.", 503);
   }
 
@@ -113,6 +113,9 @@ export async function getScanImage(
   imageKey: string,
 ): Promise<Uint8Array | null> {
   assertOwnerKey(ownerEmail, imageKey);
+  if (process.env.NODE_ENV === "production" && !process.env.BLOB_READ_WRITE_TOKEN) {
+    throw new ImageStorageError("Private scan storage is not configured.", 503);
+  }
   if (process.env.BLOB_READ_WRITE_TOKEN) {
     const result = await get(imageKey, { access: "private", useCache: false });
     if (!result || result.statusCode !== 200) return null;
@@ -130,6 +133,9 @@ export async function getScanImage(
 
 export async function deleteScanImage(ownerEmail: string, imageKey: string): Promise<void> {
   assertOwnerKey(ownerEmail, imageKey);
+  if (process.env.NODE_ENV === "production" && !process.env.BLOB_READ_WRITE_TOKEN) {
+    throw new ImageStorageError("Private scan storage is not configured.", 503);
+  }
   if (process.env.BLOB_READ_WRITE_TOKEN) {
     await del(imageKey);
     return;

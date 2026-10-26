@@ -118,6 +118,27 @@ describe("reminder-scheduler", () => {
     expect(result.skipped[0].reason).toMatch(/interval/i);
   });
 
+  it.each([
+    ["failed", "Delivery failed"],
+    ["skipped", "Rejected by owner"],
+  ] as const)("counts a %s reminder decision as an attempt", async (action, reason) => {
+    await store.saveReminderDecision({
+      id: `dec-${action}`,
+      ownerEmail: owner,
+      invoiceId: "INV-1",
+      action,
+      reason,
+      idempotencyKey: `k-${action}`,
+      attemptNumber: 1,
+      createdAt: "2026-10-17T10:00:00Z",
+    });
+
+    const result = await processEligibleReminders(owner, makeDeps());
+
+    expect(result.requested).toHaveLength(0);
+    expect(result.skipped[0].reason).toMatch(/interval/i);
+  });
+
   it("creates pending_approval decision when owner requires approval", async () => {
     await store.setReminderRules({
       ownerEmail: owner,
