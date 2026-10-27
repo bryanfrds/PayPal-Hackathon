@@ -1,4 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const ai = vi.hoisted(() => ({ generateText: vi.fn(), object: vi.fn((value) => value) }));
+vi.mock("ai", () => ({ generateText: ai.generateText, Output: { object: ai.object } }));
 import { extractNotebookEntries, type ExtractionOptions } from "./vision-extractor";
 
 describe("vision-extractor", () => {
@@ -8,6 +11,40 @@ describe("vision-extractor", () => {
     revision: 1,
     today: "2026-10-18",
   };
+
+  beforeEach(() => {
+    vi.stubEnv("AI_GATEWAY_API_KEY", "");
+    vi.stubEnv("ALLOW_SCAN_FIXTURES", "true");
+  });
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("sends the uploaded image to AI Gateway when configured", async () => {
+    vi.stubEnv("AI_GATEWAY_API_KEY", "test-key");
+    ai.generateText.mockResolvedValueOnce({
+      output: {
+        entries: [{
+          customerName: "Aisyah",
+          item: "Beras",
+          amount: "12.50",
+          date: "2026-10-17",
+          classification: "debt",
+          rawText: "Aisyah Beras 12.50",
+          confidence: 0.91,
+        }],
+      },
+    });
+
+    const entries = await extractNotebookEntries(dummyBytes, "image/png", opts);
+
+    expect(ai.generateText).toHaveBeenCalledWith(expect.objectContaining({
+      messages: [expect.objectContaining({
+        content: expect.arrayContaining([
+          expect.objectContaining({ type: "file", mediaType: "image/png", data: dummyBytes }),
+        ]),
+      })],
+    }));
+    expect(entries[0]).toMatchObject({ customerName: "Aisyah", amountSen: 1250 });
+  });
 
   it("extracts clearly legible handwriting lines", async () => {
     const entries = await extractNotebookEntries(dummyBytes, "image/png", {
@@ -60,12 +97,15 @@ describe("vision-extractor", () => {
     expect(repayment?.included).toBe(false);
   });
 
-  it("handles missing dates by defaulting to the provided scan date", async () => {
+  it("flags a missing date while defaulting it to the scan date for review", async () => {
     const entries = await extractNotebookEntries(dummyBytes, "image/png", {
       ...opts,
       fixtureScenario: "missing_date",
     });
 
     expect(entries[0].date).toBe("2026-10-18");
+    expect(entries[0].isAmbiguous).toBe(true);
+    expect(entries[0].included).toBe(false);
+    expect(entries[0].ambiguityReason).toMatch(/date/i);
   });
 });

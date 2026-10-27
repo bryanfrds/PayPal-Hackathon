@@ -1,4 +1,7 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const blob = vi.hoisted(() => ({ put: vi.fn(), get: vi.fn(), del: vi.fn() }));
+vi.mock("@vercel/blob", () => blob);
 import {
   computeImageHash,
   deleteScanImage,
@@ -12,6 +15,34 @@ describe("image-storage", () => {
   const owner = "owner@example.com";
   const intruder = "intruder@example.com";
   const sampleBytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46]); // JPEG header bytes
+  const samplePngBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]); // PNG header bytes
+  beforeEach(() => {
+    vi.stubEnv("BLOB_READ_WRITE_TOKEN", "");
+    vi.stubEnv("NODE_ENV", "test");
+  });
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("stores configured production uploads in private Blob storage", async () => {
+    vi.stubEnv("BLOB_READ_WRITE_TOKEN", "blob-token");
+    blob.put.mockResolvedValueOnce({ pathname: "scans/path/scan.jpg" });
+    await saveScanImage(owner, "scan-blob", sampleBytes, "image/jpeg");
+    expect(blob.put).toHaveBeenCalledWith(expect.stringContaining("scans/"), expect.any(Uint8Array), expect.objectContaining({ access: "private", addRandomSuffix: false }));
+  });
+
+  it("requires private Blob storage in production even under Vitest", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    await expect(saveScanImage(owner, "scan-production", sampleBytes, "image/jpeg")).rejects.toThrow(
+      /private scan storage is not configured/i,
+    );
+  });
+
+  it("requires private Blob storage for production reads and deletes", async () => {
+    const { imageKey } = await saveScanImage(owner, "scan-production-read", sampleBytes, "image/jpeg");
+    vi.stubEnv("NODE_ENV", "production");
+
+    await expect(getScanImage(owner, imageKey)).rejects.toThrow(/private scan storage is not configured/i);
+    await expect(deleteScanImage(owner, imageKey)).rejects.toThrow(/private scan storage is not configured/i);
+  });
 
   it("computes deterministic SHA-256 image hash", () => {
     const hash1 = computeImageHash(sampleBytes);
@@ -45,8 +76,15 @@ describe("image-storage", () => {
     await expect(getScanImage(intruder, imageKey)).rejects.toThrow(/unauthorized/i);
   });
 
+  it("rejects file content that does not match declared MIME signature", async () => {
+    // Attempting to upload PNG header with image/jpeg MIME
+    await expect(saveScanImage(owner, "test-mismatch", samplePngBytes, "image/jpeg")).rejects.toThrow(
+      /file content header does not match/i,
+    );
+  });
+
   it("deletes private image safely", async () => {
-    const { imageKey } = await saveScanImage(owner, "scan-456", sampleBytes, "image/png");
+    const { imageKey } = await saveScanImage(owner, "scan-456", samplePngBytes, "image/png");
     await deleteScanImage(owner, imageKey);
     const retrieved = await getScanImage(owner, imageKey);
     expect(retrieved).toBeNull();

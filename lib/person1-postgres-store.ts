@@ -1,0 +1,75 @@
+import "server-only";
+import { neon } from "@neondatabase/serverless";
+import { DEFAULT_PERSON1_RULES, type Person1Store } from "./person1-store";
+import type { ApprovedDebtRecord, CustomerRecord, ExtractedEntry, ReminderDecision, ReminderRuleRecord, ScanRecord } from "./person1-types";
+
+type Row = Record<string, unknown>;
+type Query = (text: string, params: unknown[]) => Promise<Row[]>;
+const iso = (value: unknown) => new Date(value as string | Date).toISOString();
+const owner = (email: string) => email.trim().toLowerCase();
+const scanRow = (r: Row): ScanRecord => ({ id:String(r.id), ownerEmail:String(r.owner_email), imageKey:String(r.image_key), imageHash:String(r.image_hash), mimeType:String(r.mime_type), sizeBytes:Number(r.size_bytes), status:r.status as ScanRecord["status"], mode:r.mode as ScanRecord["mode"], revision:Number(r.revision), error:r.error == null ? undefined : String(r.error), createdAt:iso(r.created_at), updatedAt:iso(r.updated_at) });
+const entryRow = (r: Row): ExtractedEntry => ({ id:String(r.id), scanId:String(r.scan_id), revision:Number(r.revision), rawText:String(r.raw_text), customerName:String(r.customer_name), item:String(r.item), amountSen:Number(r.amount_sen), rawAmountText:String(r.raw_amount_text), date:String(r.date), classification:r.classification as ExtractedEntry["classification"], confidence:Number(r.confidence), isAmbiguous:Boolean(r.is_ambiguous), ambiguityReason:r.ambiguity_reason == null ? undefined : String(r.ambiguity_reason), included:Boolean(r.included), sourceRef:r.source_ref as ExtractedEntry["sourceRef"], ownerEdited:Boolean(r.owner_edited), confirmedCustomerId:r.confirmed_customer_id == null ? undefined : String(r.confirmed_customer_id), createdAt:iso(r.created_at), updatedAt:iso(r.updated_at) });
+const customerRow = (r: Row): CustomerRecord => ({ id:String(r.id), ownerEmail:String(r.owner_email), name:String(r.name), slug:String(r.slug), email:r.email == null ? undefined : String(r.email), phone:r.phone == null ? undefined : String(r.phone), confirmedAt:r.confirmed_at == null ? undefined : iso(r.confirmed_at), createdAt:iso(r.created_at), updatedAt:iso(r.updated_at) });
+const debtRow = (r: Row): ApprovedDebtRecord => ({ id:String(r.id), ownerEmail:String(r.owner_email), sourceEntryId:String(r.source_entry_id), scanId:String(r.scan_id), customerId:String(r.customer_id), customerName:String(r.customer_name), customerEmail:String(r.customer_email), amountSen:Number(r.amount_sen), currency:String(r.currency), item:String(r.item), date:String(r.date), approvedAt:iso(r.approved_at), handoffKey:String(r.handoff_key) });
+const decisionRow = (r: Row): ReminderDecision => ({ id:String(r.id), ownerEmail:String(r.owner_email), invoiceId:String(r.invoice_id), action:r.action as ReminderDecision["action"], reason:String(r.reason), idempotencyKey:String(r.idempotency_key), attemptNumber:Number(r.attempt_number), deliveryResult:r.delivery_result == null ? undefined : String(r.delivery_result), createdAt:iso(r.created_at) });
+
+export function createPostgresPerson1Store(query: Query): Person1Store {
+  return {
+    async saveScan(s){ await query(`INSERT INTO scans(id,owner_email,image_key,image_hash,mime_type,size_bytes,status,mode,revision,error,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) ON CONFLICT(id) DO UPDATE SET image_key=$3,image_hash=$4,mime_type=$5,size_bytes=$6,status=$7,mode=$8,revision=$9,error=$10,updated_at=$12`,[s.id,owner(s.ownerEmail),s.imageKey,s.imageHash,s.mimeType,s.sizeBytes,s.status,s.mode,s.revision,s.error??null,s.createdAt,s.updatedAt]); },
+    async getScan(email,id){ const [r]=await query(`SELECT * FROM scans WHERE owner_email=$1 AND id=$2`,[owner(email),id]); return r?scanRow(r):null; },
+    async findScanByHash(email,hash){ const [r]=await query(`SELECT * FROM scans WHERE owner_email=$1 AND image_hash=$2 ORDER BY created_at LIMIT 1`,[owner(email),hash]); return r?scanRow(r):null; },
+    async updateScanStatus(email,id,status,error){ await query(`UPDATE scans SET status=$3,error=$4,updated_at=now() WHERE owner_email=$1 AND id=$2`,[owner(email),id,status,error??null]); },
+    async saveEntries(entries){ for(const e of entries) await query(`INSERT INTO extracted_entries(id,scan_id,revision,raw_text,customer_name,item,amount_sen,raw_amount_text,date,classification,confidence,is_ambiguous,ambiguity_reason,included,source_ref,owner_edited,confirmed_customer_id,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15::jsonb,$16,$17,$18,$19) ON CONFLICT(id) DO UPDATE SET raw_text=$4,customer_name=$5,item=$6,amount_sen=$7,raw_amount_text=$8,date=$9,classification=$10,confidence=$11,is_ambiguous=$12,ambiguity_reason=$13,included=$14,source_ref=$15::jsonb,owner_edited=$16,confirmed_customer_id=$17,updated_at=$19`,[e.id,e.scanId,e.revision,e.rawText,e.customerName,e.item,e.amountSen,e.rawAmountText,e.date,e.classification,e.confidence,e.isAmbiguous,e.ambiguityReason??null,e.included,JSON.stringify(e.sourceRef),e.ownerEdited,e.confirmedCustomerId??null,e.createdAt,e.updatedAt]); },
+    async getEntriesByScan(email,scanId,revision){ const rows=await query(`SELECT e.* FROM extracted_entries e JOIN scans s ON s.id=e.scan_id WHERE s.owner_email=$1 AND e.scan_id=$2 AND ($3::int IS NULL OR e.revision=$3) ORDER BY (e.source_ref->>'lineIndex')::int`,[owner(email),scanId,revision??null]); return rows.map(entryRow); },
+    async getEntry(email,id){ const [r]=await query(`SELECT e.* FROM extracted_entries e JOIN scans s ON s.id=e.scan_id WHERE s.owner_email=$1 AND e.id=$2`,[owner(email),id]); return r?entryRow(r):null; },
+    async updateEntry(email,id,patch){ const current=await this.getEntry(email,id); if(!current)return null; const updated={...current,...patch,updatedAt:new Date().toISOString()}; await this.saveEntries([updated]); return updated; },
+    async saveCustomer(c){ await query(`INSERT INTO customer_directory(id,owner_email,name,slug,email,phone,confirmed_at,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(id) DO UPDATE SET name=$3,slug=$4,email=$5,phone=$6,confirmed_at=$7,updated_at=$9`,[c.id,owner(c.ownerEmail),c.name,c.slug,c.email??null,c.phone??null,c.confirmedAt??null,c.createdAt,c.updatedAt]); },
+    async getCustomer(email,id){ const [r]=await query(`SELECT * FROM customer_directory WHERE owner_email=$1 AND id=$2`,[owner(email),id]); return r?customerRow(r):null; },
+    async getCustomerBySlug(email,slug){ const [r]=await query(`SELECT * FROM customer_directory WHERE owner_email=$1 AND slug=$2`,[owner(email),slug]); return r?customerRow(r):null; },
+    async listCustomers(email){ return (await query(`SELECT * FROM customer_directory WHERE owner_email=$1 ORDER BY name`,[owner(email)])).map(customerRow); },
+    async updateCustomer(email,id,patch){ const current=await this.getCustomer(email,id); if(!current)return null; const updated={...current,...patch,updatedAt:new Date().toISOString()}; await this.saveCustomer(updated); return updated; },
+    async confirmCustomer(email,id){ return this.updateCustomer(email,id,{confirmedAt:new Date().toISOString()}); },
+    async saveApprovedDebts(debts){
+      const out: ApprovedDebtRecord[] = [];
+      for(const d of debts) {
+        const [r] = await query(
+          `INSERT INTO approved_debts(id,owner_email,source_entry_id,scan_id,customer_id,customer_name,customer_email,amount_sen,currency,item,date,approved_at,handoff_key)
+           VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+           ON CONFLICT(owner_email, source_entry_id) DO UPDATE SET
+             customer_id=$5,customer_name=$6,customer_email=$7,amount_sen=$8,currency=$9,item=$10,date=$11,approved_at=$12,handoff_key=$13
+           RETURNING *`,
+          [d.id,owner(d.ownerEmail),d.sourceEntryId,d.scanId,d.customerId,d.customerName,d.customerEmail,d.amountSen,d.currency,d.item,d.date,d.approvedAt,d.handoffKey]
+        );
+        if (r) out.push(debtRow(r));
+      }
+      return out;
+    },
+    async getApprovedDebts(email){ return (await query(`SELECT * FROM approved_debts WHERE owner_email=$1 ORDER BY approved_at DESC`,[owner(email)])).map(debtRow); },
+    async getApprovedDebtByHandoffKey(email,key){ const [r]=await query(`SELECT * FROM approved_debts WHERE owner_email=$1 AND handoff_key=$2`,[owner(email),key]); return r?debtRow(r):null; },
+    async getApprovedDebtBySourceEntryId(email,sourceEntryId){ const [r]=await query(`SELECT * FROM approved_debts WHERE owner_email=$1 AND source_entry_id=$2`,[owner(email),sourceEntryId]); return r?debtRow(r):null; },
+    async getApprovedDebtByScanAndLine(email,scanId,lineIndex){ const [r]=await query(`SELECT a.* FROM approved_debts a JOIN extracted_entries e ON e.id = a.source_entry_id WHERE a.owner_email=$1 AND a.scan_id=$2 AND (e.source_ref->>'lineIndex')::int=$3 ORDER BY a.approved_at ASC LIMIT 1`,[owner(email),scanId,lineIndex]); return r?debtRow(r):null; },
+    async getReminderRules(email){ const [r]=await query(`SELECT * FROM reminder_rules WHERE owner_email=$1`,[owner(email)]); return r?{ownerEmail:String(r.owner_email),enabled:Boolean(r.enabled),firstAfterDays:Number(r.first_after_days),minIntervalDays:Number(r.min_interval_days),maxAttempts:Number(r.max_attempts),sendHour:Number(r.send_hour),skipFridayPrayers:Boolean(r.skip_friday_prayers),requireApproval:Boolean(r.require_approval),updatedAt:iso(r.updated_at)}:{ownerEmail:email,...DEFAULT_PERSON1_RULES,updatedAt:new Date().toISOString()}; },
+    async setReminderRules(r){ await query(`INSERT INTO reminder_rules(owner_email,enabled,first_after_days,min_interval_days,max_attempts,send_hour,skip_friday_prayers,require_approval,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(owner_email) DO UPDATE SET enabled=$2,first_after_days=$3,min_interval_days=$4,max_attempts=$5,send_hour=$6,skip_friday_prayers=$7,require_approval=$8,updated_at=$9`,[owner(r.ownerEmail),r.enabled,r.firstAfterDays,r.minIntervalDays,r.maxAttempts,r.sendHour,r.skipFridayPrayers,r.requireApproval,r.updatedAt]); },
+    async saveReminderDecision(d){ await query(`INSERT INTO reminder_decisions(id,owner_email,invoice_id,action,reason,idempotency_key,attempt_number,delivery_result,created_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(idempotency_key) DO NOTHING`,[d.id,owner(d.ownerEmail),d.invoiceId,d.action,d.reason,d.idempotencyKey,d.attemptNumber,d.deliveryResult??null,d.createdAt]); },
+    async claimReminderRequest(d){ return (await query(`INSERT INTO reminder_decisions(id,owner_email,invoice_id,action,reason,idempotency_key,attempt_number,delivery_result,created_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(idempotency_key) DO NOTHING RETURNING id`,[d.id,owner(d.ownerEmail),d.invoiceId,d.action,d.reason,d.idempotencyKey,d.attemptNumber,d.deliveryResult??null,d.createdAt])).length===1; },
+    async listReminderDecisions(email,limit=100,action){
+      if(action){
+        return (await query(`SELECT * FROM reminder_decisions WHERE owner_email=$1 AND action=$3 ORDER BY created_at DESC LIMIT $2`,[owner(email),limit,action])).map(decisionRow);
+      }
+      return (await query(`SELECT * FROM reminder_decisions WHERE owner_email=$1 ORDER BY created_at DESC LIMIT $2`,[owner(email),limit])).map(decisionRow);
+    },
+    async getReminderDecision(email,id){ const [r]=await query(`SELECT * FROM reminder_decisions WHERE owner_email=$1 AND id=$2`,[owner(email),id]); return r?decisionRow(r):null; },
+    async updateReminderDecisionAction(email,id,action,result){ await query(`UPDATE reminder_decisions SET action=$3,delivery_result=COALESCE($4,delivery_result) WHERE owner_email=$1 AND id=$2`,[owner(email),id,action,result??null]); },
+    async claimPendingReminder(email,id){ return (await query(`UPDATE reminder_decisions SET action='requested',delivery_result='Claimed for delivery' WHERE owner_email=$1 AND id=$2 AND action='pending_approval' RETURNING id`,[owner(email),id])).length===1; },
+    async rejectPendingReminder(email,id,reason="Rejected by owner"){ return (await query(`UPDATE reminder_decisions SET action='skipped',delivery_result=$3 WHERE owner_email=$1 AND id=$2 AND action='pending_approval' RETURNING id`,[owner(email),id,reason])).length===1; },
+    async listEnabledReminderOwners(){ return (await query(`SELECT owner_email FROM reminder_rules WHERE enabled=true ORDER BY owner_email`,[])).map(r=>String(r.owner_email)); },
+  };
+}
+
+let cached: { url: string; store: Person1Store } | null = null;
+export function getPostgresPerson1Store(): Person1Store {
+  const url=process.env.DATABASE_URL?.trim();
+  if(!url) throw new Error("DATABASE_URL is required for persistent Person 1 storage.");
+  if(cached?.url!==url){ const sql=neon(url); cached={url,store:createPostgresPerson1Store((text,params)=>sql.query(text,params) as Promise<Row[]>)}; }
+  return cached.store;
+}

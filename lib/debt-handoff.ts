@@ -23,6 +23,23 @@ export async function approveDebtsForInvoicing(
       continue;
     }
 
+    const scan = await store.getScan(ownerEmail, entry.scanId);
+    if (!scan) {
+      rejected.push({ entryId, reason: "Source scan no longer exists." });
+      continue;
+    }
+
+    if (entry.revision !== scan.revision) {
+      rejected.push({ entryId, reason: "Extraction results have been superseded by a newer rescan." });
+      continue;
+    }
+
+    const firstImport = await store.findScanByHash(ownerEmail, scan.imageHash);
+    if (firstImport && firstImport.id !== scan.id) {
+      rejected.push({ entryId, reason: "Duplicate scan must be resolved before approval." });
+      continue;
+    }
+
     if (entry.classification === "crossed_out") {
       rejected.push({ entryId, reason: "Crossed out debts cannot be approved for invoicing." });
       continue;
@@ -72,10 +89,42 @@ export async function approveDebtsForInvoicing(
       continue;
     }
 
-    const handoffKey = `${ownerEmail}:${entry.id}:${entry.revision}`;
-    const existing = await store.getApprovedDebtByHandoffKey(ownerEmail, handoffKey);
-    if (existing) {
-      approved.push(existing);
+    const handoffKey = `${ownerEmail}:${entry.id}:${entry.revision}:${entry.updatedAt}:${customer.updatedAt}`;
+    const lineIndex = entry.sourceRef.lineIndex;
+
+    const existingByLine = await store.getApprovedDebtByScanAndLine(ownerEmail, scan.id, lineIndex);
+    const existingDebt = existingByLine || (await store.getApprovedDebtBySourceEntryId(ownerEmail, entry.id));
+
+    if (existingDebt) {
+      if (existingDebt.sourceEntryId === entry.id && existingDebt.handoffKey === handoffKey) {
+        approved.push(existingDebt);
+        continue;
+      }
+
+      if (existingByLine && existingByLine.sourceEntryId !== entry.id) {
+        rejected.push({
+          entryId,
+          reason: "This notebook line has already been approved for invoicing.",
+        });
+        continue;
+      }
+
+      // Update the existing approved record in place, preserving its unique stable ID
+      const updatedRecord: ApprovedDebtRecord = {
+        ...existingDebt,
+        sourceEntryId: entry.id,
+        customerId: customer.id,
+        customerName: customer.name,
+        customerEmail: customer.email,
+        amountSen: entry.amountSen,
+        item: entry.item || "Barang kedai",
+        date: entry.date,
+        approvedAt: new Date().toISOString(),
+        handoffKey,
+      };
+
+      const [saved] = await store.saveApprovedDebts([updatedRecord]);
+      approved.push(saved || updatedRecord);
       continue;
     }
 
@@ -95,8 +144,8 @@ export async function approveDebtsForInvoicing(
       handoffKey,
     };
 
-    await store.saveApprovedDebts([approvedRecord]);
-    approved.push(approvedRecord);
+    const [savedNew] = await store.saveApprovedDebts([approvedRecord]);
+    approved.push(savedNew || approvedRecord);
   }
 
   return { approved, rejected };

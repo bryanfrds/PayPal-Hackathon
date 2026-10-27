@@ -1,12 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const signedIn = vi.hoisted(() => ({ value: true, email: "owner@example.com" }));
+const blob = vi.hoisted(() => ({ put: vi.fn(), get: vi.fn(), del: vi.fn() }));
 vi.mock("@/lib/auth-server", () => ({
   requireOwner: async () =>
     signedIn.value
       ? { email: signedIn.email, method: "email", exp: 9999999999 }
       : Response.json({ error: "Sign in to do that." }, { status: 401 }),
 }));
+vi.mock("@vercel/blob", () => blob);
 
 import { POST as createScan } from "./route";
 import { GET as getScan } from "./[id]/route";
@@ -18,23 +20,41 @@ describe("Scans API", () => {
   const dummyJpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46]);
 
   beforeEach(() => {
+    vi.stubEnv("ALLOW_SCAN_FIXTURES", "true");
+    vi.stubEnv("BLOB_READ_WRITE_TOKEN", "test-blob-token");
+    blob.put.mockImplementation(async (pathname: string) => ({ pathname }));
+    blob.get.mockImplementation(async () => ({ statusCode: 200, stream: new Blob([dummyJpeg]).stream() }));
     signedIn.value = true;
-    signedIn.email = "owner@example.com";
+    signedIn.email = `owner-${Date.now()}-${Math.random()}@example.com`;
   });
 
-  function makeUploadRequest(bytes: Uint8Array, mime = "image/jpeg", mode = "notebook") {
+  function makeUploadRequest(bytes: Uint8Array, mime = "image/jpeg", mode = "notebook", fixtureScenario?: string) {
     const formData = new FormData();
     const blob = new Blob([new Uint8Array(bytes)], { type: mime });
     formData.append("file", blob, "notebook.jpg");
     formData.append("mode", mode);
+    if (fixtureScenario) {
+      formData.append("fixtureScenario", fixtureScenario);
+    }
     return new Request("http://localhost:3000/api/scans", {
       method: "POST",
       body: formData,
     });
   }
 
-  it("POST /api/scans: uploads image and extracts draft entries", async () => {
-    const req = makeUploadRequest(dummyJpeg);
+  it("POST /api/scans: returns 503 when AI is unconfigured and saves no fake entries", async () => {
+    const unconfiguredJpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x47]);
+    const req = makeUploadRequest(unconfiguredJpeg);
+    const res = await createScan(req);
+    expect(res.status).toBe(503);
+    const data = await res.json();
+    expect(data.error).toMatch(/AI document scanning is not configured/i);
+    expect(data.scan.status).toBe("failed");
+    expect(data.entries).toBeUndefined();
+  });
+
+  it("POST /api/scans: uploads image and extracts draft entries when fixture is provided", async () => {
+    const req = makeUploadRequest(dummyJpeg, "image/jpeg", "notebook", "clear_handwriting");
     const res = await createScan(req);
     expect(res.status).toBe(201);
     const data = await res.json();
@@ -47,11 +67,11 @@ describe("Scans API", () => {
 
   it("POST /api/scans: detects duplicate upload with matching image hash", async () => {
     // First upload
-    const req1 = makeUploadRequest(dummyJpeg);
+    const req1 = makeUploadRequest(dummyJpeg, "image/jpeg", "notebook", "clear_handwriting");
     await createScan(req1);
 
     // Second upload of same image
-    const req2 = makeUploadRequest(dummyJpeg);
+    const req2 = makeUploadRequest(dummyJpeg, "image/jpeg", "notebook", "clear_handwriting");
     const res2 = await createScan(req2);
     expect(res2.status).toBe(200);
     const data2 = await res2.json();
@@ -59,7 +79,7 @@ describe("Scans API", () => {
   });
 
   it("GET /api/scans/[id]: returns scan and draft entries", async () => {
-    const createRes = await createScan(makeUploadRequest(new Uint8Array([0xff, 0xd8, 0x01])));
+    const createRes = await createScan(makeUploadRequest(new Uint8Array([0xff, 0xd8, 0xff, 0xe1]), "image/jpeg", "notebook", "clear_handwriting"));
     const { scan } = await createRes.json();
 
     const getReq = new Request(`http://localhost:3000/api/scans/${scan.id}`);
@@ -71,7 +91,7 @@ describe("Scans API", () => {
   });
 
   it("PATCH /api/scans/[id]/entries/[entryId]: saves corrections to draft line", async () => {
-    const createRes = await createScan(makeUploadRequest(new Uint8Array([0xff, 0xd8, 0x02])));
+    const createRes = await createScan(makeUploadRequest(new Uint8Array([0xff, 0xd8, 0xff, 0xe2]), "image/jpeg", "notebook", "clear_handwriting"));
     const { scan, entries } = await createRes.json();
     const entry = entries[0];
 
@@ -99,10 +119,10 @@ describe("Scans API", () => {
   });
 
   it("POST /api/scans/[id]/rescan: starts a new extraction revision", async () => {
-    const createRes = await createScan(makeUploadRequest(new Uint8Array([0xff, 0xd8, 0x03])));
+    const createRes = await createScan(makeUploadRequest(new Uint8Array([0xff, 0xd8, 0xff, 0xe3]), "image/jpeg", "notebook", "clear_handwriting"));
     const { scan } = await createRes.json();
 
-    const rescanReq = new Request(`http://localhost:3000/api/scans/${scan.id}/rescan`, {
+    const rescanReq = new Request(`http://localhost:3000/api/scans/${scan.id}/rescan?fixtureScenario=clear_handwriting`, {
       method: "POST",
     });
     const res = await rescanScan(rescanReq, { params: Promise.resolve({ id: scan.id }) });
@@ -110,5 +130,75 @@ describe("Scans API", () => {
     const data = await res.json();
     expect(data.scan.revision).toBe(2);
     expect(data.entries.every((e: { revision: number }) => e.revision === 2)).toBe(true);
+  });
+
+  it("rejects unknown fixtureScenario across create, rescan, and retry without saving fake entries", async () => {
+    const badCreate = await createScan(makeUploadRequest(new Uint8Array([0xff, 0xd8, 0xff, 0xe4]), "image/jpeg", "notebook", "bogus_scenario"));
+    expect(badCreate.status).toBe(400);
+    const badCreateData = await badCreate.json();
+    expect(badCreateData.entries).toBeUndefined();
+
+    const validCreate = await createScan(makeUploadRequest(new Uint8Array([0xff, 0xd8, 0xff, 0xe5]), "image/jpeg", "notebook", "missing_date"));
+    expect(validCreate.status).toBe(201);
+    const { scan } = await validCreate.json();
+
+    const badRescan = await rescanScan(
+      new Request(`http://localhost:3000/api/scans/${scan.id}/rescan?fixtureScenario=bogus_scenario`, { method: "POST" }),
+      { params: Promise.resolve({ id: scan.id }) },
+    );
+    expect(badRescan.status).toBe(400);
+
+    const badRetry = await retryScan(
+      new Request(`http://localhost:3000/api/scans/${scan.id}/retry`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ fixtureScenario: "bogus_scenario" }),
+      }),
+      { params: Promise.resolve({ id: scan.id }) },
+    );
+    expect(badRetry.status).toBe(400);
+  });
+
+  it("blocks fixtureScenario in production unless ALLOW_SCAN_FIXTURES=true across create, rescan, and retry", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("ALLOW_SCAN_FIXTURES", "");
+    try {
+      const prodCreate = await createScan(makeUploadRequest(new Uint8Array([0xff, 0xd8, 0xff, 0xe8]), "image/jpeg", "notebook", "clear_handwriting"));
+      expect(prodCreate.status).toBe(400);
+      const prodCreateData = await prodCreate.json();
+      expect(prodCreateData.entries).toBeUndefined();
+
+      vi.stubEnv("ALLOW_SCAN_FIXTURES", "true");
+      vi.stubEnv("BLOB_READ_WRITE_TOKEN", "test-blob-token");
+      blob.put.mockImplementation(async (pathname: string) => ({ pathname }));
+      blob.get.mockImplementation(async () => ({ statusCode: 200, stream: new Blob([dummyJpeg]).stream() }));
+      const validCreate = await createScan(makeUploadRequest(new Uint8Array([0xff, 0xd8, 0xff, 0xe9]), "image/jpeg", "notebook", "clear_handwriting"));
+      expect(validCreate.status).toBe(201);
+      const { scan } = await validCreate.json();
+
+      vi.stubEnv("NODE_ENV", "production");
+      vi.stubEnv("ALLOW_SCAN_FIXTURES", "");
+
+      const prodRescan = await rescanScan(
+        new Request(`http://localhost:3000/api/scans/${scan.id}/rescan?fixtureScenario=clear_handwriting`, { method: "POST" }),
+        { params: Promise.resolve({ id: scan.id }) },
+      );
+      expect(prodRescan.status).toBe(400);
+
+      const prodRetry = await retryScan(
+        new Request(`http://localhost:3000/api/scans/${scan.id}/retry?fixtureScenario=clear_handwriting`, { method: "POST" }),
+        { params: Promise.resolve({ id: scan.id }) },
+      );
+      expect(prodRetry.status).toBe(400);
+
+      vi.stubEnv("ALLOW_SCAN_FIXTURES", "true");
+      const allowedRetry = await retryScan(
+        new Request(`http://localhost:3000/api/scans/${scan.id}/retry?fixtureScenario=clear_handwriting`, { method: "POST" }),
+        { params: Promise.resolve({ id: scan.id }) },
+      );
+      expect(allowedRetry.status).toBe(200);
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });

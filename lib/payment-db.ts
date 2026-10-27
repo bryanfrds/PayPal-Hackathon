@@ -31,6 +31,7 @@ export type CheckedBy = "app" | "webhook";
  * reported; `billedCurrency` is what we billed in, to judge it against.
  */
 export type StoredFacts = InvoiceFacts & { id: string; billedCurrency: string; checkedAt: string; checkedBy: CheckedBy };
+export type StoredInvoice = { id: string; ownerEmail: string; customerName: string; amountSen: number; currency: string; sentAt: string; status: string; settlement: Settlement; debtIds?: string[] };
 
 export type PaymentDb = {
   /** Records a sent invoice. A retry of the same send changes nothing. */
@@ -59,6 +60,9 @@ export type PaymentDb = {
   claimReminder(invoiceId: string, gapMs: number): Promise<boolean>;
   /** Lets go of a hold when it's certain no reminder went out. */
   releaseReminder(invoiceId: string): Promise<void>;
+  getOwnerInvoice(ownerEmail: string, invoiceId: string): Promise<StoredInvoice | null>;
+  listOwnerInvoices(ownerEmail: string): Promise<StoredInvoice[]>;
+  invoiceExists(invoiceId: string): Promise<boolean>;
 };
 
 export function createPaymentDb(query: Query): PaymentDb {
@@ -147,6 +151,40 @@ export function createPaymentDb(query: Query): PaymentDb {
     async releaseReminder(invoiceId) {
       await query(`DELETE FROM reminder_holds WHERE invoice_id = $1`, [invoiceId]);
     },
+    async getOwnerInvoice(ownerEmail, invoiceId) {
+      const [row] = await query(
+        `SELECT ${STORED_INVOICE_COLS} FROM invoices WHERE owner_email=$1 AND id=$2`,
+        [ownerEmail.trim().toLowerCase(), invoiceId],
+      );
+      return row ? toStoredInvoice(row) : null;
+    },
+    async listOwnerInvoices(ownerEmail) {
+      const rows = await query(
+        `SELECT ${STORED_INVOICE_COLS} FROM invoices WHERE owner_email=$1 ORDER BY sent_at`,
+        [ownerEmail.trim().toLowerCase()],
+      );
+      return rows.map(toStoredInvoice);
+    },
+    async invoiceExists(invoiceId) {
+      const rows = await query(`SELECT 1 FROM invoices WHERE id = $1 LIMIT 1`, [invoiceId]);
+      return rows.length > 0;
+    },
+  };
+}
+
+const STORED_INVOICE_COLS = `id,owner_email,customer_name,amount_sen,currency,sent_at,debt_ids,COALESCE(status,'UNKNOWN') status,COALESCE(settlement,'check') settlement`;
+
+function toStoredInvoice(row: Record<string, unknown>): StoredInvoice {
+  return {
+    id: String(row.id),
+    ownerEmail: String(row.owner_email),
+    customerName: String(row.customer_name),
+    amountSen: Number(row.amount_sen),
+    currency: String(row.currency),
+    sentAt: new Date(row.sent_at as string | Date).toISOString(),
+    status: String(row.status),
+    settlement: row.settlement as Settlement,
+    debtIds: Array.isArray(row.debt_ids) ? (row.debt_ids as string[]) : [],
   };
 }
 

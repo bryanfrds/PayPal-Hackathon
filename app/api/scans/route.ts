@@ -1,14 +1,25 @@
 // POST /api/scans: Uploads a notebook/receipt photo and extracts reviewable draft entries
 import { NextResponse } from "next/server";
 import { requireOwner } from "@/lib/auth-server";
-import { computeImageHash, saveScanImage } from "@/lib/image-storage";
+import { computeImageHash, MAX_SCAN_IMAGE_BYTES, saveScanImage } from "@/lib/image-storage";
 import { getPerson1Store } from "@/lib/person1-store";
 import type { ScanRecord } from "@/lib/person1-types";
-import { extractNotebookEntries } from "@/lib/vision-extractor";
+import { extractNotebookEntries, resolveFixtureScenario } from "@/lib/vision-extractor";
+import { malaysiaDate } from "@/lib/person1-validation";
+import { clientIp, createThrottle } from "@/lib/throttle";
+
+const uploads = createThrottle(10, 60_000);
+const MAX_MULTIPART_OVERHEAD_BYTES = 1024 * 1024;
 
 export async function POST(req: Request) {
   const owner = await requireOwner();
   if (owner instanceof Response) return owner;
+  const wait = uploads.hit(`${owner.email}:${clientIp(req)}`);
+  if (wait) return NextResponse.json({ error: "Too many scan uploads." }, { status: 429, headers: { "Retry-After": String(wait) } });
+  const contentLength = Number(req.headers.get("content-length"));
+  if (Number.isFinite(contentLength) && contentLength > MAX_SCAN_IMAGE_BYTES + MAX_MULTIPART_OVERHEAD_BYTES) {
+    return NextResponse.json({ error: "Image file exceeds the 10MB limit." }, { status: 413 });
+  }
 
   let formData: FormData;
   try {
@@ -21,8 +32,15 @@ export async function POST(req: Request) {
   if (!file || !(file instanceof Blob)) {
     return NextResponse.json({ error: "Image file is required." }, { status: 400 });
   }
+  if (file.size > MAX_SCAN_IMAGE_BYTES) return NextResponse.json({ error: "Image file exceeds the 10MB limit." }, { status: 413 });
 
   const mode = formData.get("mode") === "receipt" ? "receipt" : "notebook";
+  const rawFixture = formData.get("fixtureScenario");
+  const resolvedFixture = resolveFixtureScenario(typeof rawFixture === "string" ? rawFixture : undefined);
+  if (resolvedFixture.error) {
+    return NextResponse.json({ error: resolvedFixture.error }, { status: 400 });
+  }
+  const fixtureScenario = resolvedFixture.scenario;
   const bytes = new Uint8Array(await file.arrayBuffer());
   const mimeType = file.type || "image/jpeg";
   const store = getPerson1Store();
@@ -50,7 +68,7 @@ export async function POST(req: Request) {
     imageHash,
     mimeType,
     sizeBytes: bytes.byteLength,
-    status: "completed",
+    status: "processing",
     mode,
     revision: 1,
     createdAt: now,
@@ -59,14 +77,24 @@ export async function POST(req: Request) {
 
   await store.saveScan(scan);
 
-  // Extract entries
-  const entries = await extractNotebookEntries(bytes, mimeType, {
-    scanId,
-    revision: 1,
-    today: now.slice(0, 10),
-  });
-
-  await store.saveEntries(entries);
+  let entries;
+  try {
+    entries = await extractNotebookEntries(bytes, mimeType, { scanId, revision: 1, today: malaysiaDate(), fixtureScenario });
+    await store.saveEntries(entries);
+    await store.updateScanStatus(owner.email, scanId, "completed");
+    scan.status = "completed";
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Image extraction failed.";
+    await store.updateScanStatus(owner.email, scanId, "failed", message);
+    const isUnconfigured = message.includes("not configured");
+    return NextResponse.json(
+      {
+        scan: { ...scan, status: "failed", error: message },
+        error: isUnconfigured ? "AI document scanning is not configured." : "Image extraction failed. Retry this scan.",
+      },
+      { status: isUnconfigured ? 503 : 502 },
+    );
+  }
 
   return NextResponse.json(
     {

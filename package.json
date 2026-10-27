@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "playwright test",
     "paypal:test-invoice": "tsx --conditions=react-server scripts/test-invoice.ts",
     "predev": "node scripts/copy-bryntum.mjs",
     "prebuild": "node scripts/copy-bryntum.mjs",
@@ -22,12 +23,13 @@
     "@ai-sdk/react": "^4.0.141",
     "@bryntum/calendar": "npm:@bryntum/calendar-trial@^7.3.7",
     "@neondatabase/serverless": "1.1.0",
+    "@vercel/blob": "^2.3.0",
     "ag-grid-community": "~36.2.0",
     "ag-grid-react": "~36.2.0",
     "ag-studio": "3.0.0",
     "ag-studio-react": "3.0.0",
     "ai": "^7.0.138",
-    "next": "^16.4.0",
+    "next": "16.4.3",
     "nodemailer": "10.0.15",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
@@ -35,11 +37,12 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@types/node": "^24.0.0",
-    "@types/react": "^19.3.0",
-    "@types/react-dom": "^19.3.0",
+    "@playwright/test": "^1.64.1",
+    "@types/node": "24.19.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
     "tsx": "^4.23.15",
-    "typescript": "^5.9.3",
+    "typescript": "5.9.3",
     "vitest": "^4.1.11"
   }
 }

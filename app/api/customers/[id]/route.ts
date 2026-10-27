@@ -2,6 +2,10 @@
 import { NextResponse } from "next/server";
 import { requireOwner } from "@/lib/auth-server";
 import { getPerson1Store } from "@/lib/person1-store";
+import { validateCustomerInput } from "@/lib/person1-validation";
+import { clientIp, createThrottle } from "@/lib/throttle";
+
+const writes = createThrottle(30, 60_000);
 
 export async function PATCH(
   req: Request,
@@ -9,6 +13,8 @@ export async function PATCH(
 ) {
   const owner = await requireOwner();
   if (owner instanceof Response) return owner;
+  const wait = writes.hit(`${owner.email}:${clientIp(req)}`);
+  if (wait) return NextResponse.json({ error: "Too many customer changes." }, { status: 429, headers: { "Retry-After": String(wait) } });
 
   const { id } = await params;
   let body: Record<string, unknown>;
@@ -24,10 +30,9 @@ export async function PATCH(
     return NextResponse.json({ error: "Customer not found." }, { status: 404 });
   }
 
-  const patch: Record<string, unknown> = {};
-  if (typeof body.email === "string") patch.email = body.email.trim();
-  if (typeof body.phone === "string") patch.phone = body.phone.trim();
-  if (typeof body.name === "string" && body.name.trim()) patch.name = body.name.trim();
+  const parsed = validateCustomerInput(body, false);
+  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
+  const patch = Object.fromEntries(Object.entries(parsed.value).filter(([, value]) => value !== undefined));
 
   const updated = await store.updateCustomer(owner.email, id, patch);
   return NextResponse.json(updated);

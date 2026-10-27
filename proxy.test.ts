@@ -43,6 +43,11 @@ describe("proxy", () => {
     expect((await proxy(req("/api/paypal/webhook/x", { method: "POST" }))).status).toBe(401);
   });
 
+  it("lets Vercel Cron call the reminder process endpoint with GET, and blocks other methods", async () => {
+    expect((await proxy(req("/api/reminders/process"))).headers.get("x-middleware-next")).toBe("1");
+    expect((await proxy(req("/api/reminders/process", { method: "POST" }))).status).toBe(401);
+  });
+
   it("doesn't open invoice changes, only reading one", async () => {
     expect((await proxy(req("/api/invoices/INV2-ABCD", { method: "POST" }))).status).toBe(401);
     expect((await proxy(req("/api/invoices/status"))).status).toBe(401);

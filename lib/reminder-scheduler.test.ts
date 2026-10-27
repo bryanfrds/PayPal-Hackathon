@@ -5,7 +5,7 @@ import { processEligibleReminders, type SchedulerDeps } from "./reminder-schedul
 describe("reminder-scheduler", () => {
   let store: Person1Store;
   const owner = "owner@example.com";
-  const now = new Date("2026-10-18T10:00:00Z"); // Sunday 10am UTC
+  const now = new Date("2026-10-18T02:00:00Z"); // Sunday 10am Malaysian time
 
   beforeEach(() => {
     store = createMemoryPerson1Store();
@@ -43,6 +43,12 @@ describe("reminder-scheduler", () => {
     expect(decisions[0].action).toBe("requested");
   });
 
+  it("atomically prevents concurrent jobs from sending the same reminder twice", async () => {
+    const deps = makeDeps();
+    await Promise.all([processEligibleReminders(owner, deps), processEligibleReminders(owner, deps)]);
+    expect(deps.sendReminder).toHaveBeenCalledTimes(1);
+  });
+
   it("skips paid or settled invoices", async () => {
     const deps = makeDeps({
       getInvoices: async () => [
@@ -62,6 +68,14 @@ describe("reminder-scheduler", () => {
     expect(result.skipped).toHaveLength(1);
     expect(result.skipped[0].reason).toMatch(/paid|settled/i);
     expect(deps.sendReminder).not.toHaveBeenCalled();
+    // Routine scheduler skips should not be persisted to reminder_decisions so they don't crowd out real activity
+    expect(await store.listReminderDecisions(owner)).toHaveLength(0);
+  });
+
+  it("only runs during the configured Malaysian reminder hour", async () => {
+    const result = await processEligibleReminders(owner, makeDeps({ now: new Date("2026-10-18T03:00:00Z"), enforceSendHour: true }));
+    expect(result.requested).toHaveLength(0);
+    expect(result.skipped[0].reason).toMatch(/configured reminder hour/i);
   });
 
   it("skips invoice before firstAfterDays has elapsed", async () => {
@@ -101,6 +115,27 @@ describe("reminder-scheduler", () => {
     const result = await processEligibleReminders(owner, deps);
     expect(result.requested).toHaveLength(0);
     expect(result.skipped).toHaveLength(1);
+    expect(result.skipped[0].reason).toMatch(/interval/i);
+  });
+
+  it.each([
+    ["failed", "Delivery failed"],
+    ["skipped", "Rejected by owner"],
+  ] as const)("counts a %s reminder decision as an attempt", async (action, reason) => {
+    await store.saveReminderDecision({
+      id: `dec-${action}`,
+      ownerEmail: owner,
+      invoiceId: "INV-1",
+      action,
+      reason,
+      idempotencyKey: `k-${action}`,
+      attemptNumber: 1,
+      createdAt: "2026-10-17T10:00:00Z",
+    });
+
+    const result = await processEligibleReminders(owner, makeDeps());
+
+    expect(result.requested).toHaveLength(0);
     expect(result.skipped[0].reason).toMatch(/interval/i);
   });
 

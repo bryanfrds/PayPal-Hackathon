@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Manrope } from "next/font/google";
+import localFont from "next/font/local";
 import type { ReactNode } from "react";
 import type { NavLink } from "./NavLinks";
 import PaymentSync from "./PaymentSync";
@@ -8,7 +8,11 @@ import TabPublisher from "./TabPublisher";
 import ThemeScript from "./ThemeScript";
 import "./globals.css";
 
-const manrope = Manrope({ subsets: ["latin"], variable: "--font-manrope" });
+const manrope = localFont({
+  src: "./components/fonts/Manrope-Variable-Latin.woff2",
+  variable: "--font-manrope",
+  weight: "200 800",
+});
 
 export const metadata: Metadata = {
   title: "555 Buku",

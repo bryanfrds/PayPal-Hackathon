@@ -18,3 +18,8 @@ public/vendor/
 
 # Local agent worktrees (copies of the repo)
 .claude/worktrees/
+
+# Playwright
+test-results/
+playwright-report/
+

@@ -40,17 +40,23 @@ export interface Person1Store {
   confirmCustomer(ownerEmail: string, customerId: string): Promise<CustomerRecord | null>;
 
   // Approved Debts Handoff
-  saveApprovedDebts(debts: ApprovedDebtRecord[]): Promise<void>;
+  saveApprovedDebts(debts: ApprovedDebtRecord[]): Promise<ApprovedDebtRecord[]>;
   getApprovedDebts(ownerEmail: string): Promise<ApprovedDebtRecord[]>;
   getApprovedDebtByHandoffKey(ownerEmail: string, handoffKey: string): Promise<ApprovedDebtRecord | null>;
+  getApprovedDebtBySourceEntryId(ownerEmail: string, sourceEntryId: string): Promise<ApprovedDebtRecord | null>;
+  getApprovedDebtByScanAndLine(ownerEmail: string, scanId: string, lineIndex: number): Promise<ApprovedDebtRecord | null>;
 
   // Reminder Rules & Decisions
   getReminderRules(ownerEmail: string): Promise<ReminderRuleRecord>;
   setReminderRules(rules: ReminderRuleRecord): Promise<void>;
   saveReminderDecision(decision: ReminderDecision): Promise<void>;
-  listReminderDecisions(ownerEmail: string, limit?: number): Promise<ReminderDecision[]>;
+  claimReminderRequest(decision: ReminderDecision): Promise<boolean>;
+  listReminderDecisions(ownerEmail: string, limit?: number, action?: ReminderDecision["action"]): Promise<ReminderDecision[]>;
   getReminderDecision(ownerEmail: string, decisionId: string): Promise<ReminderDecision | null>;
   updateReminderDecisionAction(ownerEmail: string, decisionId: string, action: ReminderDecision["action"], deliveryResult?: string): Promise<void>;
+  claimPendingReminder(ownerEmail: string, decisionId: string): Promise<boolean>;
+  rejectPendingReminder(ownerEmail: string, decisionId: string, reason?: string): Promise<boolean>;
+  listEnabledReminderOwners(): Promise<string[]>;
 }
 
 export function createMemoryPerson1Store(): Person1Store {
@@ -165,9 +171,28 @@ export function createMemoryPerson1Store(): Person1Store {
     },
 
     async saveApprovedDebts(newDebts) {
+      const stored: ApprovedDebtRecord[] = [];
       for (const d of newDebts) {
-        approvedDebts.set(d.id, { ...d });
+        let replaced = false;
+        for (const [key, existing] of approvedDebts.entries()) {
+          if (
+            existing.ownerEmail.toLowerCase() === d.ownerEmail.toLowerCase() &&
+            existing.sourceEntryId === d.sourceEntryId
+          ) {
+            const updated = { ...existing, ...d, id: existing.id };
+            approvedDebts.set(key, updated);
+            stored.push({ ...updated });
+            replaced = true;
+            break;
+          }
+        }
+        if (!replaced) {
+          const created = { ...d };
+          approvedDebts.set(created.id, created);
+          stored.push({ ...created });
+        }
       }
+      return stored;
     },
     async getApprovedDebts(ownerEmail) {
       const result: ApprovedDebtRecord[] = [];
@@ -182,6 +207,25 @@ export function createMemoryPerson1Store(): Person1Store {
       for (const d of approvedDebts.values()) {
         if (d.ownerEmail.toLowerCase() === ownerEmail.toLowerCase() && d.handoffKey === handoffKey) {
           return { ...d };
+        }
+      }
+      return null;
+    },
+    async getApprovedDebtBySourceEntryId(ownerEmail, sourceEntryId) {
+      for (const d of approvedDebts.values()) {
+        if (d.ownerEmail.toLowerCase() === ownerEmail.toLowerCase() && d.sourceEntryId === sourceEntryId) {
+          return { ...d };
+        }
+      }
+      return null;
+    },
+    async getApprovedDebtByScanAndLine(ownerEmail, scanId, lineIndex) {
+      for (const d of approvedDebts.values()) {
+        if (d.ownerEmail.toLowerCase() === ownerEmail.toLowerCase() && d.scanId === scanId) {
+          const entry = entries.get(d.sourceEntryId);
+          if (entry && entry.sourceRef.lineIndex === lineIndex) {
+            return { ...d };
+          }
         }
       }
       return null;
@@ -205,11 +249,18 @@ export function createMemoryPerson1Store(): Person1Store {
     async saveReminderDecision(decision) {
       decisions.set(decision.id, { ...decision });
     },
-    async listReminderDecisions(ownerEmail, limit = 100) {
+    async claimReminderRequest(decision) {
+      if ([...decisions.values()].some((item) => item.idempotencyKey === decision.idempotencyKey)) return false;
+      decisions.set(decision.id, { ...decision });
+      return true;
+    },
+    async listReminderDecisions(ownerEmail, limit = 100, action) {
       const result: ReminderDecision[] = [];
       for (const d of decisions.values()) {
         if (d.ownerEmail.toLowerCase() === ownerEmail.toLowerCase()) {
-          result.push({ ...d });
+          if (!action || d.action === action) {
+            result.push({ ...d });
+          }
         }
       }
       return result
@@ -228,6 +279,23 @@ export function createMemoryPerson1Store(): Person1Store {
         if (deliveryResult !== undefined) d.deliveryResult = deliveryResult;
       }
     },
+    async claimPendingReminder(ownerEmail, decisionId) {
+      const d = decisions.get(decisionId);
+      if (!d || d.ownerEmail.toLowerCase() !== ownerEmail.toLowerCase() || d.action !== "pending_approval") return false;
+      d.action = "requested";
+      d.deliveryResult = "Claimed for delivery";
+      return true;
+    },
+    async rejectPendingReminder(ownerEmail, decisionId, reason = "Rejected by owner") {
+      const d = decisions.get(decisionId);
+      if (!d || d.ownerEmail.toLowerCase() !== ownerEmail.toLowerCase() || d.action !== "pending_approval") return false;
+      d.action = "skipped";
+      d.deliveryResult = reason;
+      return true;
+    },
+    async listEnabledReminderOwners() {
+      return [...rules.values()].filter((rule) => rule.enabled).map((rule) => rule.ownerEmail);
+    },
   };
 }
 
@@ -235,6 +303,11 @@ export function createMemoryPerson1Store(): Person1Store {
 let globalMemoryStore: Person1Store | null = null;
 
 export function getPerson1Store(): Person1Store {
+  if (process.env.DATABASE_URL) {
+    // Loaded lazily to keep unit tests and browser-adjacent imports free of database setup.
+    const { getPostgresPerson1Store } = require("./person1-postgres-store") as typeof import("./person1-postgres-store");
+    return getPostgresPerson1Store();
+  }
   if (!globalMemoryStore) {
     globalMemoryStore = createMemoryPerson1Store();
   }

@@ -9,6 +9,9 @@ import type { CustomerRecord, ExtractedEntry, ScanRecord } from "./person1-types
 import { processEligibleReminders, type SchedulerDeps } from "./reminder-scheduler";
 import { extractNotebookEntries } from "./vision-extractor";
 
+const blob = vi.hoisted(() => ({ put: vi.fn().mockResolvedValue({ pathname: "scans/test.jpg" }), get: vi.fn(), del: vi.fn() }));
+vi.mock("@vercel/blob", () => blob);
+
 describe("Person 1 Section 2.4 Comprehensive Acceptance Test Suite", () => {
   let store: Person1Store;
   const owner = "owner@example.com";
@@ -32,6 +35,8 @@ describe("Person 1 Section 2.4 Comprehensive Acceptance Test Suite", () => {
   }
 
   beforeEach(() => {
+    vi.stubEnv("ALLOW_SCAN_FIXTURES", "true");
+    vi.stubEnv("BLOB_READ_WRITE_TOKEN", "test-blob-token");
     store = createMemoryPerson1Store();
   });
 

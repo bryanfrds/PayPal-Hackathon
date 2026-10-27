@@ -25,6 +25,13 @@ export async function POST(
     );
   }
 
-  await store.updateReminderDecisionAction(owner.email, decisionId, "skipped", "Rejected by owner");
+  const rejected = await store.rejectPendingReminder(owner.email, decisionId, "Rejected by owner");
+  if (!rejected) {
+    return NextResponse.json(
+      { error: "Decision cannot be rejected because its state is no longer pending approval." },
+      { status: 409 },
+    );
+  }
+
   return NextResponse.json({ ok: true, status: "skipped", message: "Reminder rejected." });
 }

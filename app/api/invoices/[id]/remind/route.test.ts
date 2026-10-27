@@ -16,7 +16,14 @@ vi.mock("@/lib/paypal", async (importOriginal) => {
 });
 
 // In-memory holds unless a test gives the route a payments database.
-const db = vi.hoisted(() => ({ value: null as null | { claimReminder: ReturnType<typeof vi.fn>; releaseReminder: ReturnType<typeof vi.fn> } }));
+const db = vi.hoisted(() => ({
+  value: null as null | {
+    claimReminder: ReturnType<typeof vi.fn>;
+    releaseReminder: ReturnType<typeof vi.fn>;
+    getOwnerInvoice?: ReturnType<typeof vi.fn>;
+    invoiceExists?: ReturnType<typeof vi.fn>;
+  },
+}));
 vi.mock("@/lib/payment-db", () => ({ paymentDb: () => db.value }));
 
 import { PayPalError } from "@/lib/paypal";
@@ -155,6 +162,45 @@ describe("POST /api/invoices/[id]/remind", () => {
   });
 
   describe("with the payments database", () => {
+    it("does not reveal or remind another owner's invoice (returns 404 when invoice exists in db under another owner)", async () => {
+      db.value = {
+        claimReminder: vi.fn(),
+        releaseReminder: vi.fn(),
+        getOwnerInvoice: vi.fn().mockResolvedValue(null),
+        invoiceExists: vi.fn().mockResolvedValue(true),
+      };
+      const res = await remind("INV2-NOT-MINE");
+      expect(res.status).toBe(404);
+      expect(db.value?.invoiceExists).toHaveBeenCalledWith("INV2-NOT-MINE");
+      expect(paypal.getInvoice).not.toHaveBeenCalled();
+    });
+
+    it("reminds successfully when getOwnerInvoice returns the owner's row", async () => {
+      db.value = {
+        claimReminder: vi.fn().mockResolvedValue(true),
+        releaseReminder: vi.fn(),
+        getOwnerInvoice: vi.fn().mockResolvedValue({ id: "INV2-MINE", ownerEmail: "owner@example.com" }),
+        invoiceExists: vi.fn().mockResolvedValue(true),
+      };
+      paypal.getInvoice.mockResolvedValue(owed("INV2-MINE"));
+      const res = await remind("INV2-MINE");
+      expect(res.status).toBe(200);
+      expect(paypal.remindInvoice).toHaveBeenCalledWith("INV2-MINE");
+    });
+
+    it("reminds successfully for an unrecorded invoice (getOwnerInvoice null, invoiceExists false)", async () => {
+      db.value = {
+        claimReminder: vi.fn().mockResolvedValue(true),
+        releaseReminder: vi.fn(),
+        getOwnerInvoice: vi.fn().mockResolvedValue(null),
+        invoiceExists: vi.fn().mockResolvedValue(false),
+      };
+      paypal.getInvoice.mockResolvedValue(owed("INV2-UNRECORDED"));
+      const res = await remind("INV2-UNRECORDED");
+      expect(res.status).toBe(200);
+      expect(db.value?.invoiceExists).toHaveBeenCalledWith("INV2-UNRECORDED");
+      expect(paypal.remindInvoice).toHaveBeenCalledWith("INV2-UNRECORDED");
+    });
     it("holds the invoice in the database, across server instances", async () => {
       db.value = { claimReminder: vi.fn().mockResolvedValue(false), releaseReminder: vi.fn().mockResolvedValue(undefined) };
       const res = await remind("INV2-DB-HELD");

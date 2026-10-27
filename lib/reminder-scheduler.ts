@@ -14,6 +14,7 @@ export type InvoiceCandidate = {
 export type SchedulerDeps = {
   store: Person1Store;
   now?: Date;
+  enforceSendHour?: boolean;
   getInvoices: () => Promise<InvoiceCandidate[]>;
   sendReminder: (invoiceId: string) => Promise<{ ok: boolean; message?: string; error?: string }>;
 };
@@ -73,55 +74,56 @@ export async function processEligibleReminders(
     failed: [],
   };
 
+  const recordSkip = (invoiceId: string, reason: string) => {
+    result.skipped.push({ invoiceId, reason });
+  };
+
   if (!rules.enabled) {
-    result.skipped.push({ invoiceId: "all", reason: "Reminders are disabled by owner rules." });
+    recordSkip("all", "Reminders are disabled by owner rules.");
     return result;
   }
 
   // Friday prayer suppression: Friday between 12:00 and 14:59 Malaysian time (Asia/Kuala_Lumpur)
   if (rules.skipFridayPrayers && dayOfWeek === 5 && hour >= 12 && hour < 15) {
-    result.skipped.push({ invoiceId: "all", reason: "Suppressed during Friday prayer hours (12:00-15:00)." });
+    recordSkip("all", "Suppressed during Friday prayer hours (12:00-15:00).");
+    return result;
+  }
+
+  if (deps.enforceSendHour && hour !== rules.sendHour) {
+    recordSkip("all", `Outside the configured reminder hour (${rules.sendHour}:00 Malaysia time).`);
     return result;
   }
 
   const invoices = await getInvoices();
-  const priorDecisions = await store.listReminderDecisions(ownerEmail, 500);
+  const priorDecisions = await store.listReminderDecisions(ownerEmail, 1000);
 
   for (const inv of invoices) {
     // Check settlement: skip paid, closed, or check
     if (inv.settlement === "paid" || inv.status === "PAID") {
-      result.skipped.push({ invoiceId: inv.id, reason: "Invoice is already paid or settled." });
+      recordSkip(inv.id, "Invoice is already paid or settled.");
       continue;
     }
 
     if (inv.settlement === "closed") {
-      result.skipped.push({ invoiceId: inv.id, reason: "Invoice was cancelled or refunded." });
+      recordSkip(inv.id, "Invoice was cancelled or refunded.");
       continue;
     }
 
     // Overdue days check
     const overdueDays = daysBetween(inv.dueDate, todayStr);
     if (isNaN(overdueDays) || overdueDays < rules.firstAfterDays) {
-      result.skipped.push({
-        invoiceId: inv.id,
-        reason: isNaN(overdueDays)
-          ? "Invalid or missing due date on invoice."
-          : `Only ${overdueDays} days overdue, below first after days threshold (${rules.firstAfterDays}).`,
-      });
+      recordSkip(inv.id, isNaN(overdueDays)
+        ? "Invalid or missing due date on invoice."
+        : `Only ${overdueDays} days overdue, below first after days threshold (${rules.firstAfterDays}).`);
       continue;
     }
 
     // History check for this invoice
-    const invDecisions = priorDecisions.filter(
-      (d) => d.invoiceId === inv.id && (d.action === "requested" || d.action === "pending_approval"),
-    );
+    const invDecisions = priorDecisions.filter((d) => d.invoiceId === inv.id);
 
     const attemptsCount = invDecisions.length;
     if (attemptsCount >= rules.maxAttempts) {
-      result.skipped.push({
-        invoiceId: inv.id,
-        reason: `Reached maximum allowed reminder attempts (${rules.maxAttempts}).`,
-      });
+      recordSkip(inv.id, `Reached maximum allowed reminder attempts (${rules.maxAttempts}).`);
       continue;
     }
 
@@ -131,16 +133,13 @@ export async function processEligibleReminders(
       const lastDay = lastAttempt.createdAt.slice(0, 10);
       const gapDays = daysBetween(lastDay, todayStr);
       if (gapDays < rules.minIntervalDays) {
-        result.skipped.push({
-          invoiceId: inv.id,
-          reason: `Only ${gapDays} days since last reminder, below minimum interval (${rules.minIntervalDays} days).`,
-        });
+        recordSkip(inv.id, `Only ${gapDays} days since last reminder, below minimum interval (${rules.minIntervalDays} days).`);
         continue;
       }
     }
 
     const nextAttemptNum = attemptsCount + 1;
-    const idempotencyKey = `remind:${ownerEmail}:${inv.id}:${nextAttemptNum}:${todayStr}`;
+    const idempotencyKey = `remind:${ownerEmail.trim().toLowerCase()}:${inv.id}:${nextAttemptNum}:${todayStr}`;
 
     // Approval requirement
     if (rules.requireApproval) {
@@ -154,8 +153,27 @@ export async function processEligibleReminders(
         attemptNumber: nextAttemptNum,
         createdAt: now.toISOString(),
       };
-      await store.saveReminderDecision(decision);
+      if (!(await store.claimReminderRequest(decision))) {
+        result.skipped.push({ invoiceId: inv.id, reason: "Reminder request was already claimed by another job." });
+        continue;
+      }
       result.pendingApproval.push(decision);
+      continue;
+    }
+
+    const claimedDecision: ReminderDecision = {
+      id: `dec-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      ownerEmail,
+      invoiceId: inv.id,
+      action: "requested",
+      reason: `Eligible: ${overdueDays} days overdue, attempt #${nextAttemptNum}`,
+      idempotencyKey,
+      attemptNumber: nextAttemptNum,
+      deliveryResult: "Claimed for delivery",
+      createdAt: now.toISOString(),
+    };
+    if (!(await store.claimReminderRequest(claimedDecision))) {
+      result.skipped.push({ invoiceId: inv.id, reason: "Reminder request was already claimed by another job." });
       continue;
     }
 
@@ -163,47 +181,18 @@ export async function processEligibleReminders(
     try {
       const delivery = await sendReminder(inv.id);
       if (delivery.ok) {
-        const decision: ReminderDecision = {
-          id: `dec-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-          ownerEmail,
-          invoiceId: inv.id,
-          action: "requested",
-          reason: `Eligible: ${overdueDays} days overdue, attempt #${nextAttemptNum}`,
-          idempotencyKey,
-          attemptNumber: nextAttemptNum,
-          deliveryResult: delivery.message || "Delivered",
-          createdAt: now.toISOString(),
-        };
-        await store.saveReminderDecision(decision);
-        result.requested.push(decision);
+        await store.updateReminderDecisionAction(ownerEmail, claimedDecision.id, "requested", delivery.message || "Delivered");
+        result.requested.push({ ...claimedDecision, deliveryResult: delivery.message || "Delivered" });
       } else {
-        const decision: ReminderDecision = {
-          id: `dec-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-          ownerEmail,
-          invoiceId: inv.id,
-          action: "failed",
-          reason: delivery.error || "Delivery failed",
-          idempotencyKey,
-          attemptNumber: nextAttemptNum,
-          createdAt: now.toISOString(),
-        };
-        await store.saveReminderDecision(decision);
-        result.failed.push(decision);
+        const failed = { ...claimedDecision, action: "failed" as const, reason: delivery.error || "Delivery failed" };
+        await store.updateReminderDecisionAction(ownerEmail, claimedDecision.id, "failed", failed.reason);
+        result.failed.push(failed);
       }
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : "Delivery error";
-      const decision: ReminderDecision = {
-        id: `dec-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        ownerEmail,
-        invoiceId: inv.id,
-        action: "failed",
-        reason: errorMsg,
-        idempotencyKey,
-        attemptNumber: nextAttemptNum,
-        createdAt: now.toISOString(),
-      };
-      await store.saveReminderDecision(decision);
-      result.failed.push(decision);
+      const failed = { ...claimedDecision, action: "failed" as const, reason: errorMsg };
+      await store.updateReminderDecisionAction(ownerEmail, claimedDecision.id, "failed", errorMsg);
+      result.failed.push(failed);
     }
   }
 
