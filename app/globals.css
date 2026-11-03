@@ -1777,6 +1777,11 @@ body:has(.scan-camera, .scan-no-chrome) > .site-header {
   color: var(--muted);
 }
 
+.scan-sheet-actions {
+  display: grid;
+  gap: 0.6rem;
+}
+
 .scan-bar {
   height: 6px;
   overflow: hidden;
@@ -1859,10 +1864,6 @@ body:has(.scan-camera, .scan-no-chrome) > .site-header {
 .scan-retake {
   margin-left: auto;
   color: var(--ink);
-}
-
-.scan-sample {
-  font-size: 0.82rem;
 }
 
 /* ---------- Scan check, Collect and Reminders history (PR #37 review fixes) ---------- */
