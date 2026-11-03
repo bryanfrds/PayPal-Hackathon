@@ -55,8 +55,8 @@ Shop owners sign in with **Log in with PayPal**, or with their email and a code:
 
 We'd rather be clear about what's real and what's still being connected:
 
-- **Real:** sending PayPal sandbox invoices, checking payment status, reconciling paid debts, sign-in (email and Log in with PayPal), reminders emailed by PayPal, the payments database and PayPal webhook, the ledger, insights, the reminders view and Nudge.
-- **Being connected:** the scan screen currently uses a fixed sample reading while the vision-model extraction is finished. Reminders are worked out and shown, and the owner sends each one with a tap; they don't go out automatically yet. The customer page works on the owner's device; showing it on a customer's own phone is the next step, built on the payments database.
+- **Real:** sending PayPal sandbox invoices, checking payment status, reconciling paid debts, sign-in (email and Log in with PayPal), reading scanned notebook pages and receipts with an AI vision model (photos kept in private storage), reminders emailed by PayPal, the payments database and PayPal webhook, the ledger, insights, the reminders view and Nudge.
+- **Being connected:** Reminders are worked out and shown, and the owner sends each one with a tap; they don't go out automatically yet. The customer page works on the owner's device; showing it on a customer's own phone is the next step, built on the payments database.
 - **Data:** the ledger is stored on the owner's device (in the browser). Payment records also live in the payments database when it's set up (see below). With the webhook too, PayPal's answers are saved even while the app is closed. On a first visit the app fills in example customers so there's something to try; their invoices go to our own test inboxes.
 
 ## Running it yourself
