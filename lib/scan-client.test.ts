@@ -26,7 +26,6 @@ describe("readPhoto", () => {
   });
 
   it.each([
-    [503, "notConnected"],
     [413, "tooBig"],
     [429, "tooMany"],
     [401, "signedOut"],
@@ -35,6 +34,13 @@ describe("readPhoto", () => {
   ])("names a %i as %s", async (status, reason) => {
     const result = await readPhoto(new Blob(["x"]), "notebook", respond(status, { error: "x" }));
     expect(result).toEqual({ ok: false, reason, scanId: undefined });
+  });
+
+  it("says not connected only when the 503 is the AI reader's", async () => {
+    const ai = await readPhoto(new Blob(["x"]), "notebook", respond(503, { error: "AI document scanning is not configured." }));
+    expect(ai).toMatchObject({ ok: false, reason: "notConnected" });
+    const signIn = await readPhoto(new Blob(["x"]), "notebook", respond(503, { error: "Sign-in isn't set up on this server." }));
+    expect(signIn).toMatchObject({ ok: false, reason: "failed" });
   });
 
   it("keeps the scan id from a failed read, so the retry can reuse the upload", async () => {
@@ -56,6 +62,10 @@ describe("retryRead", () => {
     const fetchImpl = respond(200, { scan: { id: "scan-1" }, entries: [ENTRY] });
     expect(await retryRead("scan-1", fetchImpl)).toEqual({ ok: true, scanId: "scan-1", entries: [ENTRY] });
     expect(fetchImpl.mock.calls[0]).toEqual(["/api/scans/scan-1/retry", { method: "POST" }]);
+  });
+
+  it.each([404, 410])("drops the scan id when the upload is gone (%i), so the next try uploads again", async (status) => {
+    expect(await retryRead("scan-1", respond(status, { error: "x" }))).toEqual({ ok: false, reason: "gone", scanId: undefined });
   });
 
   it("keeps the scan id when the retry fails without one", async () => {

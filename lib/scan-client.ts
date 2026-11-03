@@ -8,6 +8,7 @@ export type ReadFailure =
   | "tooBig" // the photo is over the upload limit
   | "tooMany" // too many scans in a minute
   | "signedOut" // the sign-in ran out
+  | "gone" // the uploaded photo is no longer there; the next try uploads it again
   | "failed"; // the reader or the network failed; worth another try
 
 export type ReadResult =
@@ -16,8 +17,10 @@ export type ReadResult =
 
 type Fetch = typeof fetch;
 
-function failure(status: number): ReadFailure {
-  if (status === 503) return "notConnected";
+function failure(status: number, error: unknown): ReadFailure {
+  // Sign-in not set up also answers 503; only the AI reader's own 503 means "not connected".
+  if (status === 503) return typeof error === "string" && /scanning is not configured/i.test(error) ? "notConnected" : "failed";
+  if (status === 404 || status === 410) return "gone";
   if (status === 413) return "tooBig";
   if (status === 429) return "tooMany";
   if (status === 401) return "signedOut";
@@ -25,9 +28,12 @@ function failure(status: number): ReadFailure {
 }
 
 async function toResult(res: Response, fallbackScanId?: string): Promise<ReadResult> {
-  const body = (await res.json().catch(() => null)) as { scan?: { id?: unknown }; entries?: unknown } | null;
+  const body = (await res.json().catch(() => null)) as { scan?: { id?: unknown }; entries?: unknown; error?: unknown } | null;
   const scanId = typeof body?.scan?.id === "string" ? body.scan.id : fallbackScanId;
-  if (!res.ok) return { ok: false, reason: failure(res.status), scanId };
+  if (!res.ok) {
+    const reason = failure(res.status, body?.error);
+    return { ok: false, reason, scanId: reason === "gone" ? undefined : scanId };
+  }
   if (!scanId || !Array.isArray(body?.entries)) return { ok: false, reason: "failed", scanId };
   return { ok: true, scanId, entries: body.entries as ReadEntry[] };
 }
