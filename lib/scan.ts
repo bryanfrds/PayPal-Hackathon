@@ -1,10 +1,10 @@
 // What a scan produces and how the owner's checked lines become debts.
 //
-// The real reading (photo → lines) is Person 1's vision-model extraction. Until it's
-// connected, sampleRead() returns a fixed, realistic result so the screens can be built
-// and demoed. Extraction only makes drafts: nothing is saved until the owner checks it.
+// The real reading (photo → lines) is Person 1's vision-model extraction (POST /api/scans);
+// entriesToLines() turns its result into check-screen lines. sampleRead() is a fixed, realistic
+// result for tests. Extraction only makes drafts: nothing is saved until the owner checks it.
 
-import { createManualDebt, validateDebtInput, type Debt, type DebtErrors } from "./debts";
+import { createManualDebt, MAX_ITEM_LENGTH, MAX_NAME_LENGTH, validateDebtInput, type Debt, type DebtErrors } from "./debts";
 import { translator, type T } from "./i18n";
 
 export const SCAN_MODES = ["notebook", "receipt"] as const;
@@ -63,7 +63,7 @@ function line(key: string, customerName: string, item: string, amount: string, d
 }
 
 /**
- * Stand-in for Person 1's extraction. A notebook page reads as several customers' lines;
+ * Example reading for tests. A notebook page reads as several customers' lines;
  * a receipt reads as one purchase with no customer name (the owner picks one).
  */
 export function sampleRead(mode: ScanMode, today: string, t: T = translator()): ScanLine[] {
@@ -140,4 +140,57 @@ export function linesToDebts(
     debts.push({ ...createManualDebt(result.value, { id: opts.newId(), now: opts.now }), source: "scan" });
   }
   return problems.length > 0 ? { ok: false, problems } : { ok: true, debts };
+}
+
+/** One line as the AI reader returns it (the fields of Person 1's ExtractedEntry the check screen needs). */
+export type ReadEntry = {
+  id: string;
+  customerName: string;
+  item: string;
+  amountSen: number;
+  rawAmountText: string;
+  date: string;
+  classification: "debt" | "repayment" | "crossed_out" | "ambiguous";
+  isAmbiguous: boolean;
+  ambiguityReason?: string;
+  included: boolean;
+};
+
+/**
+ * The AI reader's lines as check-screen lines. Crossed-out lines and repayments come unticked
+ * with a flag saying why; unsure lines come unticked with the reader's reason. A receipt reads
+ * as one purchase: the debt lines' items and total, with no customer (the owner picks one).
+ */
+export function entriesToLines(entries: ReadEntry[], mode: ScanMode, today: string, t: T = translator()): ScanLine[] {
+  const amountText = (e: ReadEntry) => (e.amountSen > 0 ? (e.amountSen / 100).toFixed(2) : e.rawAmountText.replace(/[^\d.]/g, ""));
+  if (mode === "receipt") {
+    const bought = entries.filter((e) => e.classification !== "crossed_out" && e.classification !== "repayment");
+    if (bought.length === 0) return [];
+    const totalSen = bought.reduce((sum, e) => sum + Math.max(0, e.amountSen), 0);
+    const item = bought.map((e) => e.item.trim()).filter(Boolean).join(", ").slice(0, MAX_ITEM_LENGTH);
+    const unsure = bought.some((e) => e.isAmbiguous)
+      ? bought.find((e) => e.isAmbiguous)?.ambiguityReason || t("scan.unsureLine")
+      : undefined;
+    const amount = totalSen > 0 ? (totalSen / 100).toFixed(2) : "";
+    return [{ key: "r1", customerName: "", item, amount, date: bought[0].date || today, include: !unsure, unsure }];
+  }
+  return entries.map((e, i) => {
+    const unsure =
+      e.classification === "crossed_out"
+        ? t("scan.crossedOut")
+        : e.classification === "repayment"
+          ? t("scan.repayment")
+          : e.isAmbiguous
+            ? e.ambiguityReason || t("scan.unsureLine")
+            : undefined;
+    return {
+      key: `l${i + 1}`,
+      customerName: e.customerName.trim().slice(0, MAX_NAME_LENGTH),
+      item: e.item.trim().slice(0, MAX_ITEM_LENGTH),
+      amount: amountText(e),
+      date: e.date || today,
+      include: e.included && !unsure,
+      unsure,
+    };
+  });
 }
