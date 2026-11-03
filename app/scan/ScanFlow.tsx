@@ -388,6 +388,7 @@ function Camera({
 
 const FAILURE_KEY: Record<ReadFailure | "nothingFound", TKey> = {
   notConnected: "scan.err.notConnected",
+  gone: "scan.err.failed",
   tooBig: "scan.err.tooBig",
   tooMany: "scan.err.tooMany",
   signedOut: "scan.err.signedOut",
@@ -412,8 +413,12 @@ function Reading({
   const [problem, setProblem] = useState<ReadFailure | "nothingFound" | null>(null);
   const [attempt, setAttempt] = useState(0);
   const scanIdRef = useRef<string | undefined>(undefined);
-  const titleRef = useFocusOnMount<HTMLHeadingElement>();
+  const titleRef = useRef<HTMLHeadingElement>(null);
   const steps = readingSteps(mode, t, lines?.length ?? null);
+  // Focus the heading whenever the sheet changes (progress ↔ problem), so it's announced.
+  useEffect(() => {
+    titleRef.current?.focus();
+  }, [problem]);
 
   // One read per attempt: the first uploads the photo, a retry reads the uploaded photo again.
   useEffect(() => {
@@ -421,7 +426,10 @@ function Reading({
     let cancelled = false;
     (async () => {
       const scanId = scanIdRef.current;
-      const result = scanId ? await retryRead(scanId) : await readPhoto(await shrinkPhoto(photo), mode);
+      // Shrink first, then check: React's dev double-run cancels the first pass before it uploads.
+      const upload = scanId ? null : await shrinkPhoto(photo);
+      if (cancelled) return;
+      const result = scanId ? await retryRead(scanId) : await readPhoto(upload!, mode);
       if (cancelled) return;
       if (!result.ok) {
         scanIdRef.current = result.scanId;
@@ -461,7 +469,7 @@ function Reading({
   }
 
   const pct = Math.round((Math.min(step, steps.length) / steps.length) * 100);
-  const canRetry = problem === "failed" || problem === "tooMany" || problem === "nothingFound";
+  const canRetry = problem === "failed" || problem === "gone" || problem === "tooMany" || problem === "nothingFound";
   return (
     <div className="scan-camera">
       {photo && (
