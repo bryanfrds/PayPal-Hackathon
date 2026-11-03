@@ -147,9 +147,17 @@ describe("entriesToLines", () => {
     ]);
   });
 
-  it("keeps the amount as read when it couldn't be turned into money", () => {
-    const [line] = entriesToLines([entry({ amountSen: 0, rawAmountText: "RM1?.50", isAmbiguous: true })], "notebook", TODAY);
-    expect(line.amount).toBe("1.50");
+  it("leaves an unreadable amount blank, flagged and unticked, never guessed", () => {
+    for (const raw of ["RM1?.50", "12,50"]) {
+      const [line] = entriesToLines([entry({ amountSen: 0, rawAmountText: raw })], "notebook", TODAY);
+      expect(line).toMatchObject({ amount: "", include: false, unsure: "Couldn't read the amount" });
+      expect(line.skipped).toBeUndefined();
+    }
+  });
+
+  it("flags a receipt with an unreadable amount instead of a short total", () => {
+    const [line] = entriesToLines([entry({ amountSen: 1890 }), entry({ amountSen: 0, rawAmountText: "5,80" })], "receipt", TODAY);
+    expect(line).toMatchObject({ amount: "", include: false, unsure: "Couldn't read the amount" });
   });
 
   it("uses today when a line has no date", () => {

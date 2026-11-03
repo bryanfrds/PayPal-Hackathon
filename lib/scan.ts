@@ -163,18 +163,18 @@ export type ReadEntry = {
  * The AI reader's lines as check-screen lines. Crossed-out lines and repayments come unticked
  * with a flag saying why; unsure lines come unticked with the reader's reason. A receipt reads
  * as one purchase: the debt lines' items and total, with no customer (the owner picks one).
+ * An amount the server couldn't turn into money is left blank for the owner to type, never guessed.
  */
 export function entriesToLines(entries: ReadEntry[], mode: ScanMode, today: string, t: T = translator()): ScanLine[] {
-  const amountText = (e: ReadEntry) => (e.amountSen > 0 ? (e.amountSen / 100).toFixed(2) : e.rawAmountText.replace(/[^\d.]/g, ""));
+  const unreadable = (e: ReadEntry) => !(e.amountSen > 0);
   if (mode === "receipt") {
     const bought = entries.filter((e) => e.classification !== "crossed_out" && e.classification !== "repayment");
     if (bought.length === 0) return [];
-    const totalSen = bought.reduce((sum, e) => sum + Math.max(0, e.amountSen), 0);
     const item = bought.map((e) => e.item.trim()).filter(Boolean).join(", ").slice(0, MAX_ITEM_LENGTH);
-    const unsure = bought.some((e) => e.isAmbiguous)
-      ? bought.find((e) => e.isAmbiguous)?.ambiguityReason || t("scan.unsureLine")
-      : undefined;
-    const amount = totalSen > 0 ? (totalSen / 100).toFixed(2) : "";
+    const doubt = bought.find((e) => e.isAmbiguous);
+    const missing = bought.some(unreadable);
+    const unsure = missing ? t("scan.amountUnread") : doubt ? doubt.ambiguityReason || t("scan.unsureLine") : undefined;
+    const amount = missing ? "" : (bought.reduce((sum, e) => sum + e.amountSen, 0) / 100).toFixed(2);
     return [{ key: "r1", customerName: "", item, amount, date: bought[0].date || today, include: !unsure, unsure }];
   }
   return entries.map((e, i) => {
@@ -184,14 +184,16 @@ export function entriesToLines(entries: ReadEntry[], mode: ScanMode, today: stri
         ? t("scan.crossedOut")
         : e.classification === "repayment"
           ? t("scan.repayment")
-          : e.isAmbiguous
-            ? e.ambiguityReason || t("scan.unsureLine")
-            : undefined;
+          : unreadable(e)
+            ? t("scan.amountUnread")
+            : e.isAmbiguous
+              ? e.ambiguityReason || t("scan.unsureLine")
+              : undefined;
     return {
       key: `l${i + 1}`,
       customerName: e.customerName.trim().slice(0, MAX_NAME_LENGTH),
       item: e.item.trim().slice(0, MAX_ITEM_LENGTH),
-      amount: amountText(e),
+      amount: unreadable(e) ? "" : (e.amountSen / 100).toFixed(2),
       date: e.date || today,
       include: e.included && !unsure,
       unsure,

@@ -281,6 +281,7 @@ export const ms: Dictionary = {
   "scan.crossedOut": "Dipangkah dalam buku",
   "scan.repayment": "Nampak seperti bayaran balik, bukan hutang baru",
   "scan.unsureLine": "Pembaca tidak pasti tentang baris ini",
+  "scan.amountUnread": "Tidak dapat membaca jumlah",
   "scan.err.title": "Tidak dapat membaca gambar ini",
   "scan.err.notConnected": "Pembaca AI belum disediakan di laman ini. Tambah baris secara manual buat masa ini.",
   "scan.err.tooBig": "Gambar ini terlalu besar. Cuba gambar yang lebih kecil.",

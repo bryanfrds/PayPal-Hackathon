@@ -280,6 +280,7 @@ export const id: Dictionary = {
   "scan.crossedOut": "Dicoret di buku",
   "scan.repayment": "Sepertinya pembayaran, bukan utang baru",
   "scan.unsureLine": "Pembaca tidak yakin dengan baris ini",
+  "scan.amountUnread": "Jumlahnya tidak terbaca",
   "scan.err.title": "Tidak bisa membaca foto ini",
   "scan.err.notConnected": "Pembaca AI belum disiapkan di situs ini. Tambahkan baris secara manual dulu.",
   "scan.err.tooBig": "Foto ini terlalu besar. Coba foto yang lebih kecil.",

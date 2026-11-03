@@ -281,6 +281,7 @@ export const bn: Dictionary = {
   "scan.crossedOut": "খাতায় কেটে দেওয়া",
   "scan.repayment": "নতুন বাকি নয়, পরিশোধ বলে মনে হচ্ছে",
   "scan.unsureLine": "এই লাইন নিয়ে রিডার নিশ্চিত নয়",
+  "scan.amountUnread": "টাকার পরিমাণ পড়া যায়নি",
   "scan.err.title": "এই ছবিটি পড়া গেল না",
   "scan.err.notConnected": "এই সাইটে AI রিডার এখনও সেট আপ করা হয়নি। আপাতত লাইনগুলো হাতে যোগ করুন।",
   "scan.err.tooBig": "ছবিটি খুব বড়। ছোট একটি ছবি দিয়ে চেষ্টা করুন।",

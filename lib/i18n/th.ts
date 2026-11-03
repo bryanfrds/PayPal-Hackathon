@@ -279,6 +279,7 @@ export const th: Dictionary = {
   "scan.crossedOut": "ถูกขีดฆ่าในสมุด",
   "scan.repayment": "ดูเหมือนเป็นการจ่ายคืน ไม่ใช่หนี้ใหม่",
   "scan.unsureLine": "ตัวอ่านไม่แน่ใจบรรทัดนี้",
+  "scan.amountUnread": "อ่านจำนวนเงินไม่ได้",
   "scan.err.title": "อ่านรูปนี้ไม่ได้",
   "scan.err.notConnected": "เว็บไซต์นี้ยังไม่ได้ตั้งค่าตัวอ่าน AI ตอนนี้ให้เพิ่มรายการด้วยตัวเองก่อน",
   "scan.err.tooBig": "รูปนี้ใหญ่เกินไป ลองรูปที่เล็กกว่านี้",

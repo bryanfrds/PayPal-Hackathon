@@ -279,6 +279,7 @@ export const zh: Dictionary = {
   "scan.crossedOut": "账本上已划掉",
   "scan.repayment": "看起来是还款，不是新欠款",
   "scan.unsureLine": "读取器对这一行不确定",
+  "scan.amountUnread": "无法读取金额",
   "scan.err.title": "无法读取这张照片",
   "scan.err.notConnected": "本网站尚未设置 AI 读取器。请先手动添加。",
   "scan.err.tooBig": "照片太大了。请换一张小一点的。",

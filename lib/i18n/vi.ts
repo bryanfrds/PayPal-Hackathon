@@ -279,6 +279,7 @@ export const vi: Dictionary = {
   "scan.crossedOut": "Đã gạch trong sổ",
   "scan.repayment": "Có vẻ là khoản trả lại, không phải nợ mới",
   "scan.unsureLine": "Trình đọc không chắc về dòng này",
+  "scan.amountUnread": "Không đọc được số tiền",
   "scan.err.title": "Không đọc được ảnh này",
   "scan.err.notConnected": "Trang này chưa cài trình đọc AI. Tạm thời hãy thêm các dòng bằng tay.",
   "scan.err.tooBig": "Ảnh này quá lớn. Hãy thử ảnh nhỏ hơn.",

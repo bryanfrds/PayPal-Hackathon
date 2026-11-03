@@ -281,6 +281,7 @@ export const fil: Dictionary = {
   "scan.crossedOut": "Naka-ekis sa libro",
   "scan.repayment": "Mukhang bayad, hindi bagong utang",
   "scan.unsureLine": "Hindi sigurado ang reader sa linyang ito",
+  "scan.amountUnread": "Hindi mabasa ang halaga",
   "scan.err.title": "Hindi mabasa ang litratong ito",
   "scan.err.notConnected": "Hindi pa naka-set up ang AI reader sa site na ito. Idagdag muna nang mano-mano ang mga linya.",
   "scan.err.tooBig": "Masyadong malaki ang litratong ito. Subukan ang mas maliit.",

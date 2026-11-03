@@ -153,6 +153,7 @@ export const ledger = {
   "scan.crossedOut": "Crossed out in the book",
   "scan.repayment": "Looks like a repayment, not a new debt",
   "scan.unsureLine": "The reader wasn't sure about this line",
+  "scan.amountUnread": "Couldn't read the amount",
   "scan.err.title": "Couldn't read this photo",
   "scan.err.notConnected": "The AI reader isn't set up on this site yet. Add the lines by hand for now.",
   "scan.err.tooBig": "This photo is too large. Try a smaller one.",
