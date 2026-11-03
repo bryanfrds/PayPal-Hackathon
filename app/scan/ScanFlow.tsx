@@ -9,18 +9,19 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
 import { DebtStoreError, newDebtId } from "@/lib/debt-store";
 import { formatSen, MAX_ITEM_LENGTH, MAX_NAME_LENGTH, todayLocal, type DebtErrors } from "@/lib/debts";
-import type { T } from "@/lib/i18n";
+import type { T, TKey } from "@/lib/i18n";
 import {
   customerNames,
+  entriesToLines,
   includedTotalSen,
   isNewCustomer,
   linesToDebts,
   parseScanDraft,
-  sampleRead,
   type ScanLine,
   type ScanMode,
   scanDraftKey,
 } from "@/lib/scan";
+import { readPhoto, retryRead, shrinkPhoto, type ReadFailure } from "@/lib/scan-client";
 import { BackIcon, BoltIcon, CheckIcon, CloseIcon, ImageIcon, NoteIcon, ReceiptIcon, ScanIcon } from "../components/icons";
 import { useDialog } from "../components/useDialog";
 import { useDebts } from "../useDebts";
@@ -28,11 +29,11 @@ import { useT } from "../useT";
 
 type Phase = "choose" | "camera" | "reading" | "check";
 
-function readingSteps(mode: ScanMode, t: T): string[] {
-  const found = sampleRead(mode, todayLocal(), t).length;
+/** The reading steps; the second says "reading the lines" until the count is known. */
+function readingSteps(mode: ScanMode, t: T, found: number | null): string[] {
   return [
     t("scan.step.clear"),
-    t("scan.step.found", { count: found }),
+    found === null ? t("scan.step.readingLines") : t("scan.step.found", { count: found }),
     mode === "notebook" ? t("scan.step.matching") : t("scan.step.readingItems"),
     t("scan.step.ready"),
   ];
@@ -59,6 +60,7 @@ export default function ScanFlow() {
   const [phase, setPhase] = useState<Phase>("choose");
   const [mode, setMode] = useState<ScanMode>("notebook");
   const [photo, setPhoto] = useState<string | null>(null);
+  const [lines, setLines] = useState<ScanLine[]>([]);
 
   // Object URLs from the gallery hold memory until revoked.
   useEffect(() => {
@@ -72,7 +74,15 @@ export default function ScanFlow() {
     setPhoto(url);
     setPhase("reading");
   }
-  const onRead = useCallback(() => setPhase("check"), []);
+  const onRead = useCallback((read: ScanLine[]) => {
+    setLines(read);
+    setPhase("check");
+  }, []);
+  function retake() {
+    clearDraft(mode);
+    setReturned(true);
+    setPhase("choose");
+  }
   // On first load the page itself has focus; only move it when coming back from Retake.
   const [returned, setReturned] = useState(false);
 
@@ -92,18 +102,8 @@ export default function ScanFlow() {
       />
     );
   }
-  if (phase === "reading") return <Reading mode={mode} photo={photo} onDone={onRead} />;
-  return (
-    <Check
-      mode={mode}
-      photo={photo}
-      onRetake={() => {
-        clearDraft(mode);
-        setReturned(true);
-        setPhase("choose");
-      }}
-    />
-  );
+  if (phase === "reading") return <Reading mode={mode} photo={photo} onDone={onRead} onRetake={retake} />;
+  return <Check mode={mode} photo={photo} read={lines} onRetake={retake} />;
 }
 
 /* 1 · Choose: take a photo (opens the camera) or upload one */
@@ -384,46 +384,140 @@ function Camera({
   );
 }
 
-/* 3 · Reading */
+/* 3 · Reading: the photo goes to the AI reader; the steps wait on its answer */
 
-function Reading({ mode, photo, onDone }: { mode: ScanMode; photo: string | null; onDone: () => void }) {
+const FAILURE_KEY: Record<ReadFailure | "nothingFound", TKey> = {
+  notConnected: "scan.err.notConnected",
+  gone: "scan.err.failed",
+  tooBig: "scan.err.tooBig",
+  tooMany: "scan.err.tooMany",
+  signedOut: "scan.err.signedOut",
+  failed: "scan.err.failed",
+  nothingFound: "scan.err.nothingFound",
+};
+
+function Reading({
+  mode,
+  photo,
+  onDone,
+  onRetake,
+}: {
+  mode: ScanMode;
+  photo: string | null;
+  onDone: (lines: ScanLine[]) => void;
+  onRetake: () => void;
+}) {
   const { t } = useT();
   const [step, setStep] = useState(0);
-  const [steps] = useState(() => readingSteps(mode, t));
-  const titleRef = useFocusOnMount<HTMLHeadingElement>();
+  const [lines, setLines] = useState<ScanLine[] | null>(null);
+  const [problem, setProblem] = useState<ReadFailure | "nothingFound" | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const scanIdRef = useRef<string | undefined>(undefined);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const steps = readingSteps(mode, t, lines?.length ?? null);
+  // Focus the heading whenever the sheet changes (progress ↔ problem), so it's announced.
   useEffect(() => {
+    titleRef.current?.focus();
+  }, [problem]);
+
+  // One read per attempt: the first uploads the photo, a retry reads the uploaded photo again.
+  useEffect(() => {
+    if (!photo) return;
+    let cancelled = false;
+    (async () => {
+      const scanId = scanIdRef.current;
+      // Shrink first, then check: React's dev double-run cancels the first pass before it uploads.
+      const upload = scanId ? null : await shrinkPhoto(photo);
+      if (cancelled) return;
+      const result = scanId ? await retryRead(scanId) : await readPhoto(upload!, mode);
+      if (cancelled) return;
+      if (!result.ok) {
+        scanIdRef.current = result.scanId;
+        setProblem(result.reason);
+        return;
+      }
+      scanIdRef.current = result.scanId;
+      const read = entriesToLines(result.entries, mode, todayLocal(), t);
+      if (read.length === 0) setProblem("nothingFound");
+      else setLines(read);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // t only changes with the language; a new read isn't wanted then.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [photo, mode, attempt]);
+
+  // The steps tick along, but stop on "reading the lines" until the reader answers.
+  useEffect(() => {
+    if (problem) return;
     if (step >= steps.length) {
-      onDone();
+      if (lines) onDone(lines);
       return;
     }
+    if (step >= 1 && !lines) return;
     const timer = setTimeout(() => setStep((s) => s + 1), STEP_MS);
     return () => clearTimeout(timer);
-  }, [step, steps.length, onDone]);
+  }, [step, steps.length, lines, problem, onDone]);
+
+  function tryAgain() {
+    setProblem(null);
+    setStep(1);
+    // Nothing found on a good read: read the same photo again from scratch.
+    if (problem === "nothingFound") scanIdRef.current = undefined;
+    setAttempt((n) => n + 1);
+  }
 
   const pct = Math.round((Math.min(step, steps.length) / steps.length) * 100);
+  const canRetry = problem === "failed" || problem === "gone" || problem === "tooMany" || problem === "nothingFound";
   return (
     <div className="scan-camera">
       {photo && (
         // eslint-disable-next-line @next/next/no-img-element -- a local photo, not a site image
         <img src={photo} alt="" className="scan-video scan-photo-dim" />
       )}
-      <div className="scan-sheet" role="status" aria-live="polite">
-        <h1 ref={titleRef} tabIndex={-1}>
-          {mode === "notebook" ? t("scan.readingBuku") : t("scan.readingReceipt")}
-        </h1>
-        <p>{t("scan.fewSeconds")}</p>
-        <div className="scan-bar" role="progressbar" aria-label={t("scan.progress")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
-          <b style={{ width: `${pct}%` }} />
+      {problem ? (
+        <div className="scan-sheet" role="alert">
+          <h1 ref={titleRef} tabIndex={-1}>
+            {t("scan.err.title")}
+          </h1>
+          <p>{t(FAILURE_KEY[problem])}</p>
+          <div className="scan-sheet-actions">
+            {canRetry && (
+              <button type="button" className="button button-primary" onClick={tryAgain}>
+                {t("scan.tryAgain")}
+              </button>
+            )}
+            {problem === "signedOut" ? (
+              <a className="button button-primary" href="/sign-in?next=/scan">
+                {t("scan.signInAgain")}
+              </a>
+            ) : (
+              <button type="button" className="button" onClick={onRetake}>
+                {t("scan.retake")}
+              </button>
+            )}
+          </div>
         </div>
-        <ul className="scan-steps">
-          {steps.map((label, i) => (
-            <li key={label} className={i < step ? "done" : i === step ? "now" : "later"}>
-              <span aria-hidden="true">{i < step ? <CheckIcon /> : i === step ? "⋯" : ""}</span>
-              {label}
-            </li>
-          ))}
-        </ul>
-      </div>
+      ) : (
+        <div className="scan-sheet" role="status" aria-live="polite">
+          <h1 ref={titleRef} tabIndex={-1}>
+            {mode === "notebook" ? t("scan.readingBuku") : t("scan.readingReceipt")}
+          </h1>
+          <p>{t("scan.fewSeconds")}</p>
+          <div className="scan-bar" role="progressbar" aria-label={t("scan.progress")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
+            <b style={{ width: `${pct}%` }} />
+          </div>
+          <ul className="scan-steps">
+            {steps.map((label, i) => (
+              <li key={i} className={i < step ? "done" : i === step ? "now" : "later"}>
+                <span aria-hidden="true">{i < step ? <CheckIcon /> : i === step ? "⋯" : ""}</span>
+                {label}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
@@ -517,7 +611,7 @@ function PhotoModal({
   );
 }
 
-function Check({ mode, photo, onRetake }: { mode: ScanMode; photo: string | null; onRetake: () => void }) {
+function Check({ mode, photo, read, onRetake }: { mode: ScanMode; photo: string | null; read: ScanLine[]; onRetake: () => void }) {
   const { t, formatDay } = useT();
   const router = useRouter();
   const { debts, ready, addMany } = useDebts();
@@ -534,7 +628,7 @@ function Check({ mode, photo, onRetake }: { mode: ScanMode; photo: string | null
         saved = parseScanDraft(sessionStorage.getItem(draftKey));
       } catch {}
     }
-    return saved ?? sampleRead(mode, todayLocal(), t);
+    return saved ?? read;
   });
   const [open, setOpen] = useState<string | null>(mode === "receipt" ? "r1" : null);
   const [errors, setErrors] = useState<Record<string, DebtErrors>>({});
@@ -650,10 +744,6 @@ function Check({ mode, photo, onRetake }: { mode: ScanMode; photo: string | null
           onClose={() => setViewPhoto(false)}
         />
       )}
-
-      <p className="notice notice-warning scan-sample" role="note">
-        {t("scan.sample")}
-      </p>
 
       {problemCount > 0 && (
         <p className="notice notice-error" role="alert">
@@ -778,20 +868,22 @@ function Check({ mode, photo, onRetake }: { mode: ScanMode; photo: string | null
                   {l.unsure && (
                     <div className="scan-unsure-banner">
                       <span>{l.unsure}</span>
-                      <button
-                        type="button"
-                        className="link-button"
-                        aria-label={t("scanx.fixAmountLabel", { name: l.customerName || t("scan.thisLine") })}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setOpen(l.key);
-                          setTimeout(() => {
-                            document.getElementById(`${l.key}-amount`)?.focus();
-                          }, 50);
-                        }}
-                      >
-                        {t("scanx.fixAmount")}
-                      </button>
+                      {!l.skipped && (
+                        <button
+                          type="button"
+                          className="link-button"
+                          aria-label={t("scanx.fixAmountLabel", { name: l.customerName || t("scan.thisLine") })}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpen(l.key);
+                            setTimeout(() => {
+                              document.getElementById(`${l.key}-amount`)?.focus();
+                            }, 50);
+                          }}
+                        >
+                          {t("scanx.fixAmount")}
+                        </button>
+                      )}
                     </div>
                   )}
 

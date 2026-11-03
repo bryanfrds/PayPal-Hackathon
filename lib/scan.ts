@@ -1,10 +1,10 @@
 // What a scan produces and how the owner's checked lines become debts.
 //
-// The real reading (photo → lines) is Person 1's vision-model extraction. Until it's
-// connected, sampleRead() returns a fixed, realistic result so the screens can be built
-// and demoed. Extraction only makes drafts: nothing is saved until the owner checks it.
+// The real reading (photo → lines) is Person 1's vision-model extraction (POST /api/scans);
+// entriesToLines() turns its result into check-screen lines. sampleRead() is a fixed, realistic
+// result for tests. Extraction only makes drafts: nothing is saved until the owner checks it.
 
-import { createManualDebt, validateDebtInput, type Debt, type DebtErrors } from "./debts";
+import { createManualDebt, MAX_ITEM_LENGTH, MAX_NAME_LENGTH, validateDebtInput, type Debt, type DebtErrors } from "./debts";
 import { translator, type T } from "./i18n";
 
 export const SCAN_MODES = ["notebook", "receipt"] as const;
@@ -37,7 +37,8 @@ export function parseScanDraft(raw: string | null | undefined): ScanLine[] | nul
     const r = l as Record<string, unknown>;
     return (
       str(r.key) && str(r.customerName) && str(r.item) && str(r.amount) && str(r.date) &&
-      typeof r.include === "boolean" && (r.unsure === undefined || str(r.unsure))
+      typeof r.include === "boolean" && (r.unsure === undefined || str(r.unsure)) &&
+      (r.skipped === undefined || typeof r.skipped === "boolean")
     );
   });
   return ok ? (v as ScanLine[]) : null;
@@ -56,6 +57,8 @@ export type ScanLine = {
   include: boolean;
   /** Why the reader wasn't sure, shown as a flag. Cleared once the owner edits the line. */
   unsure?: string;
+  /** The flag is a note, not a doubt (crossed out in the book, or a repayment): nothing to fix. */
+  skipped?: boolean;
 };
 
 function line(key: string, customerName: string, item: string, amount: string, date: string, unsure?: string): ScanLine {
@@ -63,7 +66,7 @@ function line(key: string, customerName: string, item: string, amount: string, d
 }
 
 /**
- * Stand-in for Person 1's extraction. A notebook page reads as several customers' lines;
+ * Example reading for tests. A notebook page reads as several customers' lines;
  * a receipt reads as one purchase with no customer name (the owner picks one).
  */
 export function sampleRead(mode: ScanMode, today: string, t: T = translator()): ScanLine[] {
@@ -140,4 +143,61 @@ export function linesToDebts(
     debts.push({ ...createManualDebt(result.value, { id: opts.newId(), now: opts.now }), source: "scan" });
   }
   return problems.length > 0 ? { ok: false, problems } : { ok: true, debts };
+}
+
+/** One line as the AI reader returns it (the fields of Person 1's ExtractedEntry the check screen needs). */
+export type ReadEntry = {
+  id: string;
+  customerName: string;
+  item: string;
+  amountSen: number;
+  rawAmountText: string;
+  date: string;
+  classification: "debt" | "repayment" | "crossed_out" | "ambiguous";
+  isAmbiguous: boolean;
+  ambiguityReason?: string;
+  included: boolean;
+};
+
+/**
+ * The AI reader's lines as check-screen lines. Crossed-out lines and repayments come unticked
+ * with a flag saying why; unsure lines come unticked with the reader's reason. A receipt reads
+ * as one purchase: the debt lines' items and total, with no customer (the owner picks one).
+ * An amount the server couldn't turn into money is left blank for the owner to type, never guessed.
+ */
+export function entriesToLines(entries: ReadEntry[], mode: ScanMode, today: string, t: T = translator()): ScanLine[] {
+  const unreadable = (e: ReadEntry) => !(e.amountSen > 0);
+  if (mode === "receipt") {
+    const bought = entries.filter((e) => e.classification !== "crossed_out" && e.classification !== "repayment");
+    if (bought.length === 0) return [];
+    const item = bought.map((e) => e.item.trim()).filter(Boolean).join(", ").slice(0, MAX_ITEM_LENGTH);
+    const doubt = bought.find((e) => e.isAmbiguous);
+    const missing = bought.some(unreadable);
+    const unsure = missing ? t("scan.amountUnread") : doubt ? doubt.ambiguityReason || t("scan.unsureLine") : undefined;
+    const amount = missing ? "" : (bought.reduce((sum, e) => sum + e.amountSen, 0) / 100).toFixed(2);
+    return [{ key: "r1", customerName: "", item, amount, date: bought[0].date || today, include: !unsure, unsure }];
+  }
+  return entries.map((e, i) => {
+    const skipped = e.classification === "crossed_out" || e.classification === "repayment";
+    const unsure =
+      e.classification === "crossed_out"
+        ? t("scan.crossedOut")
+        : e.classification === "repayment"
+          ? t("scan.repayment")
+          : unreadable(e)
+            ? t("scan.amountUnread")
+            : e.isAmbiguous
+              ? e.ambiguityReason || t("scan.unsureLine")
+              : undefined;
+    return {
+      key: `l${i + 1}`,
+      customerName: e.customerName.trim().slice(0, MAX_NAME_LENGTH),
+      item: e.item.trim().slice(0, MAX_ITEM_LENGTH),
+      amount: unreadable(e) ? "" : (e.amountSen / 100).toFixed(2),
+      date: e.date || today,
+      include: e.included && !unsure,
+      unsure,
+      ...(skipped ? { skipped } : {}),
+    };
+  });
 }

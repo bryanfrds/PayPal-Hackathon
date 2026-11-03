@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Debt } from "./debts";
-import { customerNames, includedTotalSen, isNewCustomer, linesToDebts, sampleRead, type ScanLine } from "./scan";
+import { customerNames, entriesToLines, includedTotalSen, isNewCustomer, linesToDebts, sampleRead, type ReadEntry, type ScanLine } from "./scan";
 
 const TODAY = "2026-10-12";
 
@@ -98,5 +98,90 @@ describe("linesToDebts", () => {
     const lines: ScanLine[] = [{ key: "f", customerName: "A", item: "", amount: "1", date: "2026-10-13", include: true }];
     const result = linesToDebts(lines, TODAY, { newId: ids(), now: new Date() });
     expect(result.ok).toBe(false);
+  });
+});
+
+function entry(over: Partial<ReadEntry>): ReadEntry {
+  return {
+    id: "e1",
+    customerName: "Ah Seng",
+    item: "Susu",
+    amountSen: 3990,
+    rawAmountText: "39.90",
+    date: TODAY,
+    classification: "debt",
+    isAmbiguous: false,
+    included: true,
+    ...over,
+  };
+}
+
+describe("entriesToLines", () => {
+  it("turns clear debt lines into ticked check lines", () => {
+    const lines = entriesToLines([entry({}), entry({ customerName: "  Kak Lina ", item: "Gula", amountSen: 2240 })], "notebook", TODAY);
+    expect(lines).toEqual([
+      { key: "l1", customerName: "Ah Seng", item: "Susu", amount: "39.90", date: TODAY, include: true, unsure: undefined },
+      { key: "l2", customerName: "Kak Lina", item: "Gula", amount: "22.40", date: TODAY, include: true, unsure: undefined },
+    ]);
+  });
+
+  it("leaves crossed-out lines, repayments and unsure lines unticked, saying why", () => {
+    const lines = entriesToLines(
+      [
+        entry({ classification: "crossed_out", included: false }),
+        entry({ classification: "repayment", included: false }),
+        entry({ classification: "ambiguous", isAmbiguous: true, ambiguityReason: "13.50 or 18.50", included: false }),
+        entry({ isAmbiguous: true, included: false }),
+      ],
+      "notebook",
+      TODAY,
+    );
+    expect(lines.map((l) => l.include)).toEqual([false, false, false, false]);
+    // Crossed out and repaid lines are notes, with no amount to fix; unsure lines can be fixed.
+    expect(lines.map((l) => Boolean(l.skipped))).toEqual([true, true, false, false]);
+    expect(lines.map((l) => l.unsure)).toEqual([
+      "Crossed out in the book",
+      "Looks like a repayment, not a new debt",
+      "13.50 or 18.50",
+      "The reader wasn't sure about this line",
+    ]);
+  });
+
+  it("leaves an unreadable amount blank, flagged and unticked, never guessed", () => {
+    for (const raw of ["RM1?.50", "12,50"]) {
+      const [line] = entriesToLines([entry({ amountSen: 0, rawAmountText: raw })], "notebook", TODAY);
+      expect(line).toMatchObject({ amount: "", include: false, unsure: "Couldn't read the amount" });
+      expect(line.skipped).toBeUndefined();
+    }
+  });
+
+  it("flags a receipt with an unreadable amount instead of a short total", () => {
+    const [line] = entriesToLines([entry({ amountSen: 1890 }), entry({ amountSen: 0, rawAmountText: "5,80" })], "receipt", TODAY);
+    expect(line).toMatchObject({ amount: "", include: false, unsure: "Couldn't read the amount" });
+  });
+
+  it("uses today when a line has no date", () => {
+    const [line] = entriesToLines([entry({ date: "" })], "notebook", TODAY);
+    expect(line.date).toBe(TODAY);
+  });
+
+  it("reads a receipt as one purchase with no customer, skipping crossed-out lines", () => {
+    const lines = entriesToLines(
+      [entry({ item: "Milo 1kg", amountSen: 1890 }), entry({ item: "Gula", amountSen: 580 }), entry({ classification: "crossed_out", item: "Rokok", amountSen: 1700 })],
+      "receipt",
+      TODAY,
+    );
+    expect(lines).toEqual([{ key: "r1", customerName: "", item: "Milo 1kg, Gula", amount: "24.70", date: TODAY, include: true, unsure: undefined }]);
+  });
+
+  it("returns no lines when nothing was read", () => {
+    expect(entriesToLines([], "notebook", TODAY)).toEqual([]);
+    expect(entriesToLines([entry({ classification: "repayment" })], "receipt", TODAY)).toEqual([]);
+  });
+
+  it("makes debts from read lines once the owner has checked them", () => {
+    const lines = entriesToLines([entry({}), entry({ classification: "crossed_out", included: false })], "notebook", TODAY);
+    const result = linesToDebts(lines, TODAY, { newId: ids(), now: new Date("2026-10-12T10:00:00Z") });
+    expect(result.ok && result.debts.map((d) => [d.customerName, d.amountSen, d.source])).toEqual([["Ah Seng", 3990, "scan"]]);
   });
 });
