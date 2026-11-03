@@ -37,7 +37,8 @@ export function parseScanDraft(raw: string | null | undefined): ScanLine[] | nul
     const r = l as Record<string, unknown>;
     return (
       str(r.key) && str(r.customerName) && str(r.item) && str(r.amount) && str(r.date) &&
-      typeof r.include === "boolean" && (r.unsure === undefined || str(r.unsure))
+      typeof r.include === "boolean" && (r.unsure === undefined || str(r.unsure)) &&
+      (r.skipped === undefined || typeof r.skipped === "boolean")
     );
   });
   return ok ? (v as ScanLine[]) : null;
@@ -56,6 +57,8 @@ export type ScanLine = {
   include: boolean;
   /** Why the reader wasn't sure, shown as a flag. Cleared once the owner edits the line. */
   unsure?: string;
+  /** The flag is a note, not a doubt (crossed out in the book, or a repayment): nothing to fix. */
+  skipped?: boolean;
 };
 
 function line(key: string, customerName: string, item: string, amount: string, date: string, unsure?: string): ScanLine {
@@ -175,6 +178,7 @@ export function entriesToLines(entries: ReadEntry[], mode: ScanMode, today: stri
     return [{ key: "r1", customerName: "", item, amount, date: bought[0].date || today, include: !unsure, unsure }];
   }
   return entries.map((e, i) => {
+    const skipped = e.classification === "crossed_out" || e.classification === "repayment";
     const unsure =
       e.classification === "crossed_out"
         ? t("scan.crossedOut")
@@ -191,6 +195,7 @@ export function entriesToLines(entries: ReadEntry[], mode: ScanMode, today: stri
       date: e.date || today,
       include: e.included && !unsure,
       unsure,
+      ...(skipped ? { skipped } : {}),
     };
   });
 }

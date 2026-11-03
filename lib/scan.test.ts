@@ -137,6 +137,8 @@ describe("entriesToLines", () => {
       TODAY,
     );
     expect(lines.map((l) => l.include)).toEqual([false, false, false, false]);
+    // Crossed out and repaid lines are notes, with no amount to fix; unsure lines can be fixed.
+    expect(lines.map((l) => Boolean(l.skipped))).toEqual([true, true, false, false]);
     expect(lines.map((l) => l.unsure)).toEqual([
       "Crossed out in the book",
       "Looks like a repayment, not a new debt",

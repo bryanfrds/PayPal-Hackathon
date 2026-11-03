@@ -860,20 +860,22 @@ function Check({ mode, photo, read, onRetake }: { mode: ScanMode; photo: string 
                   {l.unsure && (
                     <div className="scan-unsure-banner">
                       <span>{l.unsure}</span>
-                      <button
-                        type="button"
-                        className="link-button"
-                        aria-label={t("scanx.fixAmountLabel", { name: l.customerName || t("scan.thisLine") })}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setOpen(l.key);
-                          setTimeout(() => {
-                            document.getElementById(`${l.key}-amount`)?.focus();
-                          }, 50);
-                        }}
-                      >
-                        {t("scanx.fixAmount")}
-                      </button>
+                      {!l.skipped && (
+                        <button
+                          type="button"
+                          className="link-button"
+                          aria-label={t("scanx.fixAmountLabel", { name: l.customerName || t("scan.thisLine") })}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpen(l.key);
+                            setTimeout(() => {
+                              document.getElementById(`${l.key}-amount`)?.focus();
+                            }, 50);
+                          }}
+                        >
+                          {t("scanx.fixAmount")}
+                        </button>
+                      )}
                     </div>
                   )}
 
