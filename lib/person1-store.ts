@@ -156,11 +156,30 @@ export function createMemoryPerson1Store(): Person1Store {
     async updateCustomer(ownerEmail, customerId, patch) {
       const existing = customers.get(custKey(ownerEmail, customerId));
       if (!existing) return null;
+
+      // Detect if identity or contact info changed
+      const nameChanged = patch.name !== undefined && patch.name !== existing.name;
+      const emailChanged = patch.email !== undefined && patch.email !== existing.email;
+      const phoneChanged = patch.phone !== undefined && patch.phone !== existing.phone;
+      const shouldClearConfirmation = nameChanged || emailChanged || phoneChanged;
+
       const updated: CustomerRecord = {
         ...existing,
         ...patch,
         updatedAt: new Date().toISOString(),
       };
+
+      // Recompute slug if name changed
+      if (nameChanged) {
+        const customerTab = await import("./customer-tab");
+        updated.slug = customerTab.customerSlug(updated.name);
+      }
+
+      // Clear confirmation if identity or contact changed
+      if (shouldClearConfirmation) {
+        updated.confirmedAt = undefined;
+      }
+
       customers.set(custKey(ownerEmail, customerId), updated);
       return { ...updated };
     },

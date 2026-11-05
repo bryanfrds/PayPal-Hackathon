@@ -68,10 +68,134 @@ describe("Customers Directory & Match Confirmation API", () => {
     expect(updated.email).toBe("siti.new@example.com");
   });
 
+  it("PATCH /api/customers/[id]: clears confirmedAt when name changes", async () => {
+    const store = getPerson1Store();
+    const custId = "cust-name-change";
+    const confirmedTime = new Date().toISOString();
+    await store.saveCustomer({
+      id: custId,
+      ownerEmail: "owner@example.com",
+      name: "Mak Cik Siti",
+      slug: "mak-cik-siti",
+      email: "siti@example.com",
+      confirmedAt: confirmedTime,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const patchReq = new Request(`http://localhost:3000/api/customers/${custId}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "Siti Binti Ahmad" }),
+    });
+
+    const res = await updateCustomer(patchReq, { params: Promise.resolve({ id: custId }) });
+    expect(res.status).toBe(200);
+    const updated = await res.json();
+    expect(updated.name).toBe("Siti Binti Ahmad");
+    expect(updated.slug).toBe("siti-binti-ahmad"); // Slug recomputed
+    expect(updated.confirmedAt).toBeUndefined(); // Confirmation cleared
+  });
+
+  it("PATCH /api/customers/[id]: clears confirmedAt when email changes", async () => {
+    const store = getPerson1Store();
+    const custId = "cust-email-change";
+    const confirmedTime = new Date().toISOString();
+    await store.saveCustomer({
+      id: custId,
+      ownerEmail: "owner@example.com",
+      name: "Pak Ali",
+      slug: "pak-ali",
+      email: "ali.old@example.com",
+      confirmedAt: confirmedTime,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const patchReq = new Request(`http://localhost:3000/api/customers/${custId}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: "ali.new@example.com" }),
+    });
+
+    const res = await updateCustomer(patchReq, { params: Promise.resolve({ id: custId }) });
+    expect(res.status).toBe(200);
+    const updated = await res.json();
+    expect(updated.email).toBe("ali.new@example.com");
+    expect(updated.confirmedAt).toBeUndefined(); // Confirmation cleared
+  });
+
+  it("PATCH /api/customers/[id]: clears confirmedAt when phone changes", async () => {
+    const store = getPerson1Store();
+    const custId = "cust-phone-change";
+    const confirmedTime = new Date().toISOString();
+    await store.saveCustomer({
+      id: custId,
+      ownerEmail: "owner@example.com",
+      name: "Uncle Tan",
+      slug: "uncle-tan",
+      phone: "+60111111111",
+      confirmedAt: confirmedTime,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const patchReq = new Request(`http://localhost:3000/api/customers/${custId}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ phone: "+60122222222" }),
+    });
+
+    const res = await updateCustomer(patchReq, { params: Promise.resolve({ id: custId }) });
+    expect(res.status).toBe(200);
+    const updated = await res.json();
+    expect(updated.phone).toBe("+60122222222");
+    expect(updated.confirmedAt).toBeUndefined(); // Confirmation cleared
+  });
+
+  it("PATCH /api/customers/[id]: preserves confirmedAt when only notes change", async () => {
+    const store = getPerson1Store();
+    const custId = "cust-notes-only";
+    const confirmedTime = new Date().toISOString();
+    await store.saveCustomer({
+      id: custId,
+      ownerEmail: "owner@example.com",
+      name: "Kak Lina",
+      slug: "kak-lina",
+      email: "lina@example.com",
+      confirmedAt: confirmedTime,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const patchReq = new Request(`http://localhost:3000/api/customers/${custId}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ notes: "Regular customer, pays on time" }),
+    });
+
+    const res = await updateCustomer(patchReq, { params: Promise.resolve({ id: custId }) });
+    expect(res.status).toBe(200);
+    const updated = await res.json();
+    expect(updated.notes).toBe("Regular customer, pays on time");
+    expect(updated.confirmedAt).toBe(confirmedTime); // Confirmation preserved
+  });
+
   it("GET /api/entries/[id]/customer-suggestions: returns matching customers", async () => {
     const store = getPerson1Store();
     const scanId = "scan-sug-test";
     const entryId = "entry-sug-test";
+
+    // Create a customer that should match
+    await store.saveCustomer({
+      id: "cust-pak-ali",
+      ownerEmail: "owner@example.com",
+      name: "Pak Ali (Bengkel)",
+      slug: "pak-ali-bengkel",
+      email: "ali@example.com",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
 
     await store.saveScan({
       id: scanId,
@@ -115,7 +239,10 @@ describe("Customers Directory & Match Confirmation API", () => {
     const data = await res.json();
     expect(Array.isArray(data.suggestions)).toBe(true);
     expect(data.suggestions.length).toBeGreaterThan(0);
-    expect(data.suggestions[0].customer.name).toBe("Pak Ali (Bengkel)");
+    // The entry has "Pak Ali", the directory customer is "Pak Ali (Bengkel)"
+    // Matching should find "Pak Ali (Bengkel)" as a suggestion
+    const firstMatch = data.suggestions[0];
+    expect(firstMatch.customer.name).toBe("Pak Ali (Bengkel)");
   });
 
   it("POST /api/entries/[id]/confirm-customer: confirms identity and links entry", async () => {

@@ -9,7 +9,7 @@ const iso = (value: unknown) => new Date(value as string | Date).toISOString();
 const owner = (email: string) => email.trim().toLowerCase();
 const scanRow = (r: Row): ScanRecord => ({ id:String(r.id), ownerEmail:String(r.owner_email), imageKey:String(r.image_key), imageHash:String(r.image_hash), mimeType:String(r.mime_type), sizeBytes:Number(r.size_bytes), status:r.status as ScanRecord["status"], mode:r.mode as ScanRecord["mode"], revision:Number(r.revision), error:r.error == null ? undefined : String(r.error), createdAt:iso(r.created_at), updatedAt:iso(r.updated_at) });
 const entryRow = (r: Row): ExtractedEntry => ({ id:String(r.id), scanId:String(r.scan_id), revision:Number(r.revision), rawText:String(r.raw_text), customerName:String(r.customer_name), item:String(r.item), amountSen:Number(r.amount_sen), rawAmountText:String(r.raw_amount_text), date:String(r.date), classification:r.classification as ExtractedEntry["classification"], confidence:Number(r.confidence), isAmbiguous:Boolean(r.is_ambiguous), ambiguityReason:r.ambiguity_reason == null ? undefined : String(r.ambiguity_reason), included:Boolean(r.included), sourceRef:r.source_ref as ExtractedEntry["sourceRef"], ownerEdited:Boolean(r.owner_edited), confirmedCustomerId:r.confirmed_customer_id == null ? undefined : String(r.confirmed_customer_id), createdAt:iso(r.created_at), updatedAt:iso(r.updated_at) });
-const customerRow = (r: Row): CustomerRecord => ({ id:String(r.id), ownerEmail:String(r.owner_email), name:String(r.name), slug:String(r.slug), email:r.email == null ? undefined : String(r.email), phone:r.phone == null ? undefined : String(r.phone), confirmedAt:r.confirmed_at == null ? undefined : iso(r.confirmed_at), createdAt:iso(r.created_at), updatedAt:iso(r.updated_at) });
+const customerRow = (r: Row): CustomerRecord => ({ id:String(r.id), ownerEmail:String(r.owner_email), name:String(r.name), slug:String(r.slug), email:r.email == null ? undefined : String(r.email), phone:r.phone == null ? undefined : String(r.phone), notes:r.notes == null ? undefined : String(r.notes), confirmedAt:r.confirmed_at == null ? undefined : iso(r.confirmed_at), createdAt:iso(r.created_at), updatedAt:iso(r.updated_at) });
 const debtRow = (r: Row): ApprovedDebtRecord => ({ id:String(r.id), ownerEmail:String(r.owner_email), sourceEntryId:String(r.source_entry_id), scanId:String(r.scan_id), customerId:String(r.customer_id), customerName:String(r.customer_name), customerEmail:String(r.customer_email), amountSen:Number(r.amount_sen), currency:String(r.currency), item:String(r.item), date:String(r.date), approvedAt:iso(r.approved_at), handoffKey:String(r.handoff_key) });
 const decisionRow = (r: Row): ReminderDecision => ({ id:String(r.id), ownerEmail:String(r.owner_email), invoiceId:String(r.invoice_id), action:r.action as ReminderDecision["action"], reason:String(r.reason), idempotencyKey:String(r.idempotency_key), attemptNumber:Number(r.attempt_number), deliveryResult:r.delivery_result == null ? undefined : String(r.delivery_result), createdAt:iso(r.created_at) });
 
@@ -23,11 +23,36 @@ export function createPostgresPerson1Store(query: Query): Person1Store {
     async getEntriesByScan(email,scanId,revision){ const rows=await query(`SELECT e.* FROM extracted_entries e JOIN scans s ON s.id=e.scan_id WHERE s.owner_email=$1 AND e.scan_id=$2 AND ($3::int IS NULL OR e.revision=$3) ORDER BY (e.source_ref->>'lineIndex')::int`,[owner(email),scanId,revision??null]); return rows.map(entryRow); },
     async getEntry(email,id){ const [r]=await query(`SELECT e.* FROM extracted_entries e JOIN scans s ON s.id=e.scan_id WHERE s.owner_email=$1 AND e.id=$2`,[owner(email),id]); return r?entryRow(r):null; },
     async updateEntry(email,id,patch){ const current=await this.getEntry(email,id); if(!current)return null; const updated={...current,...patch,updatedAt:new Date().toISOString()}; await this.saveEntries([updated]); return updated; },
-    async saveCustomer(c){ await query(`INSERT INTO customer_directory(id,owner_email,name,slug,email,phone,confirmed_at,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(id) DO UPDATE SET name=$3,slug=$4,email=$5,phone=$6,confirmed_at=$7,updated_at=$9`,[c.id,owner(c.ownerEmail),c.name,c.slug,c.email??null,c.phone??null,c.confirmedAt??null,c.createdAt,c.updatedAt]); },
+    async saveCustomer(c){ await query(`INSERT INTO customer_directory(id,owner_email,name,slug,email,phone,notes,confirmed_at,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT(id) DO UPDATE SET name=$3,slug=$4,email=$5,phone=$6,notes=$7,confirmed_at=$8,updated_at=$10`,[c.id,owner(c.ownerEmail),c.name,c.slug,c.email??null,c.phone??null,c.notes??null,c.confirmedAt??null,c.createdAt,c.updatedAt]); },
     async getCustomer(email,id){ const [r]=await query(`SELECT * FROM customer_directory WHERE owner_email=$1 AND id=$2`,[owner(email),id]); return r?customerRow(r):null; },
     async getCustomerBySlug(email,slug){ const [r]=await query(`SELECT * FROM customer_directory WHERE owner_email=$1 AND slug=$2`,[owner(email),slug]); return r?customerRow(r):null; },
     async listCustomers(email){ return (await query(`SELECT * FROM customer_directory WHERE owner_email=$1 ORDER BY name`,[owner(email)])).map(customerRow); },
-    async updateCustomer(email,id,patch){ const current=await this.getCustomer(email,id); if(!current)return null; const updated={...current,...patch,updatedAt:new Date().toISOString()}; await this.saveCustomer(updated); return updated; },
+    async updateCustomer(email,id,patch){
+      const current=await this.getCustomer(email,id);
+      if(!current)return null;
+
+      // Detect if identity or contact info changed
+      const nameChanged = patch.name !== undefined && patch.name !== current.name;
+      const emailChanged = patch.email !== undefined && patch.email !== current.email;
+      const phoneChanged = patch.phone !== undefined && patch.phone !== current.phone;
+      const shouldClearConfirmation = nameChanged || emailChanged || phoneChanged;
+
+      const updated={...current,...patch,updatedAt:new Date().toISOString()};
+
+      // Recompute slug if name changed
+      if (nameChanged) {
+        const customerTab = await import("./customer-tab");
+        updated.slug = customerTab.customerSlug(updated.name);
+      }
+
+      // Clear confirmation if identity or contact changed
+      if (shouldClearConfirmation) {
+        updated.confirmedAt = undefined;
+      }
+
+      await this.saveCustomer(updated);
+      return updated;
+    },
     async confirmCustomer(email,id){ return this.updateCustomer(email,id,{confirmedAt:new Date().toISOString()}); },
     async saveApprovedDebts(debts){
       const out: ApprovedDebtRecord[] = [];

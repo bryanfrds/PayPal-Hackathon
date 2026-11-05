@@ -48,6 +48,7 @@ export type CustomerRecord = {
   slug: string;
   email?: string;
   phone?: string;
+  notes?: string;
   confirmedAt?: string;
   createdAt: string;
   updatedAt: string;
