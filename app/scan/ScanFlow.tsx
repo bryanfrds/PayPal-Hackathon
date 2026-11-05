@@ -748,6 +748,12 @@ function Check({ mode, photo, read, onRetake }: { mode: ScanMode; photo: string 
         <span className="tab-back" aria-hidden="true" />
       </div>
 
+      {read.isDuplicate && read.warning && (
+        <div className="card" role="status" style={{ padding: "1rem", marginBottom: "1rem", background: "var(--color-warning-bg, #fff3cd)", border: "1px solid var(--color-warning-border, #ffc107)" }}>
+          ⚠️ {read.warning}
+        </div>
+      )}
+
       <section className="card scan-thumb">
         {photo ? (
           // eslint-disable-next-line @next/next/no-img-element -- a local photo, not a site image

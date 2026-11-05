@@ -68,7 +68,12 @@ describe("Scans API", () => {
   it("POST /api/scans: detects duplicate upload with matching image hash", async () => {
     // First upload
     const req1 = makeUploadRequest(dummyJpeg, "image/jpeg", "notebook", "clear_handwriting");
-    await createScan(req1);
+    const res1 = await createScan(req1);
+    expect(res1.status).toBe(201);
+    const data1 = await res1.json();
+    const firstScanId = data1.scan.id;
+    const firstEntries = data1.entries;
+    const putCallCount = blob.put.mock.calls.length;
 
     // Second upload of same image
     const req2 = makeUploadRequest(dummyJpeg, "image/jpeg", "notebook", "clear_handwriting");
@@ -76,6 +81,10 @@ describe("Scans API", () => {
     expect(res2.status).toBe(200);
     const data2 = await res2.json();
     expect(data2.isDuplicate).toBe(true);
+    expect(data2.warning).toBeDefined();
+    expect(data2.scan.id).toBe(firstScanId); // Same scan returned
+    expect(data2.entries).toEqual(firstEntries); // Same entries, no re-extraction
+    expect(blob.put.mock.calls.length).toBe(putCallCount); // No second storage call
   });
 
   it("GET /api/scans/[id]: returns scan and draft entries", async () => {

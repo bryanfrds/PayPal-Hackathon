@@ -47,7 +47,36 @@ export async function POST(req: Request) {
 
   const imageHash = computeImageHash(bytes);
   const existingScan = await store.findScanByHash(owner.email, imageHash);
-  const isDuplicate = existingScan !== null;
+
+  if (existingScan) {
+    // Duplicate upload: return existing scan without re-storing or re-extracting
+    const entries = await store.getEntriesByScan(owner.email, existingScan.id, existingScan.revision);
+
+    if (existingScan.status === "failed") {
+      // Failed scan: offer retry but mark as duplicate
+      return NextResponse.json(
+        {
+          scan: existingScan,
+          entries,
+          isDuplicate: true,
+          warning: "This photo was uploaded before and extraction failed. Retry the scan.",
+          error: existingScan.error || "Image extraction failed. Retry this scan.",
+        },
+        { status: existingScan.error?.includes("not configured") ? 503 : 502 },
+      );
+    }
+
+    // Successful scan: return original results
+    return NextResponse.json(
+      {
+        scan: existingScan,
+        entries,
+        isDuplicate: true,
+        warning: "This photo was uploaded before. Reopening the existing scan.",
+      },
+      { status: 200 },
+    );
+  }
 
   const scanId = `scan-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   let imageKey: string;
@@ -100,9 +129,8 @@ export async function POST(req: Request) {
     {
       scan,
       entries,
-      isDuplicate,
-      warning: isDuplicate ? "This photo matches a previously uploaded scan." : undefined,
+      isDuplicate: false,
     },
-    { status: isDuplicate ? 200 : 201 },
+    { status: 201 },
   );
 }
