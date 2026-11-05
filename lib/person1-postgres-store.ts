@@ -70,6 +70,7 @@ export function createPostgresPerson1Store(query: Query): Person1Store {
       return out;
     },
     async getApprovedDebts(email){ return (await query(`SELECT * FROM approved_debts WHERE owner_email=$1 ORDER BY approved_at DESC`,[owner(email)])).map(debtRow); },
+    async getApprovedDebt(email,id){ const [r]=await query(`SELECT * FROM approved_debts WHERE owner_email=$1 AND id=$2`,[owner(email),id]); return r?debtRow(r):null; },
     async getApprovedDebtByHandoffKey(email,key){ const [r]=await query(`SELECT * FROM approved_debts WHERE owner_email=$1 AND handoff_key=$2`,[owner(email),key]); return r?debtRow(r):null; },
     async getApprovedDebtBySourceEntryId(email,sourceEntryId){ const [r]=await query(`SELECT * FROM approved_debts WHERE owner_email=$1 AND source_entry_id=$2`,[owner(email),sourceEntryId]); return r?debtRow(r):null; },
     async getApprovedDebtByScanAndLine(email,scanId,lineIndex){ const [r]=await query(`SELECT a.* FROM approved_debts a JOIN extracted_entries e ON e.id = a.source_entry_id WHERE a.owner_email=$1 AND a.scan_id=$2 AND (e.source_ref->>'lineIndex')::int=$3 ORDER BY a.approved_at ASC LIMIT 1`,[owner(email),scanId,lineIndex]); return r?debtRow(r):null; },

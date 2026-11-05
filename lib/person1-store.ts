@@ -41,6 +41,7 @@ export interface Person1Store {
 
   // Approved Debts Handoff
   saveApprovedDebts(debts: ApprovedDebtRecord[]): Promise<ApprovedDebtRecord[]>;
+  getApprovedDebt(ownerEmail: string, approvedDebtId: string): Promise<ApprovedDebtRecord | null>;
   getApprovedDebts(ownerEmail: string): Promise<ApprovedDebtRecord[]>;
   getApprovedDebtByHandoffKey(ownerEmail: string, handoffKey: string): Promise<ApprovedDebtRecord | null>;
   getApprovedDebtBySourceEntryId(ownerEmail: string, sourceEntryId: string): Promise<ApprovedDebtRecord | null>;
@@ -221,6 +222,14 @@ export function createMemoryPerson1Store(): Person1Store {
         }
       }
       return result.sort((a, b) => b.approvedAt.localeCompare(a.approvedAt));
+    },
+    async getApprovedDebt(ownerEmail, approvedDebtId) {
+      for (const d of approvedDebts.values()) {
+        if (d.ownerEmail.toLowerCase() === ownerEmail.toLowerCase() && d.id === approvedDebtId) {
+          return { ...d };
+        }
+      }
+      return null;
     },
     async getApprovedDebtByHandoffKey(ownerEmail, handoffKey) {
       for (const d of approvedDebts.values()) {
