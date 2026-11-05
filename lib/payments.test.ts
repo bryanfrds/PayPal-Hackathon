@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { InvoiceRecord } from "./collect-store";
 import type { Debt, DebtStatus } from "./debts";
-import { invoiceView, invoicesToCheck, invoicesToRead, serverClockOffset, standingsFromStored, invoicesToRemind, moneyToSen, noReminderReason, reconcileDebts, settlementOf, standingFrom, type InvoiceStanding, type Settlement } from "./payments";
+import { checkBatch, invoiceView, invoicesToCheck, invoicesToRead, serverClockOffset, standingsFromStored, invoicesToRemind, moneyToSen, noReminderReason, reconcileDebts, settlementOf, standingFrom, type InvoiceStanding, type Settlement } from "./payments";
 
 function debt(id: string, status: DebtStatus): Debt {
   return { id, customerName: "Mr Raj", item: "", amountSen: 500, date: "2026-10-01", status, source: "manual", createdAt: "2026-10-01T00:00:00Z" };
@@ -126,6 +126,29 @@ describe("serverClockOffset", () => {
     expect(invoicesToCheck(paid, 10, deviceNow)).toEqual([]); // the bug: device time says not yet
     const offset = serverClockOffset("2026-10-14T14:00:00Z", sent)!;
     expect(invoicesToCheck(paid, 10, new Date(deviceNow.getTime() + offset)).map((r) => r.id)).toEqual(["PAID"]);
+  });
+});
+
+describe("checkBatch", () => {
+  const now = new Date("2026-10-14T12:00:00Z");
+  const records = [
+    rec("PAID-NEWER", ["D1"], standing("paid", "2026-10-14T11:50:00Z")),
+    rec("PAID-OLDER", ["D2"], standing("paid", "2026-10-14T11:40:00Z")),
+    rec("GONE", ["D3"], standing("closed", "2026-10-01T00:00:00Z")),
+  ];
+
+  it("checks the least recently checked paid invoice when nothing is due but the clock isn't known", () => {
+    expect(checkBatch(records, 25, now, {}, true).map((r) => r.id)).toEqual(["PAID-OLDER"]);
+  });
+
+  it("checks nothing extra once the clock is known, or when only closed invoices are left", () => {
+    expect(checkBatch(records, 25, now, {}, false)).toEqual([]);
+    expect(checkBatch([records[2]], 25, now, {}, true)).toEqual([]);
+  });
+
+  it("is invoicesToCheck when something is due", () => {
+    const open = [...records, rec("OPEN", ["D4"], standing("open", "2026-10-14T11:59:00Z"))];
+    expect(checkBatch(open, 25, now, {}, true).map((r) => r.id)).toEqual(["OPEN"]);
   });
 });
 

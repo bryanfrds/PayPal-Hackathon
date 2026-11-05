@@ -141,6 +141,18 @@ export function invoicesToCheck(records: InvoiceRecord[], limit: number, now: Da
 }
 
 /**
+ * What to ask PayPal about now: invoicesToCheck, or, when there's nothing due but the server's
+ * clock hasn't been learnt this visit (`needClock`), the one least recently checked open or paid
+ * invoice, so the check runs and teaches it. Without that, a phone whose clock is off, with
+ * every invoice paid, would never re-check them for refunds.
+ */
+export function checkBatch(records: InvoiceRecord[], limit: number, now: Date, triedAt: Record<string, string>, needClock: boolean): InvoiceRecord[] {
+  const batch = invoicesToCheck(records, limit, now, triedAt);
+  if (batch.length > 0 || !needClock) return batch;
+  return invoicesToCheck(records, 1, new Date("9999-01-01T00:00:00Z"), triedAt);
+}
+
+/**
  * How far the server's clock is ahead of this device's, in ms, from a server time stamped
  * when our request arrived and the device time we sent it at. Null if the time is unusable.
  * Off by the request's travel time, which is nothing next to an hour's recheck.

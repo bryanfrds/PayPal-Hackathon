@@ -14,7 +14,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { createCollectStore } from "@/lib/collect-store";
 import { browserStorage } from "@/lib/debt-store";
 import {
-  invoicesToCheck,
+  checkBatch,
   invoicesToRead,
   reconcileDebts,
   serverClockOffset,
@@ -96,6 +96,8 @@ function PaymentSyncOnOwnerDevice() {
   // server's time, so choosing what to check uses it too: a phone set an hour out would
   // otherwise re-check paid invoices on every tick, or never.
   const clockOffset = useRef<number | null>(null);
+  // Whether a check has confirmed the offset this visit: a saved one may be stale.
+  const clockLearnt = useRef(false);
 
   const read = useCallback(async () => {
     if (!db.current.available || reading.current || Date.now() < readAfter.current || document.visibilityState !== "visible") return;
@@ -135,7 +137,7 @@ function PaymentSyncOnOwnerDevice() {
     if (!force && Date.now() - lastPayPalCheck.current < every - 1000) return;
     clockOffset.current ??= savedClockOffset();
     const serverNow = () => new Date(Date.now() + (clockOffset.current ?? 0));
-    const batch = invoicesToCheck(latest.current, BATCH, serverNow(), triedAt.current);
+    const batch = checkBatch(latest.current, BATCH, serverNow(), triedAt.current, !clockLearnt.current);
     if (batch.length === 0) return;
     busy.current = true;
     lastPayPalCheck.current = Date.now();
@@ -158,6 +160,7 @@ function PaymentSyncOnOwnerDevice() {
       const offset = serverClockOffset(checkedAt, sentAt);
       if (offset !== null) {
         clockOffset.current = offset;
+        clockLearnt.current = true;
         try {
           browserStorage()?.setItem(CLOCK_KEY, String(offset));
         } catch {
@@ -165,6 +168,8 @@ function PaymentSyncOnOwnerDevice() {
         }
       }
       const at = offset !== null ? checkedAt! : tried;
+      // Stamped before the offset was known, these tries may be hours out: use the server's time.
+      for (const r of batch) triedAt.current[r.id] = at;
       const standings: Record<string, InvoiceStanding> = {};
       for (const record of batch) {
         const standing = standingFrom(results[record.id], record.amountSen, currency, at);
