@@ -56,10 +56,10 @@ describe("customerNames", () => {
 describe("includedTotalSen", () => {
   it("adds only ticked lines with a readable amount", () => {
     const lines: ScanLine[] = [
-      { key: "a", customerName: "A", item: "", amount: "10.00", date: TODAY, include: true },
-      { key: "b", customerName: "B", item: "", amount: "5.50", date: TODAY, include: false },
-      { key: "c", customerName: "C", item: "", amount: "abc", date: TODAY, include: true },
-      { key: "d", customerName: "", item: "", amount: "2", date: TODAY, include: true },
+      { key: "a", entryId: "a", customerName: "A", item: "", amount: "10.00", date: TODAY, include: true },
+      { key: "b", entryId: "b", customerName: "B", item: "", amount: "5.50", date: TODAY, include: false },
+      { key: "c", entryId: "c", customerName: "C", item: "", amount: "abc", date: TODAY, include: true },
+      { key: "d", entryId: "d", customerName: "", item: "", amount: "2", date: TODAY, include: true },
     ];
     expect(includedTotalSen(lines, TODAY)).toBe(1200);
   });
@@ -81,10 +81,10 @@ describe("linesToDebts", () => {
 
   it("is all or nothing, listing every line to fix", () => {
     const lines: ScanLine[] = [
-      { key: "ok", customerName: "A", item: "", amount: "10", date: TODAY, include: true },
-      { key: "noname", customerName: " ", item: "", amount: "10", date: TODAY, include: true },
-      { key: "badamt", customerName: "B", item: "", amount: "12,50", date: TODAY, include: true },
-      { key: "skipped", customerName: "", item: "", amount: "", date: TODAY, include: false },
+      { key: "ok", entryId: "ok", customerName: "A", item: "", amount: "10", date: TODAY, include: true },
+      { key: "noname", entryId: "noname", customerName: " ", item: "", amount: "10", date: TODAY, include: true },
+      { key: "badamt", entryId: "badamt", customerName: "B", item: "", amount: "12,50", date: TODAY, include: true },
+      { key: "skipped", entryId: "skipped", customerName: "", item: "", amount: "", date: TODAY, include: false },
     ];
     const result = linesToDebts(lines, TODAY, { newId: ids(), now: new Date() });
     expect(result.ok).toBe(false);
@@ -95,7 +95,7 @@ describe("linesToDebts", () => {
   });
 
   it("refuses a future date", () => {
-    const lines: ScanLine[] = [{ key: "f", customerName: "A", item: "", amount: "1", date: "2026-10-13", include: true }];
+    const lines: ScanLine[] = [{ key: "f", entryId: "f", customerName: "A", item: "", amount: "1", date: "2026-10-13", include: true }];
     const result = linesToDebts(lines, TODAY, { newId: ids(), now: new Date() });
     expect(result.ok).toBe(false);
   });
@@ -118,10 +118,10 @@ function entry(over: Partial<ReadEntry>): ReadEntry {
 
 describe("entriesToLines", () => {
   it("turns clear debt lines into ticked check lines", () => {
-    const lines = entriesToLines([entry({}), entry({ customerName: "  Kak Lina ", item: "Gula", amountSen: 2240 })], "notebook", TODAY);
+    const lines = entriesToLines([entry({ id: "entry-ah-seng" }), entry({ id: "entry-kak-lina", customerName: "  Kak Lina ", item: "Gula", amountSen: 2240 })], "notebook", TODAY);
     expect(lines).toEqual([
-      { key: "l1", customerName: "Ah Seng", item: "Susu", amount: "39.90", date: TODAY, include: true, unsure: undefined },
-      { key: "l2", customerName: "Kak Lina", item: "Gula", amount: "22.40", date: TODAY, include: true, unsure: undefined },
+      { key: "entry-ah-seng", entryId: "entry-ah-seng", customerName: "Ah Seng", item: "Susu", amount: "39.90", date: TODAY, include: true, unsure: undefined },
+      { key: "entry-kak-lina", entryId: "entry-kak-lina", customerName: "Kak Lina", item: "Gula", amount: "22.40", date: TODAY, include: true, unsure: undefined },
     ]);
   });
 
@@ -171,7 +171,7 @@ describe("entriesToLines", () => {
       "receipt",
       TODAY,
     );
-    expect(lines).toEqual([{ key: "r1", customerName: "", item: "Milo 1kg, Gula", amount: "24.70", date: TODAY, include: true, unsure: undefined }]);
+    expect(lines).toEqual([{ key: "e1", entryId: "e1", customerName: "", item: "Milo 1kg, Gula", amount: "24.70", date: TODAY, include: true, unsure: undefined }]);
   });
 
   it("returns no lines when nothing was read", () => {

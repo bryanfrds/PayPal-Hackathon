@@ -36,7 +36,7 @@ export function parseScanDraft(raw: string | null | undefined): ScanLine[] | nul
     if (typeof l !== "object" || l === null) return false;
     const r = l as Record<string, unknown>;
     return (
-      str(r.key) && str(r.customerName) && str(r.item) && str(r.amount) && str(r.date) &&
+      str(r.key) && str(r.entryId) && str(r.customerName) && str(r.item) && str(r.amount) && str(r.date) &&
       typeof r.include === "boolean" && (r.unsure === undefined || str(r.unsure)) &&
       (r.skipped === undefined || typeof r.skipped === "boolean")
     );
@@ -45,8 +45,10 @@ export function parseScanDraft(raw: string | null | undefined): ScanLine[] | nul
 }
 
 export type ScanLine = {
-  /** Local id for the check screen, not a debt id. */
+  /** Stable UI key; server-backed lines use the entry ID. */
   key: string;
+  /** Person 1's server entry identity. */
+  entryId: string;
   customerName: string;
   item: string;
   /** As read, e.g. "13.50". Kept as text so the owner can correct it in the same form. */
@@ -62,7 +64,7 @@ export type ScanLine = {
 };
 
 function line(key: string, customerName: string, item: string, amount: string, date: string, unsure?: string): ScanLine {
-  return { key, customerName, item, amount, date, include: !unsure, unsure };
+  return { key, entryId: key, customerName, item, amount, date, include: !unsure, unsure };
 }
 
 /**
@@ -175,9 +177,9 @@ export function entriesToLines(entries: ReadEntry[], mode: ScanMode, today: stri
     const missing = bought.some(unreadable);
     const unsure = missing ? t("scan.amountUnread") : doubt ? doubt.ambiguityReason || t("scan.unsureLine") : undefined;
     const amount = missing ? "" : (bought.reduce((sum, e) => sum + e.amountSen, 0) / 100).toFixed(2);
-    return [{ key: "r1", customerName: "", item, amount, date: bought[0].date || today, include: !unsure, unsure }];
+    return [{ key: bought[0].id, entryId: bought[0].id, customerName: "", item, amount, date: bought[0].date || today, include: !unsure, unsure }];
   }
-  return entries.map((e, i) => {
+  return entries.map((e) => {
     const skipped = e.classification === "crossed_out" || e.classification === "repayment";
     const unsure =
       e.classification === "crossed_out"
@@ -190,7 +192,8 @@ export function entriesToLines(entries: ReadEntry[], mode: ScanMode, today: stri
               ? e.ambiguityReason || t("scan.unsureLine")
               : undefined;
     return {
-      key: `l${i + 1}`,
+      key: e.id,
+      entryId: e.id,
       customerName: e.customerName.trim().slice(0, MAX_NAME_LENGTH),
       item: e.item.trim().slice(0, MAX_ITEM_LENGTH),
       amount: unreadable(e) ? "" : (e.amountSen / 100).toFixed(2),

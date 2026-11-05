@@ -12,7 +12,7 @@ export type ReadFailure =
   | "failed"; // the reader or the network failed; worth another try
 
 export type ReadResult =
-  | { ok: true; scanId: string; entries: ReadEntry[] }
+  | { ok: true; scanId: string; entries: ReadEntry[]; isDuplicate?: boolean; warning?: string }
   | { ok: false; reason: ReadFailure; scanId?: string };
 
 type Fetch = typeof fetch;
@@ -28,14 +28,51 @@ function failure(status: number, error: unknown): ReadFailure {
 }
 
 async function toResult(res: Response, fallbackScanId?: string): Promise<ReadResult> {
-  const body = (await res.json().catch(() => null)) as { scan?: { id?: unknown }; entries?: unknown; error?: unknown } | null;
+  const body = (await res.json().catch(() => null)) as {
+    scan?: { id?: unknown };
+    entries?: unknown;
+    error?: unknown;
+    isDuplicate?: unknown;
+    warning?: unknown;
+  } | null;
   const scanId = typeof body?.scan?.id === "string" ? body.scan.id : fallbackScanId;
   if (!res.ok) {
     const reason = failure(res.status, body?.error);
     return { ok: false, reason, scanId: reason === "gone" ? undefined : scanId };
   }
   if (!scanId || !Array.isArray(body?.entries)) return { ok: false, reason: "failed", scanId };
-  return { ok: true, scanId, entries: body.entries as ReadEntry[] };
+  return {
+    ok: true,
+    scanId,
+    entries: body.entries as ReadEntry[],
+    ...(body.isDuplicate === true ? { isDuplicate: true } : {}),
+    ...(typeof body.warning === "string" ? { warning: body.warning } : {}),
+  };
+}
+
+export type ScanEntryPatch = Partial<
+  Pick<ReadEntry, "amountSen" | "included" | "isAmbiguous" | "customerName" | "item" | "date">
+>;
+
+/** Persists one reviewed draft entry. Rejects so the caller can keep the local draft for retry. */
+export async function patchScanEntry(
+  scanId: string,
+  entryId: string,
+  patch: ScanEntryPatch,
+  fetchImpl: Fetch = fetch,
+): Promise<ReadEntry> {
+  const res = await fetchImpl(
+    `/api/scans/${encodeURIComponent(scanId)}/entries/${encodeURIComponent(entryId)}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    },
+  );
+  const body = (await res.json().catch(() => null)) as (ReadEntry & { error?: unknown }) | null;
+  if (!res.ok) throw new Error(typeof body?.error === "string" ? body.error : "Could not save scan changes.");
+  if (!body) throw new Error("Could not save scan changes.");
+  return body;
 }
 
 /** Uploads a photo and returns the lines the AI reader found. */

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { readPhoto, retryRead } from "./scan-client";
+import { patchScanEntry, readPhoto, retryRead } from "./scan-client";
 
 const ENTRY = { id: "e1", customerName: "Ah Seng", item: "Susu", amountSen: 3990, rawAmountText: "39.90", date: "2026-10-12", classification: "debt", isAmbiguous: false, included: true };
 
@@ -20,9 +20,19 @@ describe("readPhoto", () => {
     expect(form.get("file")).toBeInstanceOf(Blob);
   });
 
-  it("treats a repeat photo (200) like a new one", async () => {
-    const result = await readPhoto(new Blob(["x"]), "notebook", respond(200, { scan: { id: "scan-1" }, entries: [], isDuplicate: true }));
-    expect(result).toEqual({ ok: true, scanId: "scan-1", entries: [] });
+  it("preserves duplicate metadata so the UI can explain a reopened scan", async () => {
+    const result = await readPhoto(
+      new Blob(["x"]),
+      "notebook",
+      respond(200, { scan: { id: "scan-1" }, entries: [], isDuplicate: true, warning: "This photo was already scanned." }),
+    );
+    expect(result).toEqual({
+      ok: true,
+      scanId: "scan-1",
+      entries: [],
+      isDuplicate: true,
+      warning: "This photo was already scanned.",
+    });
   });
 
   it.each([
@@ -54,6 +64,37 @@ describe("readPhoto", () => {
     });
     expect(await readPhoto(new Blob(["x"]), "notebook", offline)).toEqual({ ok: false, reason: "failed" });
     expect(await readPhoto(new Blob(["x"]), "notebook", respond(201, { scan: { id: "s" } }))).toEqual({ ok: false, reason: "failed", scanId: "s" });
+  });
+});
+
+describe("patchScanEntry", () => {
+  it("saves every reviewable field to the owner-scoped scan entry route", async () => {
+    const updated = { ...ENTRY, customerName: "Ah Seng Trading", amountSen: 4250, included: false };
+    const fetchImpl = respond(200, updated);
+    const patch = {
+      amountSen: 4250,
+      included: false,
+      isAmbiguous: false,
+      customerName: "Ah Seng Trading",
+      item: "Susu dan Milo",
+      date: "2026-10-13",
+    };
+
+    await expect(patchScanEntry("scan/1", "entry 1", patch, fetchImpl)).resolves.toEqual(updated);
+    expect(fetchImpl.mock.calls[0]).toEqual([
+      "/api/scans/scan%2F1/entries/entry%201",
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      },
+    ]);
+  });
+
+  it("rejects a failed save so the review screen can keep its draft", async () => {
+    await expect(
+      patchScanEntry("scan-1", "entry-1", { included: false }, respond(503, { error: "Database unavailable" })),
+    ).rejects.toThrow("Database unavailable");
   });
 });
 

@@ -8,7 +8,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
 import { DebtStoreError, newDebtId } from "@/lib/debt-store";
-import { formatSen, MAX_ITEM_LENGTH, MAX_NAME_LENGTH, todayLocal, type DebtErrors } from "@/lib/debts";
+import { formatSen, MAX_ITEM_LENGTH, MAX_NAME_LENGTH, parseRmToSen, todayLocal, type DebtErrors } from "@/lib/debts";
 import type { T, TKey } from "@/lib/i18n";
 import {
   customerNames,
@@ -21,13 +21,14 @@ import {
   type ScanMode,
   scanDraftKey,
 } from "@/lib/scan";
-import { readPhoto, retryRead, shrinkPhoto, type ReadFailure } from "@/lib/scan-client";
+import { patchScanEntry, readPhoto, retryRead, shrinkPhoto, type ReadFailure } from "@/lib/scan-client";
 import { BackIcon, BoltIcon, CheckIcon, CloseIcon, ImageIcon, NoteIcon, ReceiptIcon, ScanIcon } from "../components/icons";
 import { useDialog } from "../components/useDialog";
 import { useDebts } from "../useDebts";
 import { useT } from "../useT";
 
 type Phase = "choose" | "camera" | "reading" | "check";
+type CompletedRead = { scanId: string; lines: ScanLine[]; isDuplicate?: boolean; warning?: string };
 
 /** The reading steps; the second says "reading the lines" until the count is known. */
 function readingSteps(mode: ScanMode, t: T, found: number | null): string[] {
@@ -60,7 +61,7 @@ export default function ScanFlow() {
   const [phase, setPhase] = useState<Phase>("choose");
   const [mode, setMode] = useState<ScanMode>("notebook");
   const [photo, setPhoto] = useState<string | null>(null);
-  const [lines, setLines] = useState<ScanLine[]>([]);
+  const [read, setRead] = useState<CompletedRead | null>(null);
 
   // Object URLs from the gallery hold memory until revoked.
   useEffect(() => {
@@ -74,8 +75,8 @@ export default function ScanFlow() {
     setPhoto(url);
     setPhase("reading");
   }
-  const onRead = useCallback((read: ScanLine[]) => {
-    setLines(read);
+  const onRead = useCallback((result: CompletedRead) => {
+    setRead(result);
     setPhase("check");
   }, []);
   function retake() {
@@ -103,7 +104,7 @@ export default function ScanFlow() {
     );
   }
   if (phase === "reading") return <Reading mode={mode} photo={photo} onDone={onRead} onRetake={retake} />;
-  return <Check mode={mode} photo={photo} read={lines} onRetake={retake} />;
+  return read ? <Check mode={mode} photo={photo} read={read} onRetake={retake} /> : null;
 }
 
 /* 1 · Choose: take a photo (opens the camera) or upload one */
@@ -404,12 +405,13 @@ function Reading({
 }: {
   mode: ScanMode;
   photo: string | null;
-  onDone: (lines: ScanLine[]) => void;
+  onDone: (read: CompletedRead) => void;
   onRetake: () => void;
 }) {
   const { t } = useT();
   const [step, setStep] = useState(0);
   const [lines, setLines] = useState<ScanLine[] | null>(null);
+  const [completed, setCompleted] = useState<Omit<CompletedRead, "lines"> | null>(null);
   const [problem, setProblem] = useState<ReadFailure | "nothingFound" | null>(null);
   const [attempt, setAttempt] = useState(0);
   const scanIdRef = useRef<string | undefined>(undefined);
@@ -439,7 +441,14 @@ function Reading({
       scanIdRef.current = result.scanId;
       const read = entriesToLines(result.entries, mode, todayLocal(), t);
       if (read.length === 0) setProblem("nothingFound");
-      else setLines(read);
+      else {
+        setLines(read);
+        setCompleted({
+          scanId: result.scanId,
+          ...(result.isDuplicate ? { isDuplicate: true } : {}),
+          ...(result.warning ? { warning: result.warning } : {}),
+        });
+      }
     })();
     return () => {
       cancelled = true;
@@ -452,13 +461,13 @@ function Reading({
   useEffect(() => {
     if (problem) return;
     if (step >= steps.length) {
-      if (lines) onDone(lines);
+      if (lines && completed) onDone({ ...completed, lines });
       return;
     }
     if (step >= 1 && !lines) return;
     const timer = setTimeout(() => setStep((s) => s + 1), STEP_MS);
     return () => clearTimeout(timer);
-  }, [step, steps.length, lines, problem, onDone]);
+  }, [step, steps.length, lines, completed, problem, onDone]);
 
   function tryAgain() {
     setProblem(null);
@@ -611,7 +620,7 @@ function PhotoModal({
   );
 }
 
-function Check({ mode, photo, read, onRetake }: { mode: ScanMode; photo: string | null; read: ScanLine[]; onRetake: () => void }) {
+function Check({ mode, photo, read, onRetake }: { mode: ScanMode; photo: string | null; read: CompletedRead; onRetake: () => void }) {
   const { t, formatDay } = useT();
   const router = useRouter();
   const { debts, ready, addMany } = useDebts();
@@ -628,7 +637,7 @@ function Check({ mode, photo, read, onRetake }: { mode: ScanMode; photo: string 
         saved = parseScanDraft(sessionStorage.getItem(draftKey));
       } catch {}
     }
-    return saved ?? read;
+    return saved ?? read.lines;
   });
   const [open, setOpen] = useState<string | null>(mode === "receipt" ? "r1" : null);
   const [errors, setErrors] = useState<Record<string, DebtErrors>>({});
@@ -674,7 +683,7 @@ function Check({ mode, photo, read, onRetake }: { mode: ScanMode; photo: string 
     if (!include && errors[key]) setErrors((prev) => ({ ...prev, [key]: {} }));
   }
 
-  function save() {
+  async function save() {
     setSaveError(null);
     const now = todayLocal();
     const result = linesToDebts(lines, now, { newId: newDebtId, now: new Date() }, t);
@@ -686,6 +695,33 @@ function Check({ mode, photo, read, onRetake }: { mode: ScanMode; photo: string 
     }
     setSaving(true);
     try {
+      if (mode === "notebook") {
+        const original = new Map(read.lines.map((line) => [line.entryId, line]));
+        const changedOrExcluded = lines.filter((line) => {
+          const before = original.get(line.entryId);
+          return (
+            !line.include ||
+            !before ||
+            line.customerName !== before.customerName ||
+            line.item !== before.item ||
+            line.amount !== before.amount ||
+            line.date !== before.date ||
+            line.include !== before.include ||
+            line.unsure !== before.unsure
+          );
+        });
+        for (const line of changedOrExcluded) {
+          const amountSen = parseRmToSen(line.amount);
+          await patchScanEntry(read.scanId, line.entryId, {
+            ...(amountSen && amountSen > 0 ? { amountSen } : {}),
+            included: line.include,
+            isAmbiguous: Boolean(line.unsure && !line.skipped),
+            ...(line.customerName.trim() ? { customerName: line.customerName } : {}),
+            item: line.item,
+            date: line.date,
+          });
+        }
+      }
       addMany(result.debts); // one write: all of them or none
       try {
         sessionStorage.removeItem(draftKey);
