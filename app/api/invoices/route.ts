@@ -1,8 +1,3 @@
-// Sends one customer's PayPal invoice for the Collect screen. Thin glue over Person 2's
-// lib/paypal.ts: create the draft (idempotent by requestId), send it, and return what the
-// screen needs. Retrying with the same requestId never makes a second invoice, and an
-// invoice that already went out isn't sent again.
-
 import { NextResponse } from "next/server";
 import { isValidEmail } from "@/lib/collect";
 import { MAX_AMOUNT_SEN, MAX_NAME_LENGTH } from "@/lib/debts";
@@ -11,11 +6,13 @@ import { paymentDb, within } from "@/lib/payment-db";
 import { createDraftInvoice, getInvoice, getPayerLink, PayPalError, sendInvoice, shopCurrency } from "@/lib/paypal";
 import { paypalFailure } from "./errors";
 import { requireOwner } from "@/lib/auth-server";
+import { getPerson1Store } from "@/lib/person1-store";
 
 /** Statuses that mean the invoice has gone out to the customer. */
 const OUT = new Set(["SENT", "SHARED", "UNPAID", "PARTIALLY_PAID", "PAYMENT_PENDING", "PAID", "MARKED_AS_PAID", "PAID_EXTERNAL"]);
 
-type Body = {
+type ManualBody = {
+  kind: "manual";
   customerName: string;
   email: string;
   lines: { name: string; amountSen: number }[];
@@ -24,15 +21,35 @@ type Body = {
   debtIds: string[];
 };
 
+type ApprovedBody = {
+  kind: "approved";
+  approvedDebtId: string;
+  requestId: string;
+};
+
+type Body = ManualBody | ApprovedBody;
+
 function parseBody(value: unknown): Body | null {
   if (typeof value !== "object" || value === null) return null;
   const v = value as Record<string, unknown>;
+  const requestId = typeof v.requestId === "string" ? v.requestId : "";
+  if (!/^buku-[0-9a-f]{16}$/.test(requestId)) return null;
+
+  // Try approved debt format first
+  if (typeof v.approvedDebtId === "string" && /^[A-Za-z0-9-]{1,64}$/.test(v.approvedDebtId)) {
+    return {
+      kind: "approved",
+      approvedDebtId: v.approvedDebtId,
+      requestId,
+    };
+  }
+
+  // Fall back to manual format
   const name = typeof v.customerName === "string" ? v.customerName.trim() : "";
   const email = typeof v.email === "string" ? v.email.trim() : "";
-  const requestId = typeof v.requestId === "string" ? v.requestId : "";
-  if (!name || name.length > MAX_NAME_LENGTH || !isValidEmail(email) || !/^buku-[0-9a-f]{16}$/.test(requestId)) return null;
+  if (!name || name.length > MAX_NAME_LENGTH || !isValidEmail(email)) return null;
   if (!Array.isArray(v.lines) || v.lines.length === 0 || v.lines.length > 100) return null;
-  const lines: Body["lines"] = [];
+  const lines: ManualBody["lines"] = [];
   for (const line of v.lines) {
     const l = line as Record<string, unknown>;
     if (typeof l?.name !== "string" || !l.name.trim() || l.name.length > 200) return null;
@@ -42,14 +59,14 @@ function parseBody(value: unknown): Body | null {
   // Optional, so an older screen that doesn't send them still works.
   const debtIds = Array.isArray(v.debtIds) ? v.debtIds : [];
   if (debtIds.length > 100 || !debtIds.every((id): id is string => typeof id === "string" && /^[A-Za-z0-9-]{1,64}$/.test(id))) return null;
-  return { customerName: name, email, lines, requestId, debtIds };
+  return { kind: "manual", customerName: name, email, lines, requestId, debtIds };
 }
 
 /**
  * Records the sent invoice in the payments database, if there is one. Never fails the send:
  * the invoice is out either way, and the device keeps its own record.
  */
-async function saveToDb(ownerEmail: string, body: Body, sent: { id: string; number?: string; payerLink?: string }) {
+async function saveToDb(ownerEmail: string, customerName: string, amountSen: number, debtIds: string[], sent: { id: string; number?: string; payerLink?: string }) {
   const db = paymentDb();
   if (!db) return;
   try {
@@ -57,10 +74,10 @@ async function saveToDb(ownerEmail: string, body: Body, sent: { id: string; numb
       id: sent.id,
       ownerEmail,
       number: sent.number,
-      customerName: body.customerName,
-      slug: customerSlug(body.customerName),
-      debtIds: body.debtIds,
-      amountSen: body.lines.reduce((sum, l) => sum + l.amountSen, 0),
+      customerName,
+      slug: customerSlug(customerName),
+      debtIds,
+      amountSen,
       currency: shopCurrency(),
       payerLink: sent.payerLink,
       sentAt: new Date().toISOString(),
@@ -85,10 +102,34 @@ export async function POST(request: Request) {
   if (!body) return NextResponse.json({ error: "That invoice is missing a name, email or amount." }, { status: 400 });
 
   try {
+    let customerName: string;
+    let email: string;
+    let lines: { name: string; amountSen: number }[];
+    let debtIds: string[] = [];
+
+    if (body.kind === "approved") {
+      // Resolve the approved debt server-side
+      const store = getPerson1Store();
+      const debt = await store.getApprovedDebt(owner.email, body.approvedDebtId);
+      if (!debt) {
+        return NextResponse.json({ error: "Approved debt not found." }, { status: 404 });
+      }
+
+      customerName = debt.customerName;
+      email = debt.customerEmail;
+      lines = [{ name: debt.item, amountSen: debt.amountSen }];
+      debtIds = [body.approvedDebtId]; // Use the approved debt ID for idempotency tracking
+    } else {
+      customerName = body.customerName;
+      email = body.email;
+      lines = body.lines;
+      debtIds = body.debtIds;
+    }
+
     const draft = await createDraftInvoice({
-      recipientEmail: body.email,
-      recipientName: body.customerName,
-      items: body.lines.map((l) => ({ name: l.name, amount: l.amountSen / 100 })),
+      recipientEmail: email,
+      recipientName: customerName,
+      items: lines.map((l) => ({ name: l.name, amount: l.amountSen / 100 })),
       requestId: body.requestId,
     });
     // A retry gets back the create response from the first try, which can still say DRAFT
@@ -112,7 +153,8 @@ export async function POST(request: Request) {
     }
     const number = current.detail?.invoice_number;
     const payerLink = getPayerLink(current);
-    await saveToDb(owner.email, body, { id: draft.id, number, payerLink });
+    const totalSen = lines.reduce((sum, l) => sum + l.amountSen, 0);
+    await saveToDb(owner.email, customerName, totalSen, debtIds, { id: draft.id, number, payerLink });
     return NextResponse.json({ id: draft.id, number, payerLink });
   } catch (error) {
     // Messages from lib/paypal.ts are already redacted; this keeps PayPal's debug id for us.
