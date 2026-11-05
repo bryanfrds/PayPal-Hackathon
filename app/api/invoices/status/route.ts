@@ -38,7 +38,8 @@ export async function POST(request: Request) {
   if (!ids) return NextResponse.json({ error: `Send 1 to ${MAX_IDS} invoice ids.` }, { status: 400 });
 
   const results: Record<string, StatusResult> = {};
-  for (const id of await othersInvoices(owner.email, ids)) results[id] = { ok: false, error: "Unknown invoice." };
+  // Answered like an invoice PayPal doesn't know, so nobody learns another shop's invoice exists.
+  for (const id of await othersInvoices(owner.email, ids)) results[id] = { ok: false, error: paypalFailure(null).message };
   const checkedAt = new Date();
   let fatal: PayPalError | null = null;
   const queue = ids.filter((id) => !results[id]);

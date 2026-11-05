@@ -114,7 +114,8 @@ describe("POST /api/invoices/status", () => {
     paypal.getInvoice.mockResolvedValue({ id: "INV2-MINE", status: "SENT" });
     const { results } = await (await post({ ids: ["INV2-MINE", "INV2-THEIRS"] })).json();
     expect(db.value.othersInvoices).toHaveBeenCalledWith("owner@example.com", ["INV2-MINE", "INV2-THEIRS"]);
-    expect(results["INV2-THEIRS"]).toEqual({ ok: false, error: "Unknown invoice." });
+    // The same answer as an invoice PayPal doesn't know.
+    expect(results["INV2-THEIRS"]).toEqual({ ok: false, error: "PayPal didn't answer. Try again." });
     expect(results["INV2-MINE"]).toEqual({ ok: true, status: "SENT" });
     expect(paypal.getInvoice).toHaveBeenCalledTimes(1);
     expect(paypal.getInvoice).toHaveBeenCalledWith("INV2-MINE");
