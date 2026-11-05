@@ -17,7 +17,7 @@ vi.mock("@/lib/paypal", async (importOriginal) => {
   return { ...actual, ...paypal };
 });
 
-const db = vi.hoisted(() => ({ value: null as null | { saveFacts: ReturnType<typeof vi.fn> } }));
+const db = vi.hoisted(() => ({ value: null as null | { saveFacts: ReturnType<typeof vi.fn>; othersInvoices?: ReturnType<typeof vi.fn> } }));
 vi.mock("@/lib/payment-db", () => ({ paymentDb: () => db.value, within: <T,>(p: Promise<T>) => p }));
 
 import { PayPalError } from "@/lib/paypal";
@@ -98,7 +98,7 @@ describe("POST /api/invoices/status", () => {
   });
 
   it("saves each answer to the payments database, and still answers if that fails", async () => {
-    db.value = { saveFacts: vi.fn().mockRejectedValueOnce(new Error("db down")).mockResolvedValue("paid") };
+    db.value = { saveFacts: vi.fn().mockRejectedValueOnce(new Error("db down")).mockResolvedValue("paid"), othersInvoices: vi.fn().mockResolvedValue([]) };
     paypal.getInvoice.mockImplementation(async (id: string) => {
       if (id === "INV2-BAD") throw new PayPalError("not found", { status: 404 });
       return { id, status: "PAID", amount: { currency_code: "MYR", value: "10.00" } };
@@ -107,5 +107,26 @@ describe("POST /api/invoices/status", () => {
     expect(res.status).toBe(200);
     expect(db.value.saveFacts).toHaveBeenCalledTimes(2);
     expect(db.value.saveFacts).toHaveBeenCalledWith("INV2-A", expect.objectContaining({ status: "PAID", totalSen: 1000 }), expect.any(Date), "app");
+  });
+
+  it("doesn't tell an owner about an invoice another owner sent", async () => {
+    db.value = { saveFacts: vi.fn().mockResolvedValue("open"), othersInvoices: vi.fn().mockResolvedValue(["INV2-THEIRS"]) };
+    paypal.getInvoice.mockResolvedValue({ id: "INV2-MINE", status: "SENT" });
+    const { results } = await (await post({ ids: ["INV2-MINE", "INV2-THEIRS"] })).json();
+    expect(db.value.othersInvoices).toHaveBeenCalledWith("owner@example.com", ["INV2-MINE", "INV2-THEIRS"]);
+    expect(results["INV2-THEIRS"]).toEqual({ ok: false, error: "Unknown invoice." });
+    expect(results["INV2-MINE"]).toEqual({ ok: true, status: "SENT" });
+    expect(paypal.getInvoice).toHaveBeenCalledTimes(1);
+    expect(paypal.getInvoice).toHaveBeenCalledWith("INV2-MINE");
+    expect(db.value.saveFacts).toHaveBeenCalledTimes(1);
+  });
+
+  it("still checks every invoice when the database can't say who sent them", async () => {
+    db.value = { saveFacts: vi.fn().mockResolvedValue("open"), othersInvoices: vi.fn().mockRejectedValue(new Error("db down")) };
+    paypal.getInvoice.mockImplementation(async (id: string) => ({ id, status: "SENT" }));
+    const res = await post({ ids: ["INV2-A", "INV2-B"] });
+    expect(res.status).toBe(200);
+    expect(Object.keys((await res.json()).results).sort()).toEqual(["INV2-A", "INV2-B"]);
+    expect(paypal.getInvoice).toHaveBeenCalledTimes(2);
   });
 });

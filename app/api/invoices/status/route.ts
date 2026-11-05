@@ -38,9 +38,10 @@ export async function POST(request: Request) {
   if (!ids) return NextResponse.json({ error: `Send 1 to ${MAX_IDS} invoice ids.` }, { status: 400 });
 
   const results: Record<string, StatusResult> = {};
+  for (const id of await othersInvoices(owner.email, ids)) results[id] = { ok: false, error: "Unknown invoice." };
   const checkedAt = new Date();
   let fatal: PayPalError | null = null;
-  const queue = [...ids];
+  const queue = ids.filter((id) => !results[id]);
 
   async function worker() {
     for (let id = queue.shift(); id !== undefined && !fatal; id = queue.shift()) {
@@ -65,6 +66,22 @@ export async function POST(request: Request) {
   await saveToDb(results, checkedAt);
   // The server's time of the check, so every answer the device saves is on one clock.
   return NextResponse.json({ currency: shopCurrency(), checkedAt: checkedAt.toISOString(), results });
+}
+
+/**
+ * Invoices the database has as sent by someone else, which this owner isn't told about. One the
+ * database doesn't know (sent before it was set up, or its save failed) is still checked, as is
+ * every invoice when the database is slow or down: payments keep coming in either way.
+ */
+async function othersInvoices(ownerEmail: string, ids: string[]): Promise<string[]> {
+  const db = paymentDb();
+  if (!db) return [];
+  try {
+    return await within(db.othersInvoices(ownerEmail, ids));
+  } catch (error) {
+    console.error("POST /api/invoices/status: couldn't check who sent these invoices:", error instanceof Error ? error.message : error);
+    return [];
+  }
 }
 
 /** Keeps the payments database up to date with what PayPal just said. Never fails the check. */

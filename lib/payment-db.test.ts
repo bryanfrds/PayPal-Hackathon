@@ -78,6 +78,14 @@ describe.skipIf(!db)("payment database", () => {
     expect(await db!.latestFacts("owner@shop.my", [id])).toHaveLength(1);
   });
 
+  it("says which invoices another owner sent", async () => {
+    const id = `${run}-OTHER`;
+    await db!.saveInvoice(invoice(id));
+    expect(await db!.othersInvoices("someone-else@shop.my", [id, `${run}-NONE`])).toEqual([id]);
+    expect(await db!.othersInvoices(" OWNER@shop.my", [id, `${run}-NONE`])).toEqual([]);
+    expect(await db!.othersInvoices("owner@shop.my", [])).toEqual([]);
+  });
+
   it("keeps the currency PayPal reported apart from the one billed", async () => {
     const id = `${run}-USD`;
     await db!.saveInvoice(invoice(id));
