@@ -68,8 +68,9 @@ describe("reminder-scheduler", () => {
     expect(result.skipped).toHaveLength(1);
     expect(result.skipped[0].reason).toMatch(/paid|settled/i);
     expect(deps.sendReminder).not.toHaveBeenCalled();
-    // Routine scheduler skips should not be persisted to reminder_decisions so they don't crowd out real activity
-    expect(await store.listReminderDecisions(owner)).toHaveLength(0);
+    expect(await store.listReminderDecisions(owner)).toEqual([
+      expect.objectContaining({ invoiceId: "INV-PAID", action: "skipped", attemptNumber: 1 }),
+    ]);
   });
 
   it("only runs during the configured Malaysian reminder hour", async () => {
@@ -118,17 +119,14 @@ describe("reminder-scheduler", () => {
     expect(result.skipped[0].reason).toMatch(/interval/i);
   });
 
-  it.each([
-    ["failed", "Delivery failed"],
-    ["skipped", "Rejected by owner"],
-  ] as const)("counts a %s reminder decision as an attempt", async (action, reason) => {
+  it("counts a failed delivery as an attempt", async () => {
     await store.saveReminderDecision({
-      id: `dec-${action}`,
+      id: "dec-failed",
       ownerEmail: owner,
       invoiceId: "INV-1",
-      action,
-      reason,
-      idempotencyKey: `k-${action}`,
+      action: "failed",
+      reason: "Delivery failed",
+      idempotencyKey: "k-failed",
       attemptNumber: 1,
       createdAt: "2026-10-17T10:00:00Z",
     });
@@ -137,6 +135,20 @@ describe("reminder-scheduler", () => {
 
     expect(result.requested).toHaveLength(0);
     expect(result.skipped[0].reason).toMatch(/interval/i);
+  });
+
+  it("audits a policy skip without consuming the next delivery attempt and deduplicates hourly runs", async () => {
+    const recent = makeDeps({
+      getInvoices: async () => [{ id: "INV-RECENT", customerName: "Ali", dueDate: "2026-10-17", amountSen: 1000, status: "SENT", settlement: "open" }],
+    });
+    await processEligibleReminders(owner, recent);
+    await processEligibleReminders(owner, recent);
+    expect(await store.listReminderDecisions(owner)).toEqual([
+      expect.objectContaining({ invoiceId: "INV-RECENT", action: "skipped", attemptNumber: 1 }),
+    ]);
+
+    const later = await processEligibleReminders(owner, makeDeps({ now: new Date("2026-10-19T02:00:00Z") }));
+    expect(later.requested[0].attemptNumber).toBe(1);
   });
 
   it("creates pending_approval decision when owner requires approval", async () => {

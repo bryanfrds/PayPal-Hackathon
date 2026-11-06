@@ -97,33 +97,54 @@ export async function processEligibleReminders(
   const invoices = await getInvoices();
   const priorDecisions = await store.listReminderDecisions(ownerEmail, 1000);
 
+  const deliveryAttempts = (invoiceId: string) =>
+    priorDecisions.filter((decision) =>
+      decision.invoiceId === invoiceId && (decision.action === "requested" || decision.action === "failed"),
+    );
+  const recordInvoiceSkip = async (invoiceId: string, reason: string, reasonCode: string) => {
+    recordSkip(invoiceId, reason);
+    const attempts = deliveryAttempts(invoiceId);
+    const key = `skip:${ownerEmail.trim().toLowerCase()}:${invoiceId}:${reasonCode}:${todayStr}`;
+    await store.claimReminderRequest({
+      id: key,
+      ownerEmail,
+      invoiceId,
+      action: "skipped",
+      reason,
+      idempotencyKey: key,
+      attemptNumber: attempts.length + 1,
+      createdAt: now.toISOString(),
+    });
+  };
+
   for (const inv of invoices) {
     // Check settlement: skip paid, closed, or check
     if (inv.settlement === "paid" || inv.status === "PAID") {
-      recordSkip(inv.id, "Invoice is already paid or settled.");
+      await recordInvoiceSkip(inv.id, "Invoice is already paid or settled.", "settled");
       continue;
     }
 
     if (inv.settlement === "closed") {
-      recordSkip(inv.id, "Invoice was cancelled or refunded.");
+      await recordInvoiceSkip(inv.id, "Invoice was cancelled or refunded.", "closed");
       continue;
     }
 
     // Overdue days check
     const overdueDays = daysBetween(inv.dueDate, todayStr);
     if (isNaN(overdueDays) || overdueDays < rules.firstAfterDays) {
-      recordSkip(inv.id, isNaN(overdueDays)
+      await recordInvoiceSkip(inv.id, isNaN(overdueDays)
         ? "Invalid or missing due date on invoice."
-        : `Only ${overdueDays} days overdue, below first after days threshold (${rules.firstAfterDays}).`);
+        : `Only ${overdueDays} days overdue, below first after days threshold (${rules.firstAfterDays}).`,
+        isNaN(overdueDays) ? "invalid-due-date" : "before-first-reminder");
       continue;
     }
 
     // History check for this invoice
-    const invDecisions = priorDecisions.filter((d) => d.invoiceId === inv.id);
+    const invDecisions = deliveryAttempts(inv.id);
 
     const attemptsCount = invDecisions.length;
     if (attemptsCount >= rules.maxAttempts) {
-      recordSkip(inv.id, `Reached maximum allowed reminder attempts (${rules.maxAttempts}).`);
+      await recordInvoiceSkip(inv.id, `Reached maximum allowed reminder attempts (${rules.maxAttempts}).`, "max-attempts");
       continue;
     }
 
@@ -133,7 +154,7 @@ export async function processEligibleReminders(
       const lastDay = lastAttempt.createdAt.slice(0, 10);
       const gapDays = daysBetween(lastDay, todayStr);
       if (gapDays < rules.minIntervalDays) {
-        recordSkip(inv.id, `Only ${gapDays} days since last reminder, below minimum interval (${rules.minIntervalDays} days).`);
+        await recordInvoiceSkip(inv.id, `Only ${gapDays} days since last reminder, below minimum interval (${rules.minIntervalDays} days).`, "minimum-interval");
         continue;
       }
     }
