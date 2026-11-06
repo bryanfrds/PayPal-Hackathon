@@ -14,9 +14,10 @@ import { useCallback, useEffect, useRef } from "react";
 import { createCollectStore } from "@/lib/collect-store";
 import { browserStorage } from "@/lib/debt-store";
 import {
-  invoicesToCheck,
+  checkBatch,
   invoicesToRead,
   reconcileDebts,
+  serverClockOffset,
   standingFrom,
   standingsFromStored,
   type InvoiceStanding,
@@ -36,6 +37,18 @@ const READ_EVERY_MS = 10_000;
 const READ_BATCH = 100;
 // A hung request mustn't stop every later check.
 const TIMEOUT_MS = 20_000;
+// The last server clock offset learnt (see below), kept so a visit with every invoice paid,
+// and so nothing to ask PayPal about yet, still re-checks paid ones for refunds on time.
+const CLOCK_KEY = "buku.clock-offset.v1";
+
+function savedClockOffset(): number {
+  try {
+    const saved = Number(browserStorage()?.getItem(CLOCK_KEY));
+    return Number.isFinite(saved) ? saved : 0;
+  } catch {
+    return 0;
+  }
+}
 
 /** Not on a customer's shared tab (/t/...): that's the customer's phone, with no ledger to sync. */
 export default function PaymentSync() {
@@ -79,6 +92,12 @@ function PaymentSyncOnOwnerDevice() {
   // After a failed read (signed out, database down), wait a minute rather than ask every 10s.
   const readAfter = useRef(0);
   const lastPayPalCheck = useRef(0);
+  // Server clock minus this device's, learnt from each PayPal check. Standings carry the
+  // server's time, so choosing what to check uses it too: a phone set an hour out would
+  // otherwise re-check paid invoices on every tick, or never.
+  const clockOffset = useRef<number | null>(null);
+  // Whether a check has confirmed the offset this visit: a saved one may be stale.
+  const clockLearnt = useRef(false);
 
   const read = useCallback(async () => {
     if (!db.current.available || reading.current || Date.now() < readAfter.current || document.visibilityState !== "visible") return;
@@ -116,7 +135,9 @@ function PaymentSyncOnOwnerDevice() {
     if (busy.current || document.visibilityState !== "visible") return;
     const every = db.current.webhook ? EVERY_MS_WITH_WEBHOOK : EVERY_MS;
     if (!force && Date.now() - lastPayPalCheck.current < every - 1000) return;
-    const batch = invoicesToCheck(latest.current, BATCH, new Date(), triedAt.current);
+    clockOffset.current ??= savedClockOffset();
+    const serverNow = () => new Date(Date.now() + (clockOffset.current ?? 0));
+    const batch = checkBatch(latest.current, BATCH, serverNow(), triedAt.current, !clockLearnt.current);
     if (batch.length === 0) return;
     busy.current = true;
     lastPayPalCheck.current = Date.now();
@@ -124,7 +145,8 @@ function PaymentSyncOnOwnerDevice() {
     const abort = new AbortController();
     const timer = window.setTimeout(() => abort.abort(), TIMEOUT_MS);
     try {
-      const tried = new Date().toISOString();
+      const sentAt = Date.now();
+      const tried = serverNow().toISOString();
       for (const r of batch) triedAt.current[r.id] = tried;
       const res = await fetch("/api/invoices/status", {
         method: "POST",
@@ -135,7 +157,19 @@ function PaymentSyncOnOwnerDevice() {
       if (!res.ok) return;
       const { currency, checkedAt, results } = (await res.json()) as { currency: string; checkedAt?: string; results: Record<string, StatusResult> };
       // The server's clock, like the database's answers, so newer-wins compares like with like.
-      const at = checkedAt && !Number.isNaN(Date.parse(checkedAt)) ? checkedAt : tried;
+      const offset = serverClockOffset(checkedAt, sentAt);
+      if (offset !== null) {
+        clockOffset.current = offset;
+        clockLearnt.current = true;
+        try {
+          browserStorage()?.setItem(CLOCK_KEY, String(offset));
+        } catch {
+          // Storage full: the offset still holds for this visit.
+        }
+      }
+      const at = offset !== null ? checkedAt! : tried;
+      // Stamped before the offset was known, these tries may be hours out: use the server's time.
+      for (const r of batch) triedAt.current[r.id] = at;
       const standings: Record<string, InvoiceStanding> = {};
       for (const record of batch) {
         const standing = standingFrom(results[record.id], record.amountSen, currency, at);
