@@ -15,6 +15,7 @@ import { GET as getScan } from "./[id]/route";
 import { POST as retryScan } from "./[id]/retry/route";
 import { POST as rescanScan } from "./[id]/rescan/route";
 import { PATCH as updateEntry } from "./[id]/entries/[entryId]/route";
+import { getPerson1Store } from "@/lib/person1-store";
 
 describe("Scans API", () => {
   const dummyJpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46]);
@@ -139,6 +140,47 @@ describe("Scans API", () => {
     const data = await res.json();
     expect(data.scan.revision).toBe(2);
     expect(data.entries.every((e: { revision: number }) => e.revision === 2)).toBe(true);
+  });
+
+  it("preserves owner corrections and customer confirmation on matching rescan lines", async () => {
+    const createRes = await createScan(makeUploadRequest(new Uint8Array([0xff, 0xd8, 0xff, 0xea]), "image/jpeg", "notebook", "clear_handwriting"));
+    const { scan, entries } = await createRes.json();
+    const original = entries[0];
+    const store = getPerson1Store();
+    await store.saveCustomer({
+      id: "cust-rescan",
+      ownerEmail: signedIn.email,
+      name: "Corrected Customer",
+      slug: "corrected-customer",
+      email: "corrected@example.com",
+      confirmedAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    await store.updateEntry(signedIn.email, original.id, {
+      customerName: "Corrected Customer",
+      amountSen: 9876,
+      included: false,
+      confirmedCustomerId: "cust-rescan",
+      ownerEdited: true,
+    });
+
+    const res = await rescanScan(
+      new Request(`http://localhost:3000/api/scans/${scan.id}/rescan?fixtureScenario=clear_handwriting`, { method: "POST" }),
+      { params: Promise.resolve({ id: scan.id }) },
+    );
+    const data = await res.json();
+    const preserved = data.entries.find((entry: { sourceRef: { lineIndex: number } }) => entry.sourceRef.lineIndex === original.sourceRef.lineIndex);
+    expect(preserved).toMatchObject({
+      revision: 2,
+      customerName: "Corrected Customer",
+      amountSen: 9876,
+      included: false,
+      confirmedCustomerId: "cust-rescan",
+      ownerEdited: true,
+    });
+    expect(preserved.id).not.toBe(original.id);
+    expect(preserved.rawText).toBe(original.rawText);
   });
 
   it("rejects unknown fixtureScenario across create, rescan, and retry without saving fake entries", async () => {

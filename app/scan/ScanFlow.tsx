@@ -764,6 +764,7 @@ function Check({ mode, photo, read, onRetake }: { mode: ScanMode; photo: string 
   }
 
   const receipt = mode === "receipt" ? lines[0] : null;
+  const sourcePhoto = photo ?? `/api/scans/${encodeURIComponent(read.scanId)}/image`;
 
   return (
     <div className="tab-page scan-no-chrome">
@@ -784,9 +785,9 @@ function Check({ mode, photo, read, onRetake }: { mode: ScanMode; photo: string 
       )}
 
       <section className="card scan-thumb">
-        {photo ? (
+        {sourcePhoto ? (
           // eslint-disable-next-line @next/next/no-img-element -- a local photo, not a site image
-          <img src={photo} alt={mode === "notebook" ? t("scan.photoNotebook") : t("scan.photoReceipt")} />
+          <img src={sourcePhoto} alt={mode === "notebook" ? t("scan.photoNotebook") : t("scan.photoReceipt")} />
         ) : (
           <span className="scan-thumb-empty" aria-hidden="true" />
         )}
@@ -797,7 +798,7 @@ function Check({ mode, photo, read, onRetake }: { mode: ScanMode; photo: string 
           </p>
         </div>
         <div className="scan-thumb-actions">
-          {photo && (
+          {sourcePhoto && (
             <button type="button" className="button button-sm scan-view-photo" onClick={() => setViewPhoto(true)}>
               {t("scanx.viewPhoto")}
             </button>
@@ -808,9 +809,9 @@ function Check({ mode, photo, read, onRetake }: { mode: ScanMode; photo: string 
         </div>
       </section>
 
-      {viewPhoto && photo && (
+      {viewPhoto && sourcePhoto && (
         <PhotoModal
-          photo={photo}
+          photo={sourcePhoto}
           alt={mode === "notebook" ? t("scan.photoNotebook") : t("scan.photoReceipt")}
           onClose={() => setViewPhoto(false)}
         />
@@ -836,12 +837,12 @@ function Check({ mode, photo, read, onRetake }: { mode: ScanMode; photo: string 
         </div>
       )}
 
-      <div className={`scan-check-split${photo ? " scan-check-split-photo" : ""}`}>
-        {photo && (
+      <div className={`scan-check-split${sourcePhoto ? " scan-check-split-photo" : ""}`}>
+        {sourcePhoto && (
           <div className="scan-photo-inspect">
             <p className="scan-photo-inspect-title">{t("scanx.original")}</p>
             {/* eslint-disable-next-line @next/next/no-img-element -- a local photo, not a site image */}
-            <img src={photo} alt={mode === "notebook" ? t("scan.photoNotebook") : t("scan.photoReceipt")} />
+            <img src={sourcePhoto} alt={mode === "notebook" ? t("scan.photoNotebook") : t("scan.photoReceipt")} />
             <button type="button" className="link-button scan-photo-expand" onClick={() => setViewPhoto(true)}>
               {t("scanx.expandPhoto")}
             </button>

@@ -41,6 +41,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   const newRevision = scan.revision + 1;
   const now = new Date().toISOString();
+  const previousEntries = await store.getEntriesByScan(owner.email, scan.id, scan.revision);
 
   let entries;
   try {
@@ -49,6 +50,26 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       revision: newRevision,
       today: now.slice(0, 10),
       fixtureScenario,
+    });
+    const editedByLine = new Map(
+      previousEntries.filter((entry) => entry.ownerEdited).map((entry) => [entry.sourceRef.lineIndex, entry]),
+    );
+    entries = entries.map((entry) => {
+      const previous = editedByLine.get(entry.sourceRef.lineIndex);
+      return previous
+        ? {
+            ...entry,
+            customerName: previous.customerName,
+            item: previous.item,
+            amountSen: previous.amountSen,
+            date: previous.date,
+            included: previous.included,
+            isAmbiguous: previous.isAmbiguous,
+            ambiguityReason: previous.ambiguityReason,
+            confirmedCustomerId: previous.confirmedCustomerId,
+            ownerEdited: true,
+          }
+        : entry;
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Rescan extraction failed.";
