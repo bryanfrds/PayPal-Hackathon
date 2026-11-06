@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Signed in as the shop owner unless a test says otherwise.
-const signedIn = vi.hoisted(() => ({ value: true }));
+const signedIn = vi.hoisted(() => ({ value: true, email: "owner@example.com" }));
 vi.mock("@/lib/auth-server", () => ({
   requireOwner: async () =>
     signedIn.value
-      ? { email: "owner@example.com", method: "email", exp: 9999999999 }
+      ? { email: signedIn.email, method: "email", exp: 9999999999 }
       : Response.json({ error: "Sign in to do that." }, { status: 401 }),
 }));
 
@@ -26,6 +26,7 @@ const db = vi.hoisted(() => ({ value: null as null | { saveInvoice: ReturnType<t
 vi.mock("@/lib/payment-db", () => ({ paymentDb: () => db.value, within: <T,>(p: Promise<T>) => p }));
 
 import { PayPalError } from "@/lib/paypal";
+import { getPerson1Store } from "@/lib/person1-store";
 import { POST } from "./route";
 
 const GOOD = {
@@ -43,6 +44,8 @@ const SENT = { id: "INV2-1", status: "SENT", detail: { invoice_number: "0042", m
 
 beforeEach(() => {
   vi.resetAllMocks();
+  signedIn.value = true;
+  signedIn.email = "owner@example.com";
   db.value = null;
   vi.spyOn(console, "error").mockImplementation(() => {});
   paypal.getInvoice.mockResolvedValue(SENT);
@@ -70,6 +73,63 @@ describe("POST /api/invoices", () => {
       requestId: "buku-0123456789abcdef",
     });
     expect(paypal.sendInvoice).toHaveBeenCalledWith("INV2-1");
+  });
+
+  it("resolves an approved debt server-side and ignores conflicting browser fields", async () => {
+    await getPerson1Store().saveApprovedDebts([{
+      id: "approved-authority-1",
+      ownerEmail: signedIn.email,
+      sourceEntryId: "entry-authority-1",
+      scanId: "scan-authority-1",
+      customerId: "cust-authority-1",
+      customerName: "Trusted Name",
+      customerEmail: "trusted@example.com",
+      amountSen: 3600,
+      currency: "MYR",
+      item: "Trusted item",
+      date: "2026-10-18",
+      approvedAt: "2026-10-18T00:00:00Z",
+      handoffKey: "trusted-key",
+    }]);
+    paypal.createDraftInvoice.mockResolvedValue({ id: "INV2-1", status: "SENT" });
+
+    const res = await post({
+      approvedDebtId: "approved-authority-1",
+      requestId: GOOD.requestId,
+      customerName: "Attacker",
+      email: "attacker@example.com",
+      lines: [{ name: "Changed", amountSen: 1 }],
+    });
+
+    expect(res.status).toBe(200);
+    expect(paypal.createDraftInvoice).toHaveBeenCalledWith({
+      recipientEmail: "trusted@example.com",
+      recipientName: "Trusted Name",
+      items: [{ name: "Trusted item", amount: 36 }],
+      requestId: GOOD.requestId,
+    });
+  });
+
+  it("rejects unknown and wrong-owner approved debt ids", async () => {
+    expect((await post({ approvedDebtId: "approved-missing", requestId: GOOD.requestId })).status).toBe(404);
+
+    await getPerson1Store().saveApprovedDebts([{
+      id: "approved-other-owner",
+      ownerEmail: "other@example.com",
+      sourceEntryId: "entry-other",
+      scanId: "scan-other",
+      customerId: "cust-other",
+      customerName: "Other Owner",
+      customerEmail: "other@example.com",
+      amountSen: 1000,
+      currency: "MYR",
+      item: "Other item",
+      date: "2026-10-18",
+      approvedAt: "2026-10-18T00:00:00Z",
+      handoffKey: "other-key",
+    }]);
+    expect((await post({ approvedDebtId: "approved-other-owner", requestId: GOOD.requestId })).status).toBe(404);
+    expect(paypal.createDraftInvoice).not.toHaveBeenCalled();
   });
 
   it("doesn't send again when a retry's replayed create says DRAFT but PayPal says it's sent", async () => {

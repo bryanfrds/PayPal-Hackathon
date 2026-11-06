@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { Debt } from "./debts";
-import { collectGroups, invoiceLines, invoiceRequestId, isInvoiceable, isValidEmail, pickPreview, sendRequest, SHOP_ITEMS, withDomain, type CollectGroup, type PendingSend } from "./collect";
+import { approvedDebtGroups, collectGroups, invoiceLines, invoiceRequestId, isInvoiceable, isValidEmail, loadApprovedDebts, pickPreview, sendRequest, SHOP_ITEMS, withDomain, type CollectGroup, type PendingSend } from "./collect";
 import { LANGUAGES } from "./i18n";
 
 function debt(id: string, customerName: string, amountSen: number, status: Debt["status"], date = "2026-10-01", item = "Milo"): Debt {
@@ -45,6 +45,47 @@ describe("collectGroups", () => {
     const groups = collectGroups(debts, { "uncle-tan": "tan@example.com" });
     expect(groups.find((g) => g.slug === "uncle-tan")?.email).toBe("tan@example.com");
     expect(groups.find((g) => g.slug === "mr-raj")?.email).toBeUndefined();
+  });
+});
+
+describe("approved debt queue", () => {
+  const approved = {
+    id: "approved-1",
+    ownerEmail: "owner@example.com",
+    sourceEntryId: "entry-1",
+    scanId: "scan-1",
+    customerId: "cust-1",
+    customerName: "Pak Ali",
+    customerEmail: "ali@example.com",
+    amountSen: 3600,
+    currency: "MYR",
+    item: "Rokok",
+    date: "2026-10-18",
+    approvedAt: "2026-10-18T01:00:00Z",
+    handoffKey: "owner@example.com:entry-1:1:x",
+  };
+
+  it("loads the signed-in owner's server queue", async () => {
+    const fetchImpl = vi.fn(async () => Response.json({ approvedDebts: [approved] }));
+    await expect(loadApprovedDebts(fetchImpl)).resolves.toEqual([approved]);
+    expect(fetchImpl).toHaveBeenCalledWith("/api/debts/approved");
+  });
+
+  it("turns each approved record into one server-authoritative invoice choice", () => {
+    expect(approvedDebtGroups([approved])).toEqual([
+      expect.objectContaining({
+        approvedDebtId: "approved-1",
+        customerName: "Pak Ali",
+        email: "ali@example.com",
+        totalSen: 3600,
+        debts: [expect.objectContaining({ id: "approved-1", item: "Rokok", amountSen: 3600 })],
+      }),
+    ]);
+  });
+
+  it("keeps a failed queue load visible and retryable", async () => {
+    const fetchImpl = vi.fn(async () => Response.json({ error: "Database unavailable" }, { status: 503 }));
+    await expect(loadApprovedDebts(fetchImpl)).rejects.toThrow("Database unavailable");
   });
 });
 

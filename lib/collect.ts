@@ -4,6 +4,7 @@
 import { customerSlug } from "./customer-tab";
 import { todayLocal, type Debt } from "./debts";
 import { isNotInvoiced, isOverdue } from "./tab-status";
+import type { ApprovedDebtRecord } from "./person1-types";
 
 /**
  * An invoice request saved on the device before it goes to PayPal, and kept until the
@@ -37,7 +38,39 @@ export type CollectGroup = {
   email?: string;
   /** An earlier send for these tabs didn't finish; retrying sends exactly that again. */
   pending?: PendingSend;
+  /** Present when every invoice field must be resolved from Person 1's server record. */
+  approvedDebtId?: string;
 };
+
+export async function loadApprovedDebts(fetchImpl: typeof fetch = fetch): Promise<ApprovedDebtRecord[]> {
+  const response = await fetchImpl("/api/debts/approved");
+  const body = (await response.json().catch(() => null)) as { approvedDebts?: unknown; error?: unknown } | null;
+  if (!response.ok) throw new Error(typeof body?.error === "string" ? body.error : "Could not load approved debts.");
+  if (!Array.isArray(body?.approvedDebts)) throw new Error("Could not load approved debts.");
+  return body.approvedDebts as ApprovedDebtRecord[];
+}
+
+/** The approved-debt invoice API accepts one stable server record per invoice. */
+export function approvedDebtGroups(records: ApprovedDebtRecord[]): CollectGroup[] {
+  return records.map((record) => ({
+    approvedDebtId: record.id,
+    customerName: record.customerName,
+    slug: `${customerSlug(record.customerName)}--${record.id}`,
+    debts: [{
+      id: record.id,
+      customerName: record.customerName,
+      item: record.item,
+      amountSen: record.amountSen,
+      date: record.date,
+      status: "unpaid",
+      source: "scan",
+      createdAt: record.approvedAt,
+    }],
+    totalSen: record.amountSen,
+    status: "unpaid",
+    email: record.customerEmail,
+  }));
+}
 
 /**
  * One group per customer with tabs to invoice, overdue first, then biggest amount first.

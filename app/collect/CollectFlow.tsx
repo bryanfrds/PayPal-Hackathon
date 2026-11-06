@@ -4,11 +4,12 @@
 // customer, with a result (and a safe Retry) for each. Sending goes through /api/invoices.
 
 import Link from "next/link";
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import {
-  collectGroups,
+  approvedDebtGroups,
   EMAIL_DOMAINS,
   isValidEmail,
+  loadApprovedDebts,
   pickPreview,
   sendRequest,
   SHOP_ITEMS,
@@ -52,8 +53,8 @@ type Tab = "toSend" | "sent" | "paid";
 const rm = (sen: number) => `RM ${formatSen(sen)}`;
 
 export default function CollectFlow() {
-  const { debts, ready } = useDebts();
-  const { emails, invoices, pending } = useCollect();
+  const { debts } = useDebts();
+  const { invoices } = useCollect();
   const { t, formatDay } = useT();
   const [phase, setPhase] = useState<Phase>("list");
   const [tab, setTab] = useState<Tab>("toSend");
@@ -65,8 +66,25 @@ export default function CollectFlow() {
   const wide = useIsWide();
   // Laptop: whose invoice the side pane shows. Falls back to the first one being sent.
   const [previewSlug, setPreviewSlug] = useState<string | null>(null);
+  const [approvedQueue, setApprovedQueue] = useState<Awaited<ReturnType<typeof loadApprovedDebts>> | null>(null);
+  const [queueError, setQueueError] = useState<string | null>(null);
 
-  const groups = collectGroups(debts, emails, pending);
+  const reloadQueue = useCallback(async () => {
+    setQueueError(null);
+    try {
+      setApprovedQueue(await loadApprovedDebts());
+    } catch (error) {
+      setQueueError(error instanceof Error ? error.message : "Could not load approved debts.");
+    }
+  }, []);
+
+  useEffect(() => {
+    void reloadQueue();
+  }, [reloadQueue]);
+
+  const invoicedApprovedIds = new Set(invoices.flatMap((invoice) => invoice.debtIds));
+  const groups = approvedDebtGroups((approvedQueue ?? []).filter((debt) => !invoicedApprovedIds.has(debt.id)));
+  const ready = approvedQueue !== null;
   const chosen = groups.filter((g) => g.email && !off.has(g.slug));
 
   if (phase === "review") {
@@ -137,7 +155,14 @@ export default function CollectFlow() {
       </div>
 
       <div role="tabpanel" id={`collect-panel-${tab}`} aria-labelledby={`collect-tab-${tab}`}>
-        {!ready ? (
+        {queueError ? (
+          <div className="card empty-state" role="alert">
+            <p>{queueError}</p>
+            <button type="button" className="button button-sm" onClick={() => void reloadQueue()}>
+              {t("collect.send.retry")}
+            </button>
+          </div>
+        ) : !ready ? (
           <p className="card loading" aria-busy="true">
             {t("common.loading")}
           </p>
@@ -784,7 +809,7 @@ function Send({ groups, onDone }: { groups: CollectGroup[]; onDone: () => void }
         id: saved.id,
         number: saved.number,
         customerName: request.customerName,
-        slug: request.slug,
+        slug: customerSlug(request.customerName),
         email: request.email,
         debtIds: request.debtIds,
         amountSen: request.amountSen,
@@ -794,7 +819,7 @@ function Send({ groups, onDone }: { groups: CollectGroup[]; onDone: () => void }
       updateMany(request.debtIds, { status: "sent" });
       clearPending(request.slug);
       // Their shared tab (if published) now shows the new invoice and its pay link.
-      refreshPublishedTabs([request.slug]);
+      refreshPublishedTabs([customerSlug(request.customerName)]);
     } catch (e) {
       if (!(e instanceof CollectStoreError || e instanceof DebtStoreError)) throw e;
       setResults((prev) => ({ ...prev, [g.slug]: { state: "saveFailed", saved, request } }));
@@ -829,7 +854,11 @@ function Send({ groups, onDone }: { groups: CollectGroup[]; onDone: () => void }
       response = await fetch("/api/invoices", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ customerName: request.customerName, email: request.email, lines: request.lines, requestId: request.requestId, debtIds: request.debtIds }),
+        body: JSON.stringify(
+          g.approvedDebtId
+            ? { approvedDebtId: g.approvedDebtId, requestId: request.requestId }
+            : { customerName: request.customerName, email: request.email, lines: request.lines, requestId: request.requestId, debtIds: request.debtIds },
+        ),
       });
     } catch {
       setResults((prev) => ({ ...prev, [g.slug]: { state: "failed", message: t("collect.send.offline") } }));
