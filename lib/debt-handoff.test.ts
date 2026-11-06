@@ -304,8 +304,8 @@ describe("debt-handoff", () => {
         return [];
       }
       if (sql.includes("INSERT INTO customer_directory")) {
-        const [id, ownerEmail, name, slug, email, phone, confirmedAt, createdAt, updatedAt] = params;
-        customers.set(`${ownerEmail}::${id}`, { id, owner_email: ownerEmail, name, slug, email, phone, confirmed_at: confirmedAt, created_at: createdAt, updated_at: updatedAt });
+        const [id, ownerEmail, name, slug, email, phone, notes, confirmedAt, createdAt, updatedAt] = params;
+        customers.set(`${ownerEmail}::${id}`, { id, owner_email: ownerEmail, name, slug, email, phone, notes, confirmed_at: confirmedAt, created_at: createdAt, updated_at: updatedAt });
         return [];
       }
       if (sql.includes("SELECT * FROM customer_directory WHERE owner_email=$1 AND id=$2")) {

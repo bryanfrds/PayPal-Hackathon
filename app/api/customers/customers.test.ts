@@ -16,9 +16,11 @@ import { getPerson1Store } from "@/lib/person1-store";
 import type { ExtractedEntry, ScanRecord } from "@/lib/person1-types";
 
 describe("Customers Directory & Match Confirmation API", () => {
+  let testNumber = 0;
+
   beforeEach(() => {
     signedIn.value = true;
-    signedIn.email = "owner@example.com";
+    signedIn.email = `owner-${++testNumber}@example.com`;
   });
 
   it("POST & GET /api/customers: creates and lists directory customers", async () => {
@@ -49,7 +51,7 @@ describe("Customers Directory & Match Confirmation API", () => {
     const custId = "cust-patch-test";
     await store.saveCustomer({
       id: custId,
-      ownerEmail: "owner@example.com",
+      ownerEmail: signedIn.email,
       name: "Mak Cik Siti",
       slug: "mak-cik-siti",
       createdAt: new Date().toISOString(),
@@ -74,7 +76,7 @@ describe("Customers Directory & Match Confirmation API", () => {
     const confirmedTime = new Date().toISOString();
     await store.saveCustomer({
       id: custId,
-      ownerEmail: "owner@example.com",
+      ownerEmail: signedIn.email,
       name: "Mak Cik Siti",
       slug: "mak-cik-siti",
       email: "siti@example.com",
@@ -103,7 +105,7 @@ describe("Customers Directory & Match Confirmation API", () => {
     const confirmedTime = new Date().toISOString();
     await store.saveCustomer({
       id: custId,
-      ownerEmail: "owner@example.com",
+      ownerEmail: signedIn.email,
       name: "Pak Ali",
       slug: "pak-ali",
       email: "ali.old@example.com",
@@ -131,7 +133,7 @@ describe("Customers Directory & Match Confirmation API", () => {
     const confirmedTime = new Date().toISOString();
     await store.saveCustomer({
       id: custId,
-      ownerEmail: "owner@example.com",
+      ownerEmail: signedIn.email,
       name: "Uncle Tan",
       slug: "uncle-tan",
       phone: "+60111111111",
@@ -159,7 +161,7 @@ describe("Customers Directory & Match Confirmation API", () => {
     const confirmedTime = new Date().toISOString();
     await store.saveCustomer({
       id: custId,
-      ownerEmail: "owner@example.com",
+      ownerEmail: signedIn.email,
       name: "Kak Lina",
       slug: "kak-lina",
       email: "lina@example.com",
@@ -189,7 +191,7 @@ describe("Customers Directory & Match Confirmation API", () => {
     // Create a customer that should match
     await store.saveCustomer({
       id: "cust-pak-ali",
-      ownerEmail: "owner@example.com",
+      ownerEmail: signedIn.email,
       name: "Pak Ali (Bengkel)",
       slug: "pak-ali-bengkel",
       email: "ali@example.com",
@@ -199,7 +201,7 @@ describe("Customers Directory & Match Confirmation API", () => {
 
     await store.saveScan({
       id: scanId,
-      ownerEmail: "owner@example.com",
+      ownerEmail: signedIn.email,
       imageKey: "key",
       imageHash: "h1",
       mimeType: "image/jpeg",
@@ -253,7 +255,7 @@ describe("Customers Directory & Match Confirmation API", () => {
 
     await store.saveScan({
       id: scanId,
-      ownerEmail: "owner@example.com",
+      ownerEmail: signedIn.email,
       imageKey: "key",
       imageHash: "h2",
       mimeType: "image/jpeg",
@@ -289,7 +291,7 @@ describe("Customers Directory & Match Confirmation API", () => {
 
     await store.saveCustomer({
       id: custId,
-      ownerEmail: "owner@example.com",
+      ownerEmail: signedIn.email,
       name: "Ah Seng",
       slug: "ah-seng",
       email: "ahseng@example.com",

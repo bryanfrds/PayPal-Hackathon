@@ -125,6 +125,13 @@ describe("entriesToLines", () => {
     ]);
   });
 
+  it("keeps an existing customer confirmation when a saved scan is reopened", () => {
+    expect(entriesToLines([entry({ confirmedCustomerId: "cust-1" })], "notebook", TODAY)[0]).toMatchObject({
+      entryId: "e1",
+      confirmedCustomerId: "cust-1",
+    });
+  });
+
   it("leaves crossed-out lines, repayments and unsure lines unticked, saying why", () => {
     const lines = entriesToLines(
       [

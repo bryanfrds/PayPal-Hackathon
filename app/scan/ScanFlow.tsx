@@ -21,7 +21,19 @@ import {
   type ScanMode,
   scanDraftKey,
 } from "@/lib/scan";
-import { patchScanEntry, readPhoto, retryRead, shrinkPhoto, type ReadFailure } from "@/lib/scan-client";
+import {
+  approveScanEntries,
+  confirmEntryCustomer,
+  createCustomer,
+  getCustomerSuggestions,
+  patchScanEntry,
+  readPhoto,
+  retryRead,
+  shrinkPhoto,
+  updateCustomer,
+  type ReadFailure,
+} from "@/lib/scan-client";
+import type { CustomerMatchSuggestion } from "@/lib/customer-matching";
 import { BackIcon, BoltIcon, CheckIcon, CloseIcon, ImageIcon, NoteIcon, ReceiptIcon, ScanIcon } from "../components/icons";
 import { useDialog } from "../components/useDialog";
 import { useDebts } from "../useDebts";
@@ -661,7 +673,13 @@ function Check({ mode, photo, read, onRetake }: { mode: ScanMode; photo: string 
 
   // Editing a line clears its "unsure" flag (the owner has looked at it) and that field's error only.
   function update(key: string, field: "customerName" | "item" | "amount", value: string) {
-    setLines((prev) => prev.map((l) => (l.key === key ? { ...l, [field]: value, unsure: undefined } : l)));
+    setLines((prev) =>
+      prev.map((l) =>
+        l.key === key
+          ? { ...l, [field]: value, unsure: undefined, ...(field === "customerName" ? { confirmedCustomerId: undefined } : {}) }
+          : l,
+      ),
+    );
     if (errors[key]?.[field]) setErrors((prev) => ({ ...prev, [key]: { ...prev[key], [field]: undefined } }));
   }
 
@@ -717,12 +735,22 @@ function Check({ mode, photo, read, onRetake }: { mode: ScanMode; photo: string 
             included: line.include,
             isAmbiguous: Boolean(line.unsure && !line.skipped),
             ...(line.customerName.trim() ? { customerName: line.customerName } : {}),
+            confirmedCustomerId: line.confirmedCustomerId ?? "",
             item: line.item,
             date: line.date,
           });
         }
+        const confirmedEntryIds = included.filter((line) => line.confirmedCustomerId).map((line) => line.entryId);
+        if (confirmedEntryIds.length > 0) {
+          const approval = await approveScanEntries(confirmedEntryIds);
+          if (approval.rejected.length > 0) throw new Error(approval.rejected[0].reason);
+        }
       }
-      addMany(result.debts); // one write: all of them or none
+      const savedDebts =
+        mode === "notebook"
+          ? result.debts.filter((_, index) => included[index]?.confirmedCustomerId)
+          : result.debts;
+      if (savedDebts.length > 0) addMany(savedDebts); // one write: all of them or none
       try {
         sessionStorage.removeItem(draftKey);
       } catch {}
@@ -731,7 +759,8 @@ function Check({ mode, photo, read, onRetake }: { mode: ScanMode; photo: string 
       setSaving(false);
       return;
     }
-    router.push(`/ledger?scanned=${result.debts.length}`);
+    const savedCount = mode === "notebook" ? included.filter((line) => line.confirmedCustomerId).length : result.debts.length;
+    router.push(`/ledger?scanned=${savedCount}`);
   }
 
   const receipt = mode === "receipt" ? lines[0] : null;
@@ -932,14 +961,29 @@ function Check({ mode, photo, read, onRetake }: { mode: ScanMode; photo: string 
                   {isOpen && (
                     <div className="scan-edit" id={`scan-edit-${l.key}`}>
                       {mode === "notebook" && (
-                        <EditField
-                          id={`${l.key}-name`}
-                          label={t("scan.customer")}
-                          value={l.customerName}
-                          max={MAX_NAME_LENGTH}
-                          error={lineErrors.customerName}
-                          onChange={(v) => update(l.key, "customerName", v)}
-                        />
+                        <>
+                          <EditField
+                            id={`${l.key}-name`}
+                            label={t("scan.customer")}
+                            value={l.customerName}
+                            max={MAX_NAME_LENGTH}
+                            error={lineErrors.customerName}
+                            onChange={(v) => update(l.key, "customerName", v)}
+                          />
+                          {l.include && (
+                            <CustomerMatch
+                              scanId={read.scanId}
+                              line={l}
+                              onConfirmed={(name, customerId) =>
+                                setLines((prev) =>
+                                  prev.map((line) =>
+                                    line.key === l.key ? { ...line, customerName: name, confirmedCustomerId: customerId } : line,
+                                  ),
+                                )
+                              }
+                            />
+                          )}
+                        </>
                       )}
                       <EditField
                         id={`${l.key}-item`}
@@ -980,6 +1024,106 @@ function Check({ mode, photo, read, onRetake }: { mode: ScanMode; photo: string 
           <p className="tab-note">{t("scan.nothingSent")}</p>
         </div>
       </div>
+    </div>
+  );
+}
+
+function CustomerMatch({
+  scanId,
+  line,
+  onConfirmed,
+}: {
+  scanId: string;
+  line: ScanLine;
+  onConfirmed: (name: string, customerId: string) => void;
+}) {
+  const [suggestions, setSuggestions] = useState<CustomerMatchSuggestion[]>([]);
+  const [selectedId, setSelectedId] = useState(line.confirmedCustomerId ?? "");
+  const [email, setEmail] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function load() {
+    setBusy(true);
+    setError(null);
+    try {
+      await patchScanEntry(scanId, line.entryId, { customerName: line.customerName });
+      const matches = await getCustomerSuggestions(line.entryId);
+      setSuggestions(matches);
+      if (matches[0]) {
+        setSelectedId(matches[0].customer.id);
+        setEmail(matches[0].customer.email ?? "");
+      }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not load customer matches.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirm() {
+    setBusy(true);
+    setError(null);
+    try {
+      const match = suggestions.find((suggestion) => suggestion.customer.id === selectedId)?.customer;
+      const customer = match
+        ? match.email === email.trim()
+          ? match
+          : await updateCustomer(match.id, { email: email.trim() })
+        : await createCustomer({ name: line.customerName, email: email.trim() });
+      const confirmed = await confirmEntryCustomer(line.entryId, customer.id);
+      setSelectedId(customer.id);
+      onConfirmed(confirmed.customer.name, customer.id);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not confirm the customer.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (line.confirmedCustomerId) {
+    return <p className="tab-note">Customer confirmed for PayPal invoicing.</p>;
+  }
+
+  return (
+    <div className="field">
+      {suggestions.length === 0 ? (
+        <button type="button" className="button button-sm" disabled={busy} onClick={() => void load()}>
+          {busy ? "Finding customersâ€¦" : "Find customer matches"}
+        </button>
+      ) : (
+        <>
+          <label htmlFor={`${line.key}-customer-match`}>Customer match</label>
+          <select
+            id={`${line.key}-customer-match`}
+            value={selectedId}
+            onChange={(event) => {
+              const id = event.target.value;
+              setSelectedId(id);
+              setEmail(suggestions.find((suggestion) => suggestion.customer.id === id)?.customer.email ?? "");
+            }}
+          >
+            {suggestions.map(({ customer, confidence }) => (
+              <option key={customer.id} value={customer.id}>
+                {customer.name} ({Math.round(confidence * 100)}%)
+              </option>
+            ))}
+            <option value="">Create â€œ{line.customerName}â€</option>
+          </select>
+        </>
+      )}
+      <label htmlFor={`${line.key}-customer-email`}>PayPal email</label>
+      <input
+        id={`${line.key}-customer-email`}
+        type="email"
+        autoComplete="email"
+        value={email}
+        onChange={(event) => setEmail(event.target.value)}
+      />
+      <button type="button" className="button button-sm button-primary" disabled={busy || !email.trim()} onClick={() => void confirm()}>
+        {busy ? "Confirmingâ€¦" : "Confirm customer"}
+      </button>
+      {error && <p className="field-error" role="alert">{error}</p>}
     </div>
   );
 }

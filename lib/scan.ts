@@ -38,7 +38,8 @@ export function parseScanDraft(raw: string | null | undefined): ScanLine[] | nul
     return (
       str(r.key) && str(r.entryId) && str(r.customerName) && str(r.item) && str(r.amount) && str(r.date) &&
       typeof r.include === "boolean" && (r.unsure === undefined || str(r.unsure)) &&
-      (r.skipped === undefined || typeof r.skipped === "boolean")
+      (r.skipped === undefined || typeof r.skipped === "boolean") &&
+      (r.confirmedCustomerId === undefined || str(r.confirmedCustomerId))
     );
   });
   return ok ? (v as ScanLine[]) : null;
@@ -61,6 +62,7 @@ export type ScanLine = {
   unsure?: string;
   /** The flag is a note, not a doubt (crossed out in the book, or a repayment): nothing to fix. */
   skipped?: boolean;
+  confirmedCustomerId?: string;
 };
 
 function line(key: string, customerName: string, item: string, amount: string, date: string, unsure?: string): ScanLine {
@@ -159,6 +161,7 @@ export type ReadEntry = {
   isAmbiguous: boolean;
   ambiguityReason?: string;
   included: boolean;
+  confirmedCustomerId?: string;
 };
 
 /**
@@ -200,6 +203,7 @@ export function entriesToLines(entries: ReadEntry[], mode: ScanMode, today: stri
       date: e.date || today,
       include: e.included && !unsure,
       unsure,
+      ...(e.confirmedCustomerId ? { confirmedCustomerId: e.confirmedCustomerId } : {}),
       ...(skipped ? { skipped } : {}),
     };
   });

@@ -1,5 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
-import { patchScanEntry, readPhoto, retryRead } from "./scan-client";
+import {
+  approveScanEntries,
+  confirmEntryCustomer,
+  createCustomer,
+  getCustomerSuggestions,
+  patchScanEntry,
+  readPhoto,
+  retryRead,
+  updateCustomer,
+} from "./scan-client";
 
 const ENTRY = { id: "e1", customerName: "Ah Seng", item: "Susu", amountSen: 3990, rawAmountText: "39.90", date: "2026-10-12", classification: "debt", isAmbiguous: false, included: true };
 
@@ -95,6 +104,80 @@ describe("patchScanEntry", () => {
     await expect(
       patchScanEntry("scan-1", "entry-1", { included: false }, respond(503, { error: "Database unavailable" })),
     ).rejects.toThrow("Database unavailable");
+  });
+});
+
+describe("scan customer matching", () => {
+  const CUSTOMER = {
+    id: "cust-1",
+    ownerEmail: "owner@example.com",
+    name: "Pak Ali (Bengkel)",
+    slug: "pak-ali-bengkel",
+    email: "ali@example.com",
+    createdAt: "2026-10-18T00:00:00Z",
+    updatedAt: "2026-10-18T00:00:00Z",
+  };
+
+  it("loads ranked suggestions for the server entry", async () => {
+    const suggestions = [{ customer: CUSTOMER, confidence: 0.8, matchReason: "Substring match on name" }];
+    const fetchImpl = respond(200, { suggestions });
+
+    await expect(getCustomerSuggestions("entry/1", fetchImpl)).resolves.toEqual(suggestions);
+    expect(fetchImpl.mock.calls[0]).toEqual(["/api/entries/entry%2F1/customer-suggestions"]);
+  });
+
+  it("creates or updates the selected customer with contact details", async () => {
+    const createFetch = respond(201, CUSTOMER);
+    await createCustomer({ name: CUSTOMER.name, email: CUSTOMER.email }, createFetch);
+    expect(createFetch.mock.calls[0]).toEqual([
+      "/api/customers",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: CUSTOMER.name, email: CUSTOMER.email }),
+      },
+    ]);
+
+    const updateFetch = respond(200, CUSTOMER);
+    await updateCustomer("cust/1", { email: CUSTOMER.email }, updateFetch);
+    expect(updateFetch.mock.calls[0]).toEqual([
+      "/api/customers/cust%2F1",
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: CUSTOMER.email }),
+      },
+    ]);
+  });
+
+  it("explicitly confirms the customer and approves only the selected entry ids", async () => {
+    const confirmFetch = respond(200, { entry: { ...ENTRY, confirmedCustomerId: CUSTOMER.id }, customer: CUSTOMER });
+    await confirmEntryCustomer("entry-1", CUSTOMER.id, confirmFetch);
+    expect(confirmFetch.mock.calls[0]).toEqual([
+      "/api/entries/entry-1/confirm-customer",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customerId: CUSTOMER.id }),
+      },
+    ]);
+
+    const approveFetch = respond(200, { approved: [{ id: "approved-1" }], rejected: [] });
+    await approveScanEntries(["entry-1"], approveFetch);
+    expect(approveFetch.mock.calls[0]).toEqual([
+      "/api/debts/approve",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entryIds: ["entry-1"] }),
+      },
+    ]);
+  });
+
+  it("keeps matching failures retryable", async () => {
+    await expect(getCustomerSuggestions("entry-1", respond(503, { error: "Database unavailable" }))).rejects.toThrow(
+      "Database unavailable",
+    );
   });
 });
 
