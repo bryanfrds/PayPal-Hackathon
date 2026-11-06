@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import {
   approvedDebtGroups,
+  collectGroups,
   EMAIL_DOMAINS,
   isValidEmail,
   loadApprovedDebts,
@@ -54,7 +55,7 @@ const rm = (sen: number) => `RM ${formatSen(sen)}`;
 
 export default function CollectFlow() {
   const { debts } = useDebts();
-  const { invoices } = useCollect();
+  const { emails, invoices, pending } = useCollect();
   const { t, formatDay } = useT();
   const [phase, setPhase] = useState<Phase>("list");
   const [tab, setTab] = useState<Tab>("toSend");
@@ -83,7 +84,9 @@ export default function CollectFlow() {
   }, [reloadQueue]);
 
   const invoicedApprovedIds = new Set(invoices.flatMap((invoice) => invoice.debtIds));
-  const groups = approvedDebtGroups((approvedQueue ?? []).filter((debt) => !invoicedApprovedIds.has(debt.id)));
+  const approvedGroups = approvedDebtGroups((approvedQueue ?? []).filter((debt) => !invoicedApprovedIds.has(debt.id)));
+  const approvedIds = new Set((approvedQueue ?? []).map((debt) => debt.id));
+  const groups = [...approvedGroups, ...collectGroups(debts.filter((debt) => !approvedIds.has(debt.id)), emails, pending)];
   const ready = approvedQueue !== null;
   const chosen = groups.filter((g) => g.email && !off.has(g.slug));
 

@@ -76,7 +76,11 @@ describe("POST /api/invoices", () => {
   });
 
   it("resolves an approved debt server-side and ignores conflicting browser fields", async () => {
-    await getPerson1Store().saveApprovedDebts([{
+    const store = getPerson1Store();
+    await store.saveScan({ id: "scan-authority-1", ownerEmail: signedIn.email, imageKey: "x", imageHash: "h", mimeType: "image/jpeg", sizeBytes: 1, status: "completed", mode: "notebook", revision: 1, createdAt: "2026-10-18T00:00:00Z", updatedAt: "2026-10-18T00:00:00Z" });
+    await store.saveCustomer({ id: "cust-authority-1", ownerEmail: signedIn.email, name: "Trusted Name", slug: "trusted-name", email: "trusted@example.com", confirmedAt: "2026-10-18T00:00:00Z", createdAt: "2026-10-18T00:00:00Z", updatedAt: "2026-10-18T00:00:00Z" });
+    await store.saveEntries([{ id: "entry-authority-1", scanId: "scan-authority-1", revision: 1, rawText: "Trusted", customerName: "Trusted Name", item: "Trusted item", amountSen: 3600, rawAmountText: "36.00", date: "2026-10-18", classification: "debt", confidence: 1, isAmbiguous: false, included: true, sourceRef: { lineIndex: 1 }, ownerEdited: true, confirmedCustomerId: "cust-authority-1", createdAt: "2026-10-18T00:00:00Z", updatedAt: "2026-10-18T00:00:00Z" }]);
+    await store.saveApprovedDebts([{
       id: "approved-authority-1",
       ownerEmail: signedIn.email,
       sourceEntryId: "entry-authority-1",
@@ -106,8 +110,9 @@ describe("POST /api/invoices", () => {
       recipientEmail: "trusted@example.com",
       recipientName: "Trusted Name",
       items: [{ name: "Trusted item", amount: 36 }],
-      requestId: GOOD.requestId,
+      requestId: expect.stringMatching(/^buku-[0-9a-f]{16}$/),
     });
+    expect(paypal.createDraftInvoice.mock.calls[0][0].requestId).not.toBe(GOOD.requestId);
   });
 
   it("rejects unknown and wrong-owner approved debt ids", async () => {

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isValidEmail } from "@/lib/collect";
+import { invoiceRequestId, isValidEmail } from "@/lib/collect";
 import { MAX_AMOUNT_SEN, MAX_NAME_LENGTH } from "@/lib/debts";
 import { customerSlug } from "@/lib/customer-tab";
 import { paymentDb, within } from "@/lib/payment-db";
@@ -106,6 +106,7 @@ export async function POST(request: Request) {
     let email: string;
     let lines: { name: string; amountSen: number }[];
     let debtIds: string[] = [];
+    let requestId = body.requestId;
 
     if (body.kind === "approved") {
       // Resolve the approved debt server-side
@@ -114,11 +115,20 @@ export async function POST(request: Request) {
       if (!debt) {
         return NextResponse.json({ error: "Approved debt not found." }, { status: 404 });
       }
+      const [customer, entry, scan] = await Promise.all([
+        store.getCustomer(owner.email, debt.customerId),
+        store.getEntry(owner.email, debt.sourceEntryId),
+        store.getScan(owner.email, debt.scanId),
+      ]);
+      if (!customer?.confirmedAt || customer.email !== debt.customerEmail || !entry || !scan || entry.revision !== scan.revision || !entry.included || entry.isAmbiguous || entry.confirmedCustomerId !== debt.customerId) {
+        return NextResponse.json({ error: "Approved debt must be reviewed again before invoicing." }, { status: 409 });
+      }
 
       customerName = debt.customerName;
       email = debt.customerEmail;
       lines = [{ name: debt.item, amountSen: debt.amountSen }];
       debtIds = [body.approvedDebtId]; // Use the approved debt ID for idempotency tracking
+      requestId = invoiceRequestId({ debtIds, email, lines });
     } else {
       customerName = body.customerName;
       email = body.email;
@@ -130,7 +140,7 @@ export async function POST(request: Request) {
       recipientEmail: email,
       recipientName: customerName,
       items: lines.map((l) => ({ name: l.name, amount: l.amountSen / 100 })),
-      requestId: body.requestId,
+      requestId,
     });
     // A retry gets back the create response from the first try, which can still say DRAFT
     // after that try sent it. So always ask PayPal where the invoice stands now.

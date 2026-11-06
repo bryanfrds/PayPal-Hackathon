@@ -713,6 +713,7 @@ function Check({ mode, photo, read, onRetake }: { mode: ScanMode; photo: string 
     }
     setSaving(true);
     try {
+      let approvedByEntry = new Map<string, string>();
       if (mode === "notebook") {
         const original = new Map(read.lines.map((line) => [line.entryId, line]));
         const changedOrExcluded = lines.filter((line) => {
@@ -744,11 +745,16 @@ function Check({ mode, photo, read, onRetake }: { mode: ScanMode; photo: string 
         if (confirmedEntryIds.length > 0) {
           const approval = await approveScanEntries(confirmedEntryIds);
           if (approval.rejected.length > 0) throw new Error(approval.rejected[0].reason);
+          approvedByEntry = new Map(approval.approved.map((debt) => [debt.sourceEntryId, debt.id]));
         }
       }
       const savedDebts =
         mode === "notebook"
-          ? result.debts.filter((_, index) => included[index]?.confirmedCustomerId)
+          ? result.debts.flatMap((debt, index) => {
+              const line = included[index];
+              const approvedId = line?.confirmedCustomerId ? approvedByEntry.get(line.entryId) : undefined;
+              return approvedId ? [{ ...debt, id: approvedId }] : [];
+            })
           : result.debts;
       if (savedDebts.length > 0) addMany(savedDebts); // one write: all of them or none
       try {
