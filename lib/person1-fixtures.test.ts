@@ -1,6 +1,7 @@
 // Person 1 Comprehensive Acceptance and Fixtures Test Suite
 // Verifies all Section 2.4 requirements from the Person 1 Implementation Guide
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { readFile } from "node:fs/promises";
 import { findCustomerSuggestions } from "./customer-matching";
 import { approveDebtsForInvoicing } from "./debt-handoff";
 import { computeImageHash, saveScanImage } from "./image-storage";
@@ -42,7 +43,8 @@ describe("Person 1 Section 2.4 Comprehensive Acceptance Test Suite", () => {
 
   describe("1. Clear Handwriting Scenario", () => {
     it("extracts structured draft entries without creating debts or invoices", async () => {
-      const entries = await extractNotebookEntries(dummyImageBytes, "image/jpeg", {
+      const imageBytes = new Uint8Array(await readFile("test/fixtures/scans/clear-notebook.jpg"));
+      const entries = await extractNotebookEntries(imageBytes, "image/jpeg", {
         scanId: "scan-clear",
         revision: 1,
         today,
@@ -53,6 +55,7 @@ describe("Person 1 Section 2.4 Comprehensive Acceptance Test Suite", () => {
       expect(entries.every((e) => e.classification === "debt")).toBe(true);
       expect(entries.every((e) => e.included === true)).toBe(true);
       expect(entries.every((e) => !e.isAmbiguous)).toBe(true);
+      expect(imageBytes.byteLength).toBeGreaterThan(1000);
 
       // Financial invariant: drafts alone never create approved debts in store
       const approved = await store.getApprovedDebts(owner);
@@ -63,7 +66,8 @@ describe("Person 1 Section 2.4 Comprehensive Acceptance Test Suite", () => {
   describe("2. Unclear / Ambiguous Handwriting & Invalid Amounts", () => {
     it("flags ambiguous values and bars them from handoff until resolved", async () => {
       await registerScan("scan-ambig");
-      const entries = await extractNotebookEntries(dummyImageBytes, "image/jpeg", {
+      const imageBytes = new Uint8Array(await readFile("test/fixtures/scans/ambiguous-notebook.jpg"));
+      const entries = await extractNotebookEntries(imageBytes, "image/jpeg", {
         scanId: "scan-ambig",
         revision: 1,
         today,

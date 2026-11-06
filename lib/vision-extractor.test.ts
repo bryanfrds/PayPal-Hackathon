@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { readFile } from "node:fs/promises";
 
 const ai = vi.hoisted(() => ({ generateText: vi.fn(), object: vi.fn((value) => value) }));
 vi.mock("ai", () => ({ generateText: ai.generateText, Output: { object: ai.object } }));
@@ -13,6 +14,7 @@ describe("vision-extractor", () => {
   };
 
   beforeEach(() => {
+    vi.clearAllMocks();
     vi.stubEnv("AI_GATEWAY_API_KEY", "");
     vi.stubEnv("ALLOW_SCAN_FIXTURES", "true");
   });
@@ -20,6 +22,7 @@ describe("vision-extractor", () => {
 
   it("sends the uploaded image to AI Gateway when configured", async () => {
     vi.stubEnv("AI_GATEWAY_API_KEY", "test-key");
+    const fixtureBytes = new Uint8Array(await readFile("test/fixtures/scans/clear-notebook.jpg"));
     ai.generateText.mockResolvedValueOnce({
       output: {
         entries: [{
@@ -34,16 +37,38 @@ describe("vision-extractor", () => {
       },
     });
 
-    const entries = await extractNotebookEntries(dummyBytes, "image/png", opts);
+    const entries = await extractNotebookEntries(fixtureBytes, "image/jpeg", opts);
 
     expect(ai.generateText).toHaveBeenCalledWith(expect.objectContaining({
       messages: [expect.objectContaining({
         content: expect.arrayContaining([
-          expect.objectContaining({ type: "file", mediaType: "image/png", data: dummyBytes }),
+          expect.objectContaining({ type: "file", mediaType: "image/jpeg", data: fixtureBytes }),
         ]),
       })],
     }));
     expect(entries[0]).toMatchObject({ customerName: "Aisyah", amountSen: 1250 });
+    expect(fixtureBytes.byteLength).toBeGreaterThan(1000);
+  });
+
+  it("validates ambiguous real fixture output as draft-only review entries", async () => {
+    vi.stubEnv("AI_GATEWAY_API_KEY", "test-key");
+    const fixtureBytes = new Uint8Array(await readFile("test/fixtures/scans/ambiguous-notebook.jpg"));
+    ai.generateText.mockResolvedValueOnce({ output: { entries: [
+      { customerName: "Pak Ali", item: "Rokok", amount: "18.50", classification: "ambiguous", rawText: "Pak Ali Rokok RM13.50 or RM18.50?", isAmbiguous: true, ambiguityReason: "Amount overwritten", confidence: 0.5 },
+      { customerName: "Pak Alif", item: "Beras", amount: "48.50", date: "2026-10-17", classification: "debt", rawText: "Pak Alif Beras RM48.50", confidence: 0.9 },
+      { customerName: "Kak Lina", item: "Telur", amount: "22.40", date: "2026-10-16", classification: "crossed_out", rawText: "Kak Lina Telur RM22.40", confidence: 0.9 },
+      { customerName: "Ah Seng", item: "Bayar", amount: "10.00", date: "2026-10-18", classification: "repayment", rawText: "Ah Seng BAYAR RM10.00", confidence: 0.9 },
+    ] } });
+
+    const entries = await extractNotebookEntries(fixtureBytes, "image/jpeg", opts);
+    expect(entries.map((entry) => entry.classification)).toEqual(["ambiguous", "debt", "crossed_out", "repayment"]);
+    expect(entries[0]).toMatchObject({ date: opts.today, isAmbiguous: true, included: false });
+    expect(entries.slice(2).every((entry) => !entry.included)).toBe(true);
+    expect(ai.generateText).toHaveBeenCalledWith(expect.objectContaining({
+      messages: [expect.objectContaining({ content: expect.arrayContaining([
+        expect.objectContaining({ type: "file", mediaType: "image/jpeg", data: fixtureBytes }),
+      ]) })],
+    }));
   });
 
   it("extracts clearly legible handwriting lines", async () => {
