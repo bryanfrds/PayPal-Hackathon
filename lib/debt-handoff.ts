@@ -148,5 +148,6 @@ export async function approveDebtsForInvoicing(
     approved.push(savedNew || approvedRecord);
   }
 
+  if (approved.length > 0) await store.ensureReminderRules(ownerEmail);
   return { approved, rejected };
 }

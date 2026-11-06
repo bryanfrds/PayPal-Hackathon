@@ -48,6 +48,7 @@ export interface Person1Store {
   getApprovedDebtByScanAndLine(ownerEmail: string, scanId: string, lineIndex: number): Promise<ApprovedDebtRecord | null>;
 
   // Reminder Rules & Decisions
+  ensureReminderRules(ownerEmail: string): Promise<ReminderRuleRecord>;
   getReminderRules(ownerEmail: string): Promise<ReminderRuleRecord>;
   setReminderRules(rules: ReminderRuleRecord): Promise<void>;
   saveReminderDecision(decision: ReminderDecision): Promise<void>;
@@ -259,14 +260,21 @@ export function createMemoryPerson1Store(): Person1Store {
       return null;
     },
 
-    async getReminderRules(ownerEmail) {
+    async ensureReminderRules(ownerEmail) {
       const existing = rules.get(ownerEmail.toLowerCase());
       if (existing) return { ...existing };
-      return {
+      const created = {
         ownerEmail,
         ...DEFAULT_PERSON1_RULES,
         updatedAt: new Date().toISOString(),
       };
+      rules.set(ownerEmail.toLowerCase(), created);
+      return { ...created };
+    },
+    async getReminderRules(ownerEmail) {
+      const existing = rules.get(ownerEmail.toLowerCase());
+      if (existing) return { ...existing };
+      return { ownerEmail, ...DEFAULT_PERSON1_RULES, updatedAt: new Date().toISOString() };
     },
     async setReminderRules(newRules) {
       rules.set(newRules.ownerEmail.toLowerCase(), {

@@ -134,6 +134,11 @@ describe("Person1Store (Memory implementation)", () => {
   });
 
   describe("Reminder Rules", () => {
+    it("persists default rules so a new owner is visible to the scheduler", async () => {
+      await store.ensureReminderRules(owner);
+      expect(await store.listEnabledReminderOwners()).toContain(owner);
+    });
+
     it("returns default reminder rules if none set", async () => {
       const rules = await store.getReminderRules(owner);
       expect(rules.enabled).toBe(true);
