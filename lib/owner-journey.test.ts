@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { collectGroups, isValidEmail, sendRequest, type CollectGroup } from "./collect";
 import { createDebtStore } from "./debt-store";
 import { DEMO_KEYS, SCAN_DRAFT_KEYS, resetDemoData } from "./demo-reset";
-import { SCAN_MODES, linesToDebts, parseScanDraft, sampleRead, scanDraftKey } from "./scan";
+import { activeScanKey, SCAN_MODES, linesToDebts, parseScanDraft, sampleRead, scanDraftKey } from "./scan";
 import { ledgerTotals, debtsToCsv } from "./ledger";
 import { DEFAULT_RULES, RULE_LIMITS, buildSchedule, normaliseRules, type ReminderRules } from "./reminders";
 import { customerSlug } from "./customer-tab";
@@ -255,9 +255,10 @@ describe("Person 3: End-to-End Owner Journeys", () => {
 
     it("resets all persistent stores and session draft persistence", () => {
       const local = memoryStorage(Object.fromEntries(DEMO_KEYS.map((k) => [k, "value"])));
-      // Exactly the keys ScanFlow writes (scanDraftKey per mode), so a mismatch would fail here.
-      const session = memoryStorage(Object.fromEntries(SCAN_MODES.map((m) => [scanDraftKey(m), "draft"])));
-      expect(SCAN_DRAFT_KEYS).toEqual(SCAN_MODES.map(scanDraftKey));
+      // Exactly the keys ScanFlow writes per mode, so a mismatch would fail here.
+      const scanKeys = SCAN_MODES.flatMap((mode) => [scanDraftKey(mode), activeScanKey(mode)]);
+      const session = memoryStorage(Object.fromEntries(scanKeys.map((key) => [key, "draft"])));
+      expect(SCAN_DRAFT_KEYS).toEqual(scanKeys);
 
       const resetOk = resetDemoData(local, session);
       expect(resetOk).toBe(true);

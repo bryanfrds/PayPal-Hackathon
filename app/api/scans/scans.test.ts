@@ -16,6 +16,7 @@ import { POST as retryScan } from "./[id]/retry/route";
 import { POST as rescanScan } from "./[id]/rescan/route";
 import { PATCH as updateEntry } from "./[id]/entries/[entryId]/route";
 import { getPerson1Store } from "@/lib/person1-store";
+import { scanImageKey } from "@/lib/image-storage";
 
 describe("Scans API", () => {
   const dummyJpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46]);
@@ -86,6 +87,63 @@ describe("Scans API", () => {
     expect(data2.scan.id).toBe(firstScanId); // Same scan returned
     expect(data2.entries).toEqual(firstEntries); // Same entries, no re-extraction
     expect(blob.put.mock.calls.length).toBe(putCallCount); // No second storage call
+  });
+
+  it("POST /api/scans: atomically coalesces simultaneous identical uploads", async () => {
+    const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xeb, 0x00, 0x10]);
+    const putCallCount = blob.put.mock.calls.length;
+    blob.put.mockImplementationOnce(async (pathname: string) => {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      return { pathname };
+    });
+    const store = getPerson1Store();
+    const findScanByHash = store.findScanByHash.bind(store);
+    let initialReads = 0;
+    const findSpy = vi.spyOn(store, "findScanByHash").mockImplementation(async (ownerEmail, imageHash) => {
+      initialReads += 1;
+      return initialReads <= 2 ? null : findScanByHash(ownerEmail, imageHash);
+    });
+
+    try {
+      const [first, second] = await Promise.all([
+        createScan(makeUploadRequest(bytes, "image/jpeg", "notebook", "clear_handwriting")),
+        createScan(makeUploadRequest(bytes, "image/jpeg", "notebook", "clear_handwriting")),
+      ]);
+      const [firstBody, secondBody] = await Promise.all([first.json(), second.json()]);
+
+      expect(firstBody.scan.id).toBe(secondBody.scan.id);
+      expect(blob.put.mock.calls.length - putCallCount).toBe(1);
+      expect([firstBody.isDuplicate, secondBody.isDuplicate].sort()).toEqual([false, true]);
+      expect([first.status, second.status].sort()).toEqual([201, 409]);
+    } finally {
+      findSpy.mockRestore();
+    }
+  });
+
+  it("POST /api/scans/[id]/retry: waits for an in-progress scan without extracting again", async () => {
+    const store = getPerson1Store();
+    const scanId = `scan-processing-${Date.now()}`;
+    const now = new Date().toISOString();
+    await store.saveScan({
+      id: scanId,
+      ownerEmail: signedIn.email,
+      imageKey: scanImageKey(signedIn.email, scanId, "image/jpeg"),
+      imageHash: `hash-${scanId}`,
+      mimeType: "image/jpeg",
+      sizeBytes: dummyJpeg.byteLength,
+      status: "processing",
+      mode: "notebook",
+      revision: 1,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const response = await retryScan(new Request(`http://localhost:3000/api/scans/${scanId}/retry`, { method: "POST" }), {
+      params: Promise.resolve({ id: scanId }),
+    });
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ scan: { id: scanId, status: "processing" } });
   });
 
   it("GET /api/scans/[id]: returns scan and draft entries", async () => {
@@ -210,7 +268,11 @@ describe("Scans API", () => {
     expect(badRetry.status).toBe(400);
   });
 
-  it("blocks fixtureScenario in production unless ALLOW_SCAN_FIXTURES=true across create, rescan, and retry", async () => {
+  it("blocks fixtureScenario in production across create, rescan, and retry", async () => {
+    const validCreate = await createScan(makeUploadRequest(new Uint8Array([0xff, 0xd8, 0xff, 0xe9]), "image/jpeg", "notebook", "clear_handwriting"));
+    expect(validCreate.status).toBe(201);
+    const { scan } = await validCreate.json();
+
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("ALLOW_SCAN_FIXTURES", "");
     try {
@@ -218,17 +280,6 @@ describe("Scans API", () => {
       expect(prodCreate.status).toBe(400);
       const prodCreateData = await prodCreate.json();
       expect(prodCreateData.entries).toBeUndefined();
-
-      vi.stubEnv("ALLOW_SCAN_FIXTURES", "true");
-      vi.stubEnv("BLOB_READ_WRITE_TOKEN", "test-blob-token");
-      blob.put.mockImplementation(async (pathname: string) => ({ pathname }));
-      blob.get.mockImplementation(async () => ({ statusCode: 200, stream: new Blob([dummyJpeg]).stream() }));
-      const validCreate = await createScan(makeUploadRequest(new Uint8Array([0xff, 0xd8, 0xff, 0xe9]), "image/jpeg", "notebook", "clear_handwriting"));
-      expect(validCreate.status).toBe(201);
-      const { scan } = await validCreate.json();
-
-      vi.stubEnv("NODE_ENV", "production");
-      vi.stubEnv("ALLOW_SCAN_FIXTURES", "");
 
       const prodRescan = await rescanScan(
         new Request(`http://localhost:3000/api/scans/${scan.id}/rescan?fixtureScenario=clear_handwriting`, { method: "POST" }),
@@ -241,13 +292,6 @@ describe("Scans API", () => {
         { params: Promise.resolve({ id: scan.id }) },
       );
       expect(prodRetry.status).toBe(400);
-
-      vi.stubEnv("ALLOW_SCAN_FIXTURES", "true");
-      const allowedRetry = await retryScan(
-        new Request(`http://localhost:3000/api/scans/${scan.id}/retry?fixtureScenario=clear_handwriting`, { method: "POST" }),
-        { params: Promise.resolve({ id: scan.id }) },
-      );
-      expect(allowedRetry.status).toBe(200);
     } finally {
       vi.unstubAllEnvs();
     }

@@ -11,11 +11,13 @@ import { DebtStoreError, newDebtId } from "@/lib/debt-store";
 import { formatSen, MAX_ITEM_LENGTH, MAX_NAME_LENGTH, parseRmToSen, todayLocal, type DebtErrors } from "@/lib/debts";
 import type { T, TKey } from "@/lib/i18n";
 import {
+  activeScanKey,
   customerNames,
   entriesToLines,
   includedTotalSen,
   isNewCustomer,
   linesToDebts,
+  parseActiveScan,
   parseScanDraft,
   type ScanLine,
   type ScanMode,
@@ -57,6 +59,7 @@ const STEP_MS = 650;
 function clearDraft(mode: ScanMode) {
   try {
     sessionStorage.removeItem(scanDraftKey(mode));
+    sessionStorage.removeItem(activeScanKey(mode));
   } catch {}
 }
 
@@ -74,6 +77,18 @@ export default function ScanFlow() {
   const [mode, setMode] = useState<ScanMode>("notebook");
   const [photo, setPhoto] = useState<string | null>(null);
   const [read, setRead] = useState<CompletedRead | null>(null);
+
+  useEffect(() => {
+    for (const savedMode of ["notebook", "receipt"] as const) {
+      const active = parseActiveScan(sessionStorage.getItem(activeScanKey(savedMode)));
+      if (!active) continue;
+      setMode(active.mode);
+      setPhoto(null);
+      setRead({ scanId: active.scanId, lines: active.lines, isDuplicate: active.isDuplicate, warning: active.warning });
+      setPhase("check");
+      break;
+    }
+  }, []);
 
   // Object URLs from the gallery hold memory until revoked.
   useEffect(() => {
@@ -662,8 +677,16 @@ function Check({ mode, photo, read, onRetake }: { mode: ScanMode; photo: string 
   useEffect(() => {
     try {
       sessionStorage.setItem(draftKey, JSON.stringify(lines));
+      sessionStorage.setItem(activeScanKey(mode), JSON.stringify({
+        version: 1,
+        scanId: read.scanId,
+        mode,
+        lines,
+        ...(read.isDuplicate ? { isDuplicate: true } : {}),
+        ...(read.warning ? { warning: read.warning } : {}),
+      }));
     } catch {}
-  }, [lines, draftKey]);
+  }, [lines, draftKey, mode, read]);
 
   const known = customerNames(debts);
   const included = lines.filter((l) => l.include);
@@ -759,6 +782,7 @@ function Check({ mode, photo, read, onRetake }: { mode: ScanMode; photo: string 
       if (savedDebts.length > 0) addMany(savedDebts); // one write: all of them or none
       try {
         sessionStorage.removeItem(draftKey);
+        sessionStorage.removeItem(activeScanKey(mode));
       } catch {}
     } catch (error) {
       setSaveError(error instanceof DebtStoreError ? error.message : t("add.saveFailed"));

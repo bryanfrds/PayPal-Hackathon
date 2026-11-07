@@ -1,7 +1,7 @@
 // POST /api/scans: Uploads a notebook/receipt photo and extracts reviewable draft entries
 import { NextResponse } from "next/server";
 import { requireOwner } from "@/lib/auth-server";
-import { computeImageHash, MAX_SCAN_IMAGE_BYTES, saveScanImage } from "@/lib/image-storage";
+import { computeImageHash, MAX_SCAN_IMAGE_BYTES, saveScanImage, scanImageKey } from "@/lib/image-storage";
 import { getPerson1Store } from "@/lib/person1-store";
 import type { ScanRecord } from "@/lib/person1-types";
 import { extractNotebookEntries, resolveFixtureScenario } from "@/lib/vision-extractor";
@@ -10,6 +10,24 @@ import { clientIp, createThrottle } from "@/lib/throttle";
 
 const uploads = createThrottle(10, 60_000);
 const MAX_MULTIPART_OVERHEAD_BYTES = 1024 * 1024;
+
+async function duplicateResponse(ownerEmail: string, scan: ScanRecord) {
+  const store = getPerson1Store();
+  const entries = await store.getEntriesByScan(ownerEmail, scan.id, scan.revision);
+  if (scan.status === "processing") {
+    return NextResponse.json(
+      { scan, entries, isDuplicate: true, warning: "This photo is already being scanned.", error: "This photo is still being scanned. Try again shortly." },
+      { status: 409 },
+    );
+  }
+  if (scan.status === "failed") {
+    return NextResponse.json(
+      { scan, entries, isDuplicate: true, warning: "This photo was uploaded before and extraction failed. Retry the scan.", error: scan.error || "Image extraction failed. Retry this scan." },
+      { status: scan.error?.includes("not configured") ? 503 : 502 },
+    );
+  }
+  return NextResponse.json({ scan, entries, isDuplicate: true, warning: "This photo was uploaded before. Reopening the existing scan." });
+}
 
 export async function POST(req: Request) {
   const owner = await requireOwner();
@@ -49,51 +67,15 @@ export async function POST(req: Request) {
   const existingScan = await store.findScanByHash(owner.email, imageHash);
 
   if (existingScan) {
-    // Duplicate upload: return existing scan without re-storing or re-extracting
-    const entries = await store.getEntriesByScan(owner.email, existingScan.id, existingScan.revision);
-
-    if (existingScan.status === "failed") {
-      // Failed scan: offer retry but mark as duplicate
-      return NextResponse.json(
-        {
-          scan: existingScan,
-          entries,
-          isDuplicate: true,
-          warning: "This photo was uploaded before and extraction failed. Retry the scan.",
-          error: existingScan.error || "Image extraction failed. Retry this scan.",
-        },
-        { status: existingScan.error?.includes("not configured") ? 503 : 502 },
-      );
-    }
-
-    // Successful scan: return original results
-    return NextResponse.json(
-      {
-        scan: existingScan,
-        entries,
-        isDuplicate: true,
-        warning: "This photo was uploaded before. Reopening the existing scan.",
-      },
-      { status: 200 },
-    );
+    return duplicateResponse(owner.email, existingScan);
   }
 
   const scanId = `scan-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  let imageKey: string;
-  try {
-    const saved = await saveScanImage(owner.email, scanId, bytes, mimeType);
-    imageKey = saved.imageKey;
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to store image.";
-    const status = (err as { statusCode?: number }).statusCode || 400;
-    return NextResponse.json({ error: message }, { status });
-  }
-
   const now = new Date().toISOString();
   const scan: ScanRecord = {
     id: scanId,
     ownerEmail: owner.email,
-    imageKey,
+    imageKey: scanImageKey(owner.email, scanId, mimeType),
     imageHash,
     mimeType,
     sizeBytes: bytes.byteLength,
@@ -103,8 +85,20 @@ export async function POST(req: Request) {
     createdAt: now,
     updatedAt: now,
   };
+  if (!(await store.claimScan(scan))) {
+    const winner = await store.findScanByHash(owner.email, imageHash);
+    if (!winner) return NextResponse.json({ error: "Scan upload conflict. Please retry." }, { status: 409 });
+    return duplicateResponse(owner.email, winner);
+  }
 
-  await store.saveScan(scan);
+  try {
+    await saveScanImage(owner.email, scanId, bytes, mimeType);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to store image.";
+    const status = (err as { statusCode?: number }).statusCode || 400;
+    await store.updateScanStatus(owner.email, scanId, "failed", message);
+    return NextResponse.json({ error: message }, { status });
+  }
 
   let entries;
   try {

@@ -119,6 +119,38 @@ describe("reminder-scheduler", () => {
     expect(result.skipped[0].reason).toMatch(/interval/i);
   });
 
+  it("uses the invoice's complete attempt history even after 1,000 newer unrelated decisions", async () => {
+    await store.saveReminderDecision({
+      id: "dec-target",
+      ownerEmail: owner,
+      invoiceId: "INV-1",
+      action: "requested",
+      reason: "Eligible",
+      idempotencyKey: "target-attempt",
+      attemptNumber: 1,
+      createdAt: "2026-10-17T10:00:00Z",
+    });
+    for (let index = 0; index < 1001; index += 1) {
+      await store.saveReminderDecision({
+        id: `dec-unrelated-${index}`,
+        ownerEmail: owner,
+        invoiceId: `INV-OTHER-${index}`,
+        action: "skipped",
+        reason: "Not eligible",
+        idempotencyKey: `unrelated-${index}`,
+        attemptNumber: 1,
+        createdAt: `2026-10-18T01:${String(index % 60).padStart(2, "0")}:00Z`,
+      });
+    }
+
+    const deps = makeDeps();
+    const result = await processEligibleReminders(owner, deps);
+
+    expect(result.requested).toHaveLength(0);
+    expect(result.skipped[0].reason).toMatch(/interval/i);
+    expect(deps.sendReminder).not.toHaveBeenCalled();
+  });
+
   it("counts a failed delivery as an attempt", async () => {
     await store.saveReminderDecision({
       id: "dec-failed",
@@ -169,6 +201,28 @@ describe("reminder-scheduler", () => {
     expect(result.pendingApproval).toHaveLength(1);
     expect(result.requested).toHaveLength(0);
     expect(deps.sendReminder).not.toHaveBeenCalled();
+  });
+
+  it("keeps one pending approval per invoice across later scheduler days", async () => {
+    await store.setReminderRules({
+      ownerEmail: owner,
+      enabled: true,
+      firstAfterDays: 3,
+      minIntervalDays: 4,
+      maxAttempts: 3,
+      sendHour: 10,
+      skipFridayPrayers: true,
+      requireApproval: true,
+      updatedAt: "2026-10-18T00:00:00Z",
+    });
+
+    await processEligibleReminders(owner, makeDeps());
+    const later = await processEligibleReminders(owner, makeDeps({ now: new Date("2026-10-19T02:00:00Z") }));
+    const pending = (await store.listReminderDecisions(owner)).filter((decision) => decision.action === "pending_approval");
+
+    expect(pending).toHaveLength(1);
+    expect(later.pendingApproval).toHaveLength(0);
+    expect(later.skipped[0].reason).toMatch(/pending approval/i);
   });
 
   it("defers reminders during Friday prayers (Friday 12:00-14:59)", async () => {

@@ -131,4 +131,18 @@ describe("Postgres Person 1 store", () => {
     const byLine = await store.getApprovedDebtByScanAndLine("owner@example.com", "scan-1", 1);
     expect(byLine?.id).toBe("appr-caller-1");
   });
+
+  it("aggregates complete reminder state only for candidate invoice ids", async () => {
+    const query = vi.fn().mockResolvedValue([
+      { invoice_id: "INV-1", attempt_count: "2", last_attempt_at: "2026-10-17T10:00:00Z", has_pending_approval: true },
+    ]);
+    const store = createPostgresPerson1Store(query);
+
+    await expect(store.getReminderInvoiceStates("OWNER@example.com", ["INV-1", "INV-2"])).resolves.toEqual({
+      "INV-1": { attemptCount: 2, lastAttemptAt: "2026-10-17T10:00:00.000Z", hasPendingApproval: true },
+    });
+    expect(query.mock.calls[0][0]).toContain("COUNT(*) FILTER");
+    expect(query.mock.calls[0][0]).toContain("invoice_id = ANY($2::text[])");
+    expect(query.mock.calls[0][1]).toEqual(["owner@example.com", ["INV-1", "INV-2"]]);
+  });
 });

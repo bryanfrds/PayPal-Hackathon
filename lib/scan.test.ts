@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Debt } from "./debts";
-import { customerNames, entriesToLines, includedTotalSen, isNewCustomer, linesToDebts, sampleRead, type ReadEntry, type ScanLine } from "./scan";
+import { customerNames, entriesToLines, includedTotalSen, isNewCustomer, linesToDebts, parseActiveScan, sampleRead, type ReadEntry, type ScanLine } from "./scan";
 
 const TODAY = "2026-10-12";
 
@@ -12,6 +12,32 @@ function ids() {
   let n = 0;
   return () => `D-${++n}`;
 }
+
+describe("parseActiveScan", () => {
+  const lines: ScanLine[] = [
+    { key: "entry-1", entryId: "entry-1", customerName: "Pak Ali", item: "Roti", amount: "3.50", date: TODAY, include: true },
+  ];
+
+  it("restores a versioned scan identity and its review draft", () => {
+    expect(parseActiveScan(JSON.stringify({ version: 1, scanId: "scan-1", mode: "notebook", lines }))).toEqual({
+      version: 1,
+      scanId: "scan-1",
+      mode: "notebook",
+      lines,
+    });
+  });
+
+  it.each([
+    null,
+    "not json",
+    JSON.stringify({ version: 2, scanId: "scan-1", mode: "notebook", lines }),
+    JSON.stringify({ version: 1, scanId: "", mode: "notebook", lines }),
+    JSON.stringify({ version: 1, scanId: "scan-1", mode: "other", lines }),
+    JSON.stringify({ version: 1, scanId: "scan-1", mode: "notebook", lines: [] }),
+  ])("rejects malformed or incompatible active state", (raw) => {
+    expect(parseActiveScan(raw)).toBeNull();
+  });
+});
 
 describe("sampleRead", () => {
   it("reads a notebook page as several lines, leaving unsure ones unticked", () => {

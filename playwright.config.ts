@@ -7,7 +7,7 @@ export default defineConfig({
     baseURL: "http://localhost:3005",
   },
   webServer: {
-    command: "npm run start -- -p 3005",
+    command: "npm run dev -- -p 3005",
     url: "http://localhost:3005/sign-in",
     reuseExistingServer: false,
     timeout: 60000,

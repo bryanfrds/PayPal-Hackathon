@@ -10,18 +10,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (owner instanceof Response) return owner;
 
   const { id } = await params;
-  const store = getPerson1Store();
-
-  const scan = await store.getScan(owner.email, id);
-  if (!scan) {
-    return NextResponse.json({ error: "Scan not found." }, { status: 404 });
-  }
-
-  const bytes = await getScanImage(owner.email, scan.imageKey);
-  if (!bytes) {
-    return NextResponse.json({ error: "Source scan image unavailable." }, { status: 410 });
-  }
-
   let rawFixture: unknown;
   try {
     const url = new URL(req.url);
@@ -38,6 +26,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: resolvedFixture.error }, { status: 400 });
   }
   const fixtureScenario = resolvedFixture.scenario;
+
+  const store = getPerson1Store();
+  const scan = await store.getScan(owner.email, id);
+  if (!scan) {
+    return NextResponse.json({ error: "Scan not found." }, { status: 404 });
+  }
+
+  const bytes = await getScanImage(owner.email, scan.imageKey);
+  if (!bytes) {
+    return NextResponse.json({ error: "Source scan image unavailable." }, { status: 410 });
+  }
 
   const newRevision = scan.revision + 1;
   const now = new Date().toISOString();

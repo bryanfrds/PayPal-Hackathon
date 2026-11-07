@@ -461,6 +461,73 @@ git commit -m "test: verify Person 1 journey with image fixtures"
 
 ---
 
+### Task 9: Close Remaining Integration Review Findings
+
+**Files:**
+- Modify: `lib/scan.ts`
+- Modify: `lib/scan.test.ts`
+- Modify: `app/scan/ScanFlow.tsx`
+- Modify: `app/api/scans/route.ts`
+- Modify: `app/api/scans/scans.test.ts`
+- Modify: `lib/person1-store.ts`
+- Modify: `lib/person1-store.test.ts`
+- Modify: `lib/person1-postgres-store.ts`
+- Modify: `lib/person1-postgres-store.test.ts`
+- Modify: `lib/reminder-scheduler.ts`
+- Modify: `lib/reminder-scheduler.test.ts`
+- Create: `db/migrations/007_scan_and_pending_uniqueness.sql`
+
+**Interfaces:**
+- Produces a versioned active-scan session record containing `scanId`, `mode`, and review lines so a refresh reopens the authenticated source image and current draft.
+- Produces `Person1Store.claimScan(scan): Promise<boolean>` backed by unique `(owner_email, image_hash)` storage.
+- Produces per-invoice reminder state containing delivery-attempt count, latest delivery time, and whether an approval is already pending.
+- Requires `DATABASE_URL` whenever `NODE_ENV=production`; the memory store remains development/test-only.
+
+- [x] **Step 1: Write failing scan recovery and simultaneous-upload tests**
+
+Assert active-scan parsing rejects malformed records and preserves a valid scan identity/draft. Run two byte-identical uploads concurrently and assert both return the same scan ID while image storage and extraction happen once.
+
+- [x] **Step 2: Run the scan tests and verify failure**
+
+Run: `npx vitest run lib/scan.test.ts app/api/scans/scans.test.ts`
+
+Expected: FAIL because only line data is persisted and duplicate detection is a non-atomic read-before-write.
+
+- [x] **Step 3: Implement active-scan recovery and atomic scan claiming**
+
+Persist one versioned active record per scan mode, restore it in `ScanFlow`, and use the authenticated scan image after refresh. Claim the scan row before Blob storage/extraction; a losing request returns the winning scan and its entries without performing either operation.
+
+- [x] **Step 4: Write failing reminder-history and pending-approval tests**
+
+Assert an invoice with more than 1,000 newer unrelated decisions still observes its attempt count and interval. Assert scheduler runs on later days keep exactly one pending approval per invoice.
+
+- [x] **Step 5: Run the reminder tests and verify failure**
+
+Run: `npx vitest run lib/reminder-scheduler.test.ts lib/person1-store.test.ts lib/person1-postgres-store.test.ts`
+
+Expected: FAIL because the scheduler reads only 1,000 rows and pending idempotency keys change by day.
+
+- [x] **Step 6: Implement per-invoice reminder state and pending uniqueness**
+
+Query only the candidate invoice IDs, aggregate requested/failed attempt counts and latest times in PostgreSQL, and flag existing pending approvals. Enforce one pending row per owner/invoice in both stores and with a partial unique index.
+
+- [x] **Step 7: Write and pass the production persistence test**
+
+Assert `getPerson1Store()` throws a clear configuration error when `NODE_ENV=production` and `DATABASE_URL` is absent, while test/development still use memory.
+
+- [x] **Step 8: Run focused and full verification**
+
+Run the focused tests after each fix, then `npm test`, `npm run typecheck`, `npm run build`, and `npm run test:e2e`.
+
+- [x] **Step 9: Commit**
+
+```bash
+git add app/scan/ScanFlow.tsx app/api/scans/route.ts app/api/scans/scans.test.ts lib/scan.ts lib/scan.test.ts lib/person1-store.ts lib/person1-store.test.ts lib/person1-postgres-store.ts lib/person1-postgres-store.test.ts lib/reminder-scheduler.ts lib/reminder-scheduler.test.ts db/migrations/007_scan_and_pending_uniqueness.sql docs/superpowers/plans/2026-11-04-person-1-integration-completion.md
+git commit -m "fix: close remaining Person 1 integration findings"
+```
+
+---
+
 ## Final End-to-End Acceptance
 
 - [ ] Upload a real notebook image and receive only draft entries.

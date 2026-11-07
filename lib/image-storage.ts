@@ -21,6 +21,11 @@ function hashOwner(email: string): string {
   return createHash("sha256").update(email.trim().toLowerCase()).digest("hex").slice(0, 16);
 }
 
+export function scanImageKey(ownerEmail: string, scanId: string, mimeType: string): string {
+  const ext = mimeType === "image/png" ? "png" : mimeType === "image/webp" ? "webp" : "jpg";
+  return `scans/${hashOwner(ownerEmail)}/${scanId}.${ext}`;
+}
+
 function assertOwnerKey(ownerEmail: string, imageKey: string): void {
   if (imageKey.includes("..") || !imageKey.startsWith(`scans/${hashOwner(ownerEmail)}/`)) {
     throw new ImageStorageError("Unauthorized access to image record.", 403);
@@ -86,9 +91,7 @@ export async function saveScanImage(
     );
   }
 
-  const ownerSlug = hashOwner(ownerEmail);
-  const ext = mimeType === "image/png" ? "png" : mimeType === "image/webp" ? "webp" : "jpg";
-  const imageKey = `scans/${ownerSlug}/${scanId}.${ext}`;
+  const imageKey = scanImageKey(ownerEmail, scanId, mimeType);
   const hash = computeImageHash(bytes);
 
   if (process.env.BLOB_READ_WRITE_TOKEN) {

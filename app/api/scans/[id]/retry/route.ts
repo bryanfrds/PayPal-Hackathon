@@ -10,18 +10,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (owner instanceof Response) return owner;
 
   const { id } = await params;
-  const store = getPerson1Store();
-
-  const scan = await store.getScan(owner.email, id);
-  if (!scan) {
-    return NextResponse.json({ error: "Scan not found." }, { status: 404 });
-  }
-
-  const bytes = await getScanImage(owner.email, scan.imageKey);
-  if (!bytes) {
-    return NextResponse.json({ error: "Source scan image unavailable." }, { status: 410 });
-  }
-
   let rawFixture: unknown;
   try {
     const url = new URL(req.url);
@@ -38,6 +26,24 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: resolvedFixture.error }, { status: 400 });
   }
   const fixtureScenario = resolvedFixture.scenario;
+
+  const store = getPerson1Store();
+  const scan = await store.getScan(owner.email, id);
+  if (!scan) {
+    return NextResponse.json({ error: "Scan not found." }, { status: 404 });
+  }
+  if (scan.status === "processing") {
+    return NextResponse.json({ scan, error: "This photo is still being scanned. Try again shortly." }, { status: 409 });
+  }
+  if (scan.status === "completed") {
+    const entries = await store.getEntriesByScan(owner.email, scan.id, scan.revision);
+    return NextResponse.json({ scan, entries });
+  }
+
+  const bytes = await getScanImage(owner.email, scan.imageKey);
+  if (!bytes) {
+    return NextResponse.json({ error: "Source scan image unavailable." }, { status: 410 });
+  }
 
   try {
     const entries = await extractNotebookEntries(bytes, scan.mimeType, {

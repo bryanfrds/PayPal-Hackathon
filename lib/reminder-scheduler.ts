@@ -95,15 +95,10 @@ export async function processEligibleReminders(
   }
 
   const invoices = await getInvoices();
-  const priorDecisions = await store.listReminderDecisions(ownerEmail, 1000);
-
-  const deliveryAttempts = (invoiceId: string) =>
-    priorDecisions.filter((decision) =>
-      decision.invoiceId === invoiceId && (decision.action === "requested" || decision.action === "failed"),
-    );
+  const invoiceStates = await store.getReminderInvoiceStates(ownerEmail, invoices.map((invoice) => invoice.id));
+  const invoiceState = (invoiceId: string) => invoiceStates[invoiceId] ?? { attemptCount: 0, hasPendingApproval: false };
   const recordInvoiceSkip = async (invoiceId: string, reason: string, reasonCode: string) => {
     recordSkip(invoiceId, reason);
-    const attempts = deliveryAttempts(invoiceId);
     const key = `skip:${ownerEmail.trim().toLowerCase()}:${invoiceId}:${reasonCode}:${todayStr}`;
     await store.claimReminderRequest({
       id: key,
@@ -112,7 +107,7 @@ export async function processEligibleReminders(
       action: "skipped",
       reason,
       idempotencyKey: key,
-      attemptNumber: attempts.length + 1,
+      attemptNumber: invoiceState(invoiceId).attemptCount + 1,
       createdAt: now.toISOString(),
     });
   };
@@ -139,19 +134,21 @@ export async function processEligibleReminders(
       continue;
     }
 
-    // History check for this invoice
-    const invDecisions = deliveryAttempts(inv.id);
+    const state = invoiceState(inv.id);
+    if (state.hasPendingApproval) {
+      recordSkip(inv.id, "A reminder is already pending approval.");
+      continue;
+    }
 
-    const attemptsCount = invDecisions.length;
+    const attemptsCount = state.attemptCount;
     if (attemptsCount >= rules.maxAttempts) {
       await recordInvoiceSkip(inv.id, `Reached maximum allowed reminder attempts (${rules.maxAttempts}).`, "max-attempts");
       continue;
     }
 
     // Interval check from last reminder
-    if (invDecisions.length > 0) {
-      const lastAttempt = invDecisions[0]; // sorted newest first
-      const lastDay = lastAttempt.createdAt.slice(0, 10);
+    if (state.lastAttemptAt) {
+      const lastDay = state.lastAttemptAt.slice(0, 10);
       const gapDays = daysBetween(lastDay, todayStr);
       if (gapDays < rules.minIntervalDays) {
         await recordInvoiceSkip(inv.id, `Only ${gapDays} days since last reminder, below minimum interval (${rules.minIntervalDays} days).`, "minimum-interval");

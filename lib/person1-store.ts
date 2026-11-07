@@ -18,8 +18,15 @@ export const DEFAULT_PERSON1_RULES: Omit<ReminderRuleRecord, "ownerEmail" | "upd
   requireApproval: false,
 };
 
+export type ReminderInvoiceState = {
+  attemptCount: number;
+  lastAttemptAt?: string;
+  hasPendingApproval: boolean;
+};
+
 export interface Person1Store {
   // Scans
+  claimScan(scan: ScanRecord): Promise<boolean>;
   saveScan(scan: ScanRecord): Promise<void>;
   getScan(ownerEmail: string, scanId: string): Promise<ScanRecord | null>;
   findScanByHash(ownerEmail: string, imageHash: string): Promise<ScanRecord | null>;
@@ -53,6 +60,7 @@ export interface Person1Store {
   setReminderRules(rules: ReminderRuleRecord): Promise<void>;
   saveReminderDecision(decision: ReminderDecision): Promise<void>;
   claimReminderRequest(decision: ReminderDecision): Promise<boolean>;
+  getReminderInvoiceStates(ownerEmail: string, invoiceIds: string[]): Promise<Record<string, ReminderInvoiceState>>;
   listReminderDecisions(ownerEmail: string, limit?: number, action?: ReminderDecision["action"]): Promise<ReminderDecision[]>;
   getReminderDecision(ownerEmail: string, decisionId: string): Promise<ReminderDecision | null>;
   updateReminderDecisionAction(ownerEmail: string, decisionId: string, action: ReminderDecision["action"], deliveryResult?: string): Promise<void>;
@@ -73,6 +81,11 @@ export function createMemoryPerson1Store(): Person1Store {
   const custKey = (owner: string, id: string) => `${owner.toLowerCase()}::cust::${id}`;
 
   return {
+    async claimScan(scan) {
+      if (await this.findScanByHash(scan.ownerEmail, scan.imageHash)) return false;
+      scans.set(scanKey(scan.ownerEmail, scan.id), { ...scan });
+      return true;
+    },
     async saveScan(scan) {
       scans.set(scanKey(scan.ownerEmail, scan.id), { ...scan });
     },
@@ -287,8 +300,28 @@ export function createMemoryPerson1Store(): Person1Store {
     },
     async claimReminderRequest(decision) {
       if ([...decisions.values()].some((item) => item.idempotencyKey === decision.idempotencyKey)) return false;
+      if (decision.action === "pending_approval" && [...decisions.values()].some((item) =>
+        item.ownerEmail.toLowerCase() === decision.ownerEmail.toLowerCase() &&
+        item.invoiceId === decision.invoiceId &&
+        item.action === "pending_approval"
+      )) return false;
       decisions.set(decision.id, { ...decision });
       return true;
+    },
+    async getReminderInvoiceStates(ownerEmail, invoiceIds) {
+      const wanted = new Set(invoiceIds);
+      const states: Record<string, ReminderInvoiceState> = {};
+      for (const decision of decisions.values()) {
+        if (decision.ownerEmail.toLowerCase() !== ownerEmail.toLowerCase() || !wanted.has(decision.invoiceId)) continue;
+        const state = states[decision.invoiceId] ?? { attemptCount: 0, hasPendingApproval: false };
+        if (decision.action === "requested" || decision.action === "failed") {
+          state.attemptCount += 1;
+          if (!state.lastAttemptAt || decision.createdAt > state.lastAttemptAt) state.lastAttemptAt = decision.createdAt;
+        }
+        if (decision.action === "pending_approval") state.hasPendingApproval = true;
+        states[decision.invoiceId] = state;
+      }
+      return states;
     },
     async listReminderDecisions(ownerEmail, limit = 100, action) {
       const result: ReminderDecision[] = [];
@@ -343,6 +376,9 @@ export function getPerson1Store(): Person1Store {
     // Loaded lazily to keep unit tests and browser-adjacent imports free of database setup.
     const { getPostgresPerson1Store } = require("./person1-postgres-store") as typeof import("./person1-postgres-store");
     return getPostgresPerson1Store();
+  }
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("DATABASE_URL is required for persistent Person 1 storage.");
   }
   if (!globalMemoryStore) {
     globalMemoryStore = createMemoryPerson1Store();
