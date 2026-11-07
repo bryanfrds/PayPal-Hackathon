@@ -115,6 +115,23 @@ describe("POST /api/invoices", () => {
     expect(paypal.createDraftInvoice.mock.calls[0][0].requestId).not.toBe(GOOD.requestId);
   });
 
+  it("keeps one PayPal request id when the same approved debt is corrected", async () => {
+    const store = getPerson1Store();
+    const now = "2026-10-18T00:00:00Z";
+    await store.saveScan({ id: "scan-stable-request", ownerEmail: signedIn.email, imageKey: "x", imageHash: "stable-request-hash", mimeType: "image/jpeg", sizeBytes: 1, status: "completed", mode: "notebook", revision: 1, createdAt: now, updatedAt: now });
+    await store.saveCustomer({ id: "cust-stable-request", ownerEmail: signedIn.email, name: "Stable", slug: "stable", email: "stable@example.com", confirmedAt: now, createdAt: now, updatedAt: now });
+    await store.saveEntries([{ id: "entry-stable-request", scanId: "scan-stable-request", revision: 1, rawText: "Stable", customerName: "Stable", item: "Old item", amountSen: 1000, rawAmountText: "10", date: "2026-10-18", classification: "debt", confidence: 1, isAmbiguous: false, included: true, sourceRef: { lineIndex: 1 }, ownerEdited: true, confirmedCustomerId: "cust-stable-request", createdAt: now, updatedAt: now }]);
+    const baseDebt = { id: "approved-stable-request", ownerEmail: signedIn.email, sourceEntryId: "entry-stable-request", scanId: "scan-stable-request", customerId: "cust-stable-request", customerName: "Stable", customerEmail: "stable@example.com", amountSen: 1000, currency: "MYR", item: "Old item", date: "2026-10-18", approvedAt: now, handoffKey: "stable-old" };
+    await store.saveApprovedDebts([baseDebt]);
+    paypal.createDraftInvoice.mockResolvedValue({ id: "INV2-STABLE", status: "SENT" });
+
+    await post({ approvedDebtId: baseDebt.id, requestId: GOOD.requestId });
+    await store.saveApprovedDebts([{ ...baseDebt, amountSen: 2000, item: "Corrected item", handoffKey: "stable-new" }]);
+    await post({ approvedDebtId: baseDebt.id, requestId: GOOD.requestId });
+
+    expect(paypal.createDraftInvoice.mock.calls[0][0].requestId).toBe(paypal.createDraftInvoice.mock.calls[1][0].requestId);
+  });
+
   it("rejects unknown and wrong-owner approved debt ids", async () => {
     expect((await post({ approvedDebtId: "approved-missing", requestId: GOOD.requestId })).status).toBe(404);
 

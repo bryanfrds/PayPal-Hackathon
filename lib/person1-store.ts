@@ -48,6 +48,7 @@ export interface Person1Store {
 
   // Approved Debts Handoff
   saveApprovedDebts(debts: ApprovedDebtRecord[]): Promise<ApprovedDebtRecord[]>;
+  replaceApprovedDebt(debt: ApprovedDebtRecord): Promise<ApprovedDebtRecord | null>;
   getApprovedDebt(ownerEmail: string, approvedDebtId: string): Promise<ApprovedDebtRecord | null>;
   getApprovedDebts(ownerEmail: string): Promise<ApprovedDebtRecord[]>;
   getApprovedDebtByHandoffKey(ownerEmail: string, handoffKey: string): Promise<ApprovedDebtRecord | null>;
@@ -64,7 +65,7 @@ export interface Person1Store {
   listReminderDecisions(ownerEmail: string, limit?: number, action?: ReminderDecision["action"]): Promise<ReminderDecision[]>;
   getReminderDecision(ownerEmail: string, decisionId: string): Promise<ReminderDecision | null>;
   updateReminderDecisionAction(ownerEmail: string, decisionId: string, action: ReminderDecision["action"], deliveryResult?: string): Promise<void>;
-  claimPendingReminder(ownerEmail: string, decisionId: string): Promise<boolean>;
+  claimPendingReminder(ownerEmail: string, decisionId: string, deliveredAt?: string): Promise<boolean>;
   rejectPendingReminder(ownerEmail: string, decisionId: string, reason?: string): Promise<boolean>;
   listEnabledReminderOwners(): Promise<string[]>;
 }
@@ -105,6 +106,7 @@ export function createMemoryPerson1Store(): Person1Store {
       if (existing) {
         existing.status = status;
         if (error !== undefined) existing.error = error;
+        else if (status !== "failed") delete existing.error;
         existing.updatedAt = new Date().toISOString();
       }
     },
@@ -237,6 +239,12 @@ export function createMemoryPerson1Store(): Person1Store {
       }
       return result.sort((a, b) => b.approvedAt.localeCompare(a.approvedAt));
     },
+    async replaceApprovedDebt(debt) {
+      const current = approvedDebts.get(debt.id);
+      if (!current || current.ownerEmail.toLowerCase() !== debt.ownerEmail.toLowerCase()) return null;
+      approvedDebts.set(debt.id, { ...debt });
+      return { ...debt };
+    },
     async getApprovedDebt(ownerEmail, approvedDebtId) {
       for (const d of approvedDebts.values()) {
         if (d.ownerEmail.toLowerCase() === ownerEmail.toLowerCase() && d.id === approvedDebtId) {
@@ -316,7 +324,8 @@ export function createMemoryPerson1Store(): Person1Store {
         const state = states[decision.invoiceId] ?? { attemptCount: 0, hasPendingApproval: false };
         if (decision.action === "requested" || decision.action === "failed") {
           state.attemptCount += 1;
-          if (!state.lastAttemptAt || decision.createdAt > state.lastAttemptAt) state.lastAttemptAt = decision.createdAt;
+          const attemptedAt = decision.deliveredAt ?? decision.createdAt;
+          if (!state.lastAttemptAt || attemptedAt > state.lastAttemptAt) state.lastAttemptAt = attemptedAt;
         }
         if (decision.action === "pending_approval") state.hasPendingApproval = true;
         states[decision.invoiceId] = state;
@@ -348,11 +357,12 @@ export function createMemoryPerson1Store(): Person1Store {
         if (deliveryResult !== undefined) d.deliveryResult = deliveryResult;
       }
     },
-    async claimPendingReminder(ownerEmail, decisionId) {
+    async claimPendingReminder(ownerEmail, decisionId, deliveredAt = new Date().toISOString()) {
       const d = decisions.get(decisionId);
       if (!d || d.ownerEmail.toLowerCase() !== ownerEmail.toLowerCase() || d.action !== "pending_approval") return false;
       d.action = "requested";
       d.deliveryResult = "Claimed for delivery";
+      d.deliveredAt = deliveredAt;
       return true;
     },
     async rejectPendingReminder(ownerEmail, decisionId, reason = "Rejected by owner") {

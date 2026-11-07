@@ -225,6 +225,25 @@ describe("reminder-scheduler", () => {
     expect(later.skipped[0].reason).toMatch(/pending approval/i);
   });
 
+  it("measures the next interval from pending approval delivery, not queue creation", async () => {
+    await store.saveReminderDecision({
+      id: "pending-old",
+      ownerEmail: owner,
+      invoiceId: "INV-1",
+      action: "pending_approval",
+      reason: "Pending",
+      idempotencyKey: "pending-old-key",
+      attemptNumber: 1,
+      createdAt: "2026-10-01T02:00:00Z",
+    });
+    await store.claimPendingReminder(owner, "pending-old", "2026-10-17T02:00:00Z");
+
+    const result = await processEligibleReminders(owner, makeDeps({ now: new Date("2026-10-18T02:00:00Z") }));
+
+    expect(result.requested).toHaveLength(0);
+    expect(result.skipped[0].reason).toMatch(/interval/i);
+  });
+
   it("defers reminders during Friday prayers (Friday 12:00-14:59)", async () => {
     const fridayNoon = new Date("2026-10-16T13:00:00+08:00"); // Friday 1pm Malaysian time
     const deps = makeDeps({ now: fridayNoon });

@@ -128,7 +128,7 @@ export async function POST(request: Request) {
       email = debt.customerEmail;
       lines = [{ name: debt.item, amountSen: debt.amountSen }];
       debtIds = [body.approvedDebtId]; // Use the approved debt ID for idempotency tracking
-      requestId = invoiceRequestId({ debtIds, email, lines });
+      requestId = invoiceRequestId({ debtIds, email: "approved-debt", lines: [] });
     } else {
       customerName = body.customerName;
       email = body.email;

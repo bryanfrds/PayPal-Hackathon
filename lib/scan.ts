@@ -53,9 +53,10 @@ export function parseScanDraft(raw: string | null | undefined): ScanLine[] | nul
 }
 
 export type ActiveScan = {
-  version: 1;
+  version: 2;
   scanId: string;
   mode: ScanMode;
+  serverLines: ScanLine[];
   lines: ScanLine[];
   isDuplicate?: boolean;
   warning?: string;
@@ -72,14 +73,18 @@ export function parseActiveScan(raw: string | null | undefined): ActiveScan | nu
   if (typeof value !== "object" || value === null) return null;
   const record = value as Record<string, unknown>;
   if (
-    record.version !== 1 ||
+    record.version !== 2 ||
     typeof record.scanId !== "string" || !record.scanId ||
     !SCAN_MODES.includes(record.mode as ScanMode) ||
-    !isScanLines(record.lines) ||
+    !isScanLines(record.serverLines) || !isScanLines(record.lines) ||
     (record.isDuplicate !== undefined && typeof record.isDuplicate !== "boolean") ||
     (record.warning !== undefined && typeof record.warning !== "string")
   ) return null;
   return value as ActiveScan;
+}
+
+export function unconfirmedIncludedEntryIds(lines: ScanLine[]): string[] {
+  return lines.filter((line) => line.include && !line.confirmedCustomerId).map((line) => line.entryId);
 }
 
 export type ScanLine = {

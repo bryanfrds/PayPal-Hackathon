@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Debt } from "./debts";
-import { customerNames, entriesToLines, includedTotalSen, isNewCustomer, linesToDebts, parseActiveScan, sampleRead, type ReadEntry, type ScanLine } from "./scan";
+import { customerNames, entriesToLines, includedTotalSen, isNewCustomer, linesToDebts, parseActiveScan, sampleRead, unconfirmedIncludedEntryIds, type ReadEntry, type ScanLine } from "./scan";
 
 const TODAY = "2026-10-12";
 
@@ -19,10 +19,12 @@ describe("parseActiveScan", () => {
   ];
 
   it("restores a versioned scan identity and its review draft", () => {
-    expect(parseActiveScan(JSON.stringify({ version: 1, scanId: "scan-1", mode: "notebook", lines }))).toEqual({
-      version: 1,
+    const serverLines = [{ ...lines[0], amount: "3.00" }];
+    expect(parseActiveScan(JSON.stringify({ version: 2, scanId: "scan-1", mode: "notebook", serverLines, lines }))).toEqual({
+      version: 2,
       scanId: "scan-1",
       mode: "notebook",
+      serverLines,
       lines,
     });
   });
@@ -30,13 +32,19 @@ describe("parseActiveScan", () => {
   it.each([
     null,
     "not json",
-    JSON.stringify({ version: 2, scanId: "scan-1", mode: "notebook", lines }),
-    JSON.stringify({ version: 1, scanId: "", mode: "notebook", lines }),
-    JSON.stringify({ version: 1, scanId: "scan-1", mode: "other", lines }),
-    JSON.stringify({ version: 1, scanId: "scan-1", mode: "notebook", lines: [] }),
+    JSON.stringify({ version: 1, scanId: "scan-1", mode: "notebook", serverLines: lines, lines }),
+    JSON.stringify({ version: 2, scanId: "", mode: "notebook", serverLines: lines, lines }),
+    JSON.stringify({ version: 2, scanId: "scan-1", mode: "other", serverLines: lines, lines }),
+    JSON.stringify({ version: 2, scanId: "scan-1", mode: "notebook", serverLines: lines, lines: [] }),
   ])("rejects malformed or incompatible active state", (raw) => {
     expect(parseActiveScan(raw)).toBeNull();
   });
+});
+
+it("lists included notebook entries that still need customer confirmation", () => {
+  const lines = sampleRead("notebook", TODAY).slice(0, 2);
+  lines[0].confirmedCustomerId = "cust-1";
+  expect(unconfirmedIncludedEntryIds(lines)).toEqual([lines[1].entryId]);
 });
 
 describe("sampleRead", () => {

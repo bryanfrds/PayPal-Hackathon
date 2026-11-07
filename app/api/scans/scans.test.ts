@@ -146,6 +146,21 @@ describe("Scans API", () => {
     expect(await response.json()).toMatchObject({ scan: { id: scanId, status: "processing" } });
   });
 
+  it("POST /api/scans: retries storage for a previously failed hash claim", async () => {
+    const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xec, 0x00, 0x10]);
+    const putCallCount = blob.put.mock.calls.length;
+    blob.put.mockRejectedValueOnce(Object.assign(new Error("temporary blob failure"), { statusCode: 503 }));
+
+    const first = await createScan(makeUploadRequest(bytes, "image/jpeg", "notebook", "clear_handwriting"));
+    const second = await createScan(makeUploadRequest(bytes, "image/jpeg", "notebook", "clear_handwriting"));
+    const body = await second.json();
+
+    expect(first.status).toBe(503);
+    expect(second.status).toBe(200);
+    expect(body.entries.length).toBeGreaterThan(0);
+    expect(blob.put.mock.calls.length - putCallCount).toBe(2);
+  });
+
   it("GET /api/scans/[id]: returns scan and draft entries", async () => {
     const createRes = await createScan(makeUploadRequest(new Uint8Array([0xff, 0xd8, 0xff, 0xe1]), "image/jpeg", "notebook", "clear_handwriting"));
     const { scan } = await createRes.json();

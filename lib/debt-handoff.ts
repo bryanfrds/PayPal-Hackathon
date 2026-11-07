@@ -101,14 +101,6 @@ export async function approveDebtsForInvoicing(
         continue;
       }
 
-      if (existingByLine && existingByLine.sourceEntryId !== entry.id) {
-        rejected.push({
-          entryId,
-          reason: "This notebook line has already been approved for invoicing.",
-        });
-        continue;
-      }
-
       // Update the existing approved record in place, preserving its unique stable ID
       const updatedRecord: ApprovedDebtRecord = {
         ...existingDebt,
@@ -123,7 +115,9 @@ export async function approveDebtsForInvoicing(
         handoffKey,
       };
 
-      const [saved] = await store.saveApprovedDebts([updatedRecord]);
+      const saved = existingByLine && existingByLine.sourceEntryId !== entry.id
+        ? await store.replaceApprovedDebt(updatedRecord)
+        : (await store.saveApprovedDebts([updatedRecord]))[0];
       approved.push(saved || updatedRecord);
       continue;
     }

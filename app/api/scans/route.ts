@@ -65,27 +65,28 @@ export async function POST(req: Request) {
 
   const imageHash = computeImageHash(bytes);
   const existingScan = await store.findScanByHash(owner.email, imageHash);
+  if (existingScan && existingScan.status !== "failed") return duplicateResponse(owner.email, existingScan);
 
-  if (existingScan) {
-    return duplicateResponse(owner.email, existingScan);
-  }
-
-  const scanId = `scan-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const scanId = existingScan?.id ?? `scan-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const now = new Date().toISOString();
-  const scan: ScanRecord = {
-    id: scanId,
-    ownerEmail: owner.email,
-    imageKey: scanImageKey(owner.email, scanId, mimeType),
-    imageHash,
-    mimeType,
-    sizeBytes: bytes.byteLength,
-    status: "processing",
-    mode,
-    revision: 1,
-    createdAt: now,
-    updatedAt: now,
-  };
-  if (!(await store.claimScan(scan))) {
+  const scan: ScanRecord = existingScan
+    ? { ...existingScan, status: "processing", error: undefined, updatedAt: now }
+    : {
+        id: scanId,
+        ownerEmail: owner.email,
+        imageKey: scanImageKey(owner.email, scanId, mimeType),
+        imageHash,
+        mimeType,
+        sizeBytes: bytes.byteLength,
+        status: "processing",
+        mode,
+        revision: 1,
+        createdAt: now,
+        updatedAt: now,
+      };
+  if (existingScan) {
+    await store.updateScanStatus(owner.email, scanId, "processing");
+  } else if (!(await store.claimScan(scan))) {
     const winner = await store.findScanByHash(owner.email, imageHash);
     if (!winner) return NextResponse.json({ error: "Scan upload conflict. Please retry." }, { status: 409 });
     return duplicateResponse(owner.email, winner);
@@ -102,7 +103,7 @@ export async function POST(req: Request) {
 
   let entries;
   try {
-    entries = await extractNotebookEntries(bytes, mimeType, { scanId, revision: 1, today: malaysiaDate(), fixtureScenario });
+    entries = await extractNotebookEntries(bytes, mimeType, { scanId, revision: scan.revision, today: malaysiaDate(), fixtureScenario });
     await store.saveEntries(entries);
     await store.updateScanStatus(owner.email, scanId, "completed");
     scan.status = "completed";
@@ -123,8 +124,9 @@ export async function POST(req: Request) {
     {
       scan,
       entries,
-      isDuplicate: false,
+      isDuplicate: Boolean(existingScan),
+      ...(existingScan ? { warning: "The previous upload failed, so this photo was scanned again." } : {}),
     },
-    { status: 201 },
+    { status: existingScan ? 200 : 201 },
   );
 }

@@ -91,5 +91,6 @@ export type ReminderDecision = {
   idempotencyKey: string;
   attemptNumber: number;
   deliveryResult?: string;
+  deliveredAt?: string;
   createdAt: string;
 };

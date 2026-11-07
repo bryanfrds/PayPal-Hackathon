@@ -22,6 +22,7 @@ import {
   type ScanLine,
   type ScanMode,
   scanDraftKey,
+  unconfirmedIncludedEntryIds,
 } from "@/lib/scan";
 import {
   approveScanEntries,
@@ -84,7 +85,7 @@ export default function ScanFlow() {
       if (!active) continue;
       setMode(active.mode);
       setPhoto(null);
-      setRead({ scanId: active.scanId, lines: active.lines, isDuplicate: active.isDuplicate, warning: active.warning });
+      setRead({ scanId: active.scanId, lines: active.serverLines, isDuplicate: active.isDuplicate, warning: active.warning });
       setPhase("check");
       break;
     }
@@ -678,9 +679,10 @@ function Check({ mode, photo, read, onRetake }: { mode: ScanMode; photo: string 
     try {
       sessionStorage.setItem(draftKey, JSON.stringify(lines));
       sessionStorage.setItem(activeScanKey(mode), JSON.stringify({
-        version: 1,
+        version: 2,
         scanId: read.scanId,
         mode,
+        serverLines: read.lines,
         lines,
         ...(read.isDuplicate ? { isDuplicate: true } : {}),
         ...(read.warning ? { warning: read.warning } : {}),
@@ -732,6 +734,12 @@ function Check({ mode, photo, read, onRetake }: { mode: ScanMode; photo: string 
       setErrors(Object.fromEntries(result.problems.map((p) => [p.key, p.errors])));
       setOpen(result.problems[0].key);
       setFocusLine((prev) => ({ key: result.problems[0].key, n: (prev?.n ?? 0) + 1 }));
+      return;
+    }
+    const unconfirmed = mode === "notebook" ? unconfirmedIncludedEntryIds(lines) : [];
+    if (unconfirmed.length > 0) {
+      setOpen(unconfirmed[0]);
+      setSaveError("Confirm every included customer before adding these debts.");
       return;
     }
     setSaving(true);
