@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { makeSession } from "../lib/auth";
 
-const BASE_URL = "http://localhost:3005";
+const BASE_URL = process.env.E2E_BASE_URL ?? "http://localhost:3005";
 const AUTH_SECRET = "local-development-secret-that-is-at-least-32-chars-long";
 const OWNER_EMAIL = "test-merchant@example.com";
 
