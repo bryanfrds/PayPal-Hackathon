@@ -83,7 +83,15 @@ export function createMemoryPerson1Store(): Person1Store {
 
   return {
     async claimScan(scan) {
-      if (await this.findScanByHash(scan.ownerEmail, scan.imageHash)) return false;
+      // Do not await a lookup here: two async callers could both observe a missing
+      // hash before either continuation inserts it. Map reads and writes are
+      // synchronous, so this makes the memory-store claim atomic just as the
+      // database unique constraint is in production.
+      for (const existing of scans.values()) {
+        if (existing.ownerEmail.toLowerCase() === scan.ownerEmail.toLowerCase() && existing.imageHash === scan.imageHash) {
+          return false;
+        }
+      }
       scans.set(scanKey(scan.ownerEmail, scan.id), { ...scan });
       return true;
     },
