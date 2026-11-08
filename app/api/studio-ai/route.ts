@@ -11,11 +11,10 @@
 
 import { streamText, type ToolSet } from "ai";
 import { requireOwner } from "@/lib/auth-server";
+import { aiConnected, aiModel, aiModelName } from "@/lib/ai-model";
 import { MAX_BODY_CHARS, TURNS_PER_DAY, TURNS_PER_MINUTE, parseStudioRequest, systemPrompt, toModelMessages, toToolChoice, toToolSet, toWireLines, type ModelStreamPart } from "@/lib/studio-ai";
 import { clientIp, createThrottle } from "@/lib/throttle";
 
-/** Same model as /api/nudge; override with AI_GATEWAY_MODEL. */
-const DEFAULT_MODEL = "anthropic/claude-haiku-5.5";
 /**
  * Room for one turn. The biggest output is a widget configuration or a plan, written as tool
  * arguments by Studio's agents; Nudge's own replies and drafts are far shorter.
@@ -32,11 +31,6 @@ const perIp = createThrottle(TURNS_PER_MINUTE, 60_000);
 const perEmail = createThrottle(TURNS_PER_MINUTE, 60_000);
 const perEmailDaily = createThrottle(TURNS_PER_DAY, 24 * 60 * 60_000);
 
-function connected(req: Request): boolean {
-  // A key locally. On Vercel the project's OIDC token also works (see /api/nudge).
-  return Boolean(process.env.AI_GATEWAY_API_KEY || req.headers.get("x-vercel-oidc-token") || process.env.VERCEL_OIDC_TOKEN);
-}
-
 function fail(status: number, error: string, headers?: HeadersInit) {
   return Response.json({ error }, { status, headers });
 }
@@ -52,8 +46,8 @@ export async function POST(req: Request) {
     return fail(429, "Nudge is getting a lot of questions. Wait a moment and try again.", { "Retry-After": String(wait) });
   }
 
-  if (!connected(req)) {
-    return fail(503, "Nudge isn't connected yet. Add an AI Gateway key to .env.local (AI_GATEWAY_API_KEY), then restart.");
+  if (!aiConnected(req)) {
+    return fail(503, "Nudge isn't connected yet. Add a Gemini key to .env.local (GEMINI_API_KEY), then restart.");
   }
 
   // Checked before reading, then again after, since the header can be missing or wrong.
@@ -86,10 +80,9 @@ export async function POST(req: Request) {
     return fail(429, "Nudge has answered a lot of questions today. Try again tomorrow.", { "Retry-After": String(dailyWait) });
   }
   const tools = toToolSet(request.tools);
-  const model = process.env.AI_GATEWAY_MODEL || DEFAULT_MODEL;
 
   const result = streamText({
-    model,
+    model: aiModel("chat"),
     system: systemPrompt(request, system),
     messages,
     tools: tools as ToolSet,
@@ -101,7 +94,7 @@ export async function POST(req: Request) {
 
   const lines = toWireLines(result.stream as AsyncIterable<ModelStreamPart>, {
     responseId: `turn-${crypto.randomUUID()}`,
-    model,
+    model: aiModelName("chat"),
     onError: (error) => console.error("studio-ai turn failed", error),
   });
   const encoder = new TextEncoder();

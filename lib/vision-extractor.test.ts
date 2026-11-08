@@ -14,6 +14,7 @@ describe("vision-extractor", () => {
 
   beforeEach(() => {
     vi.stubEnv("AI_GATEWAY_API_KEY", "");
+    vi.stubEnv("GEMINI_API_KEY", "");
     vi.stubEnv("ALLOW_SCAN_FIXTURES", "true");
   });
   afterEach(() => vi.unstubAllEnvs());
@@ -44,6 +45,29 @@ describe("vision-extractor", () => {
       })],
     }));
     expect(entries[0]).toMatchObject({ customerName: "Aisyah", amountSen: 1250 });
+  });
+
+  it("keeps at most 100 lines from one photo", async () => {
+    vi.stubEnv("AI_GATEWAY_API_KEY", "test-key");
+    const line = (i: number) => ({ customerName: `C${i}`, item: "Beras", amount: "1.00", date: "2026-10-17", classification: "debt", rawText: `C${i} 1.00` });
+    ai.generateText.mockResolvedValueOnce({ output: { entries: Array.from({ length: 101 }, (_, i) => line(i)) } });
+
+    const entries = await extractNotebookEntries(dummyBytes, "image/png", opts);
+
+    expect(entries).toHaveLength(100);
+    expect(entries[99].customerName).toBe("C99");
+  });
+
+  it("tells the model today's date and to write amounts as plain numbers", async () => {
+    vi.stubEnv("AI_GATEWAY_API_KEY", "test-key");
+    ai.generateText.mockResolvedValueOnce({ output: { entries: [] } });
+
+    await extractNotebookEntries(dummyBytes, "image/png", opts);
+
+    const call = ai.generateText.mock.calls.at(-1)![0];
+    const text = call.messages[0].content.find((p: { type: string }) => p.type === "text").text as string;
+    expect(text).toContain("Today is 2026-10-18");
+    expect(text).toContain("plain number");
   });
 
   it("extracts clearly legible handwriting lines", async () => {

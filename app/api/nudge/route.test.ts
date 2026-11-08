@@ -42,6 +42,7 @@ describe("POST /api/nudge", () => {
 
   it("says it isn't connected when there's no AI Gateway key", async () => {
     vi.stubEnv("AI_GATEWAY_API_KEY", "");
+    vi.stubEnv("GEMINI_API_KEY", "");
     vi.stubEnv("VERCEL_OIDC_TOKEN", "");
     const res = await POST(request({ messages: [userMessage("hi")], context: CONTEXT }));
     expect(res.status).toBe(503);
@@ -108,6 +109,7 @@ describe("POST /api/nudge checks the whole chat", () => {
 
   it("accepts the Vercel OIDC header as being connected", async () => {
     vi.stubEnv("AI_GATEWAY_API_KEY", "");
+    vi.stubEnv("GEMINI_API_KEY", "");
     vi.stubEnv("VERCEL_OIDC_TOKEN", "");
     const req = new Request("http://localhost/api/nudge", {
       method: "POST",

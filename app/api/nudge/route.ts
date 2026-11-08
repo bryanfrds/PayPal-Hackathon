@@ -1,4 +1,4 @@
-// Nudge, the reminder assistant: streams a chat reply through Vercel AI Gateway. It can draft
+// Nudge, the reminder assistant: streams a chat reply from the model in lib/ai-model.ts. It can draft
 // reminders (draft_reminder) but sends nothing; the owner sends each one on WhatsApp.
 //
 // The shop's data comes from the owner's device with each message (the ledger lives there).
@@ -9,17 +9,9 @@ import { convertToModelMessages, createUIMessageStreamResponse, isStepCount, str
 import { z } from "zod";
 import { MAX_MESSAGE_CHARS, cleanMessages, nudgeContextSchema, nudgeSystemPrompt } from "@/lib/nudge";
 import { requireOwner } from "@/lib/auth-server";
-
-/** Fast and cheap enough for short drafts; override with AI_GATEWAY_MODEL. */
-const DEFAULT_MODEL = "anthropic/claude-haiku-5.5";
+import { aiConnected, aiModel } from "@/lib/ai-model";
 
 export const maxDuration = 60;
-
-function connected(req: Request): boolean {
-  // A key locally. On Vercel the project's OIDC token also works: the gateway reads it from
-  // this request header first, then the environment.
-  return Boolean(process.env.AI_GATEWAY_API_KEY || req.headers.get("x-vercel-oidc-token") || process.env.VERCEL_OIDC_TOKEN);
-}
 
 function fail(status: number, error: string) {
   return Response.json({ error }, { status });
@@ -30,8 +22,8 @@ export async function POST(req: Request) {
   const owner = await requireOwner();
   if (owner instanceof Response) return owner;
 
-  if (!connected(req)) {
-    return fail(503, "Nudge isn't connected yet. Add an AI Gateway key to .env.local (AI_GATEWAY_API_KEY), then restart.");
+  if (!aiConnected(req)) {
+    return fail(503, "Nudge isn't connected yet. Add a Gemini key to .env.local (GEMINI_API_KEY), then restart.");
   }
 
   let body: unknown;
@@ -53,7 +45,7 @@ export async function POST(req: Request) {
   const slugs = new Set(shop.customers.map((c) => c.slug));
 
   const result = streamText({
-    model: process.env.AI_GATEWAY_MODEL || DEFAULT_MODEL,
+    model: aiModel("chat"),
     system: nudgeSystemPrompt(shop),
     messages: await convertToModelMessages(messages as UIMessage[], { ignoreIncompleteToolCalls: true }),
     maxOutputTokens: 800,
