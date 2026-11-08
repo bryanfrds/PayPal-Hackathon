@@ -3,6 +3,7 @@ import { generateText, Output } from "ai";
 import { z } from "zod";
 import { moneyToSen } from "./payments";
 import type { EntryClassification, ExtractedEntry } from "./person1-types";
+import { aiConnected, aiModel } from "./ai-model";
 
 export const SYNTHETIC_SCENARIOS = [
   "clear_handwriting",
@@ -70,26 +71,27 @@ const visionResultSchema = z.object({
     isAmbiguous: z.boolean().optional(),
     ambiguityReason: z.string().max(500).optional(),
     confidence: z.number().min(0).max(1).optional(),
-  })).max(100),
+  })),
 });
 
-const DEFAULT_VISION_MODEL = "anthropic/claude-haiku-5.5";
+/** Most lines kept from one photo. Capped after reading: Gemini rejects maxItems on a list this detailed. */
+const MAX_LINES = 100;
 
-async function extractWithGateway(imageBytes: Uint8Array, mimeType: string): Promise<RawExtractedLine[]> {
+async function extractWithGateway(imageBytes: Uint8Array, mimeType: string, today: string): Promise<RawExtractedLine[]> {
   const result = await generateText({
-    model: process.env.AI_GATEWAY_VISION_MODEL || process.env.AI_GATEWAY_MODEL || DEFAULT_VISION_MODEL,
+    model: aiModel("vision"),
     system: "Extract handwritten shop debt entries accurately. Never guess unclear values; mark them ambiguous. Preserve crossed-out entries and repayments for human review.",
     messages: [{
       role: "user",
       content: [
-        { type: "text", text: "Read this notebook image. Return each line with customer, item, amount, optional YYYY-MM-DD date, classification, raw text, confidence, and ambiguity details." },
+        { type: "text", text: `Read this notebook image. Return each line with customer, item, amount, optional YYYY-MM-DD date, classification, raw text, confidence, and ambiguity details. Write the amount as a plain number with no currency, e.g. 18.50 for "RM 18.50". Today is ${today}: a date written without a year is the most recent such date on or before today.` },
         { type: "file", mediaType: mimeType, data: imageBytes },
       ],
     }],
     output: Output.object({ schema: visionResultSchema, name: "notebook_entries" }),
     maxOutputTokens: 3000,
   });
-  return result.output.entries;
+  return result.output.entries.slice(0, MAX_LINES);
 }
 
 function buildSyntheticLines(scenario: SyntheticScenario, today: string): RawExtractedLine[] {
@@ -132,7 +134,7 @@ export async function extractNotebookEntries(
   const { scanId, revision, today, fixtureScenario } = opts;
   const now = new Date().toISOString();
 
-  const connected = Boolean(process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN);
+  const connected = aiConnected();
   let rawLines: RawExtractedLine[];
   if (fixtureScenario !== undefined) {
     const resolved = resolveFixtureScenario(fixtureScenario);
@@ -141,9 +143,9 @@ export async function extractNotebookEntries(
     }
     rawLines = buildSyntheticLines(resolved.scenario, today);
   } else if (!connected) {
-    throw new Error("AI document scanning is not configured. Missing AI_GATEWAY_API_KEY.");
+    throw new Error("AI document scanning is not configured. Missing GEMINI_API_KEY.");
   } else {
-    rawLines = await extractWithGateway(imageBytes, mimeType);
+    rawLines = await extractWithGateway(imageBytes, mimeType, today);
   }
 
   return rawLines.map((l, index) => {
