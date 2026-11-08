@@ -94,21 +94,48 @@ async function extractWithGateway(imageBytes: Uint8Array, mimeType: string, toda
   return result.output.entries.slice(0, MAX_LINES);
 }
 
+/** A real calendar day in YYYY-MM-DD (2026-02-29 and 2026-04-31 are not). */
+function isRealDay(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [y, m, d] = value.split("-").map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  return date.getUTCFullYear() === y && date.getUTCMonth() === m - 1 && date.getUTCDate() === d;
+}
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+/** A date at the start of a notebook line, written day/month with an optional year: 9/11, 9.11.26, 9-11-2026. */
+const LEADING_DATE = /^\s*(\d{1,2})[/.-](\d{1,2})(?:[/.-](\d{4}|\d{2}))?(?=\s|$)/;
+
+/** True when a line's text shows a written year: a full leading date, or a 4-digit year on its own. */
+export function showsYear(rawText: string): boolean {
+  const m = rawText.match(LEADING_DATE);
+  return Boolean(m?.[3]) || /(^|\s)(19|20)\d{2}(\s|$)/.test(rawText);
+}
+
 /**
- * Notebook dates rarely carry a year, and the model sometimes picks the wrong one (a page from this
- * week came back as last year). When the line's own text shows no year, move the date to the most
- * recent such day on or before today. Dates with a written year are left alone.
+ * The date for one notebook line. The model sometimes swaps day and month or picks the wrong year
+ * (a live scan of "9/11" came back as 2025-09-11), so a date written at the start of the line wins:
+ * day/month as in Malaysia, with its year if written. Without a written year, the date is the most
+ * recent such day on or before today, unless the page shows a year somewhere (pageHasYear), when
+ * the model's own date is kept.
  */
-export function fitYear(date: string, today: string, rawText = ""): string {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{4}-\d{2}-\d{2}$/.test(today)) return date;
-  if (/\b(19|20)\d{2}\b|\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}/.test(rawText)) return date;
-  const md = date.slice(5);
-  const year = Number(today.slice(0, 4));
-  for (const y of [year, year - 1]) {
-    const candidate = `${y}-${md}`;
-    if (candidate <= today && !Number.isNaN(Date.parse(candidate))) return candidate;
+export function fitDate(modelDate: string, today: string, rawText = "", pageHasYear = false): string {
+  if (!isRealDay(today)) return modelDate;
+  const m = rawText.match(LEADING_DATE);
+  if (m?.[3]) {
+    const y = m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3]);
+    const written = `${y}-${pad2(Number(m[2]))}-${pad2(Number(m[1]))}`;
+    return isRealDay(written) ? written : modelDate;
   }
-  return date;
+  if ((pageHasYear || showsYear(rawText)) && isRealDay(modelDate)) return modelDate;
+  const md = m ? `${pad2(Number(m[2]))}-${pad2(Number(m[1]))}` : isRealDay(modelDate) ? modelDate.slice(5) : null;
+  if (!md) return modelDate;
+  const year = Number(today.slice(0, 4));
+  for (let y = year; y >= year - 4; y--) {
+    const candidate = `${y}-${md}`;
+    if (candidate <= today && isRealDay(candidate)) return candidate;
+  }
+  return modelDate;
 }
 
 function buildSyntheticLines(scenario: SyntheticScenario, today: string): RawExtractedLine[] {
@@ -165,6 +192,7 @@ export async function extractNotebookEntries(
     rawLines = await extractWithGateway(imageBytes, mimeType, today);
   }
 
+  const pageHasYear = rawLines.some((l) => showsYear(l.rawText));
   return rawLines.map((l, index) => {
     const amountSen = moneyToSen(l.amount) ?? 0;
     const missingDate = !l.date;
@@ -180,7 +208,7 @@ export async function extractNotebookEntries(
       item: l.item,
       amountSen,
       rawAmountText: l.amount,
-      date: l.date ? fitYear(l.date, today, l.rawText) : today,
+      date: l.date ? fitDate(l.date, today, l.rawText, pageHasYear) : today,
       classification: l.classification,
       confidence: l.confidence ?? (isAmbiguous ? 0.65 : 0.95),
       isAmbiguous,

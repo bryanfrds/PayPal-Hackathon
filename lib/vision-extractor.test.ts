@@ -2,20 +2,33 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const ai = vi.hoisted(() => ({ generateText: vi.fn(), object: vi.fn((value) => value) }));
 vi.mock("ai", () => ({ generateText: ai.generateText, Output: { object: ai.object } }));
-import { extractNotebookEntries, fitYear, type ExtractionOptions } from "./vision-extractor";
+import { extractNotebookEntries, fitDate, showsYear, type ExtractionOptions } from "./vision-extractor";
 
-describe("fitYear", () => {
-  it("moves a year-less date to the most recent such day on or before today", () => {
-    expect(fitYear("2025-11-08", "2026-11-08", "8/11 Kak Ros gula 12.80")).toBe("2026-11-08");
-    expect(fitYear("2025-09-11", "2026-11-08", "9/11 Abang Din roti 9.50")).toBe("2026-09-11");
-    expect(fitYear("2026-12-01", "2026-11-08", "1/12 X 5.00")).toBe("2025-12-01");
+describe("fitDate", () => {
+  const today = "2026-11-08";
+  it("reads a leading day/month and picks the most recent such day", () => {
+    expect(fitDate("2025-11-08", today, "8/11 Kak Ros gula 12.80")).toBe("2026-11-08");
+    expect(fitDate("2025-09-11", today, "9/11 Abang Din roti 9.50")).toBe("2025-11-09");
+    expect(fitDate("2026-07-11", "2026-11-10", "9/11 Abang Din roti 9.50")).toBe("2026-11-09");
+    expect(fitDate("2026-12-01", today, "1/12 X 5.00")).toBe("2025-12-01");
   });
-  it("keeps dates whose text shows a year", () => {
-    expect(fitYear("2024-03-05", "2026-11-08", "5/3/2024 Ali 10.00")).toBe("2024-03-05");
-    expect(fitYear("2024-03-05", "2026-11-08", "Ali 2024 10.00")).toBe("2024-03-05");
+  it("keeps a written year", () => {
+    expect(fitDate("2024-03-05", today, "5/3/2024 Ali 10.00")).toBe("2024-03-05");
+    expect(fitDate("2020-01-01", today, "10.11.20 Ali 10.00")).toBe("2020-11-10");
+    expect(fitDate("2024-03-05", today, "Ali 2024 10.00")).toBe("2024-03-05");
   });
-  it("leaves malformed dates alone", () => {
-    expect(fitYear("soon", "2026-11-08")).toBe("soon");
+  it("keeps the model's date when the page shows a year", () => {
+    expect(fitDate("2025-03-01", today, "Ali roti 5.00", true)).toBe("2025-03-01");
+  });
+  it("never makes an impossible date", () => {
+    expect(fitDate("2024-02-29", today, "29/2 Ali 5.00")).toBe("2024-02-29");
+    expect(fitDate("2024-02-29", today, "Ali 5.00")).toBe("2024-02-29");
+    expect(fitDate("2026-04-31", today, "31/4 Ali 5.00")).toBe("2026-04-31");
+    expect(fitDate("soon", today)).toBe("soon");
+  });
+  it("does not take a date joined to an amount as a year", () => {
+    expect(showsYear("8/11-12.80 Ali")).toBe(false);
+    expect(showsYear("Ali RM 12.80")).toBe(false);
   });
 });
 
