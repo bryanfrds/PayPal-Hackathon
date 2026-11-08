@@ -27,7 +27,7 @@ export function aiConnected(req?: Request, env: Env = process.env): boolean {
 export function aiModel(kind: "chat" | "vision", env: Env = process.env): LanguageModel {
   const key = geminiKey(env);
   if (key) {
-    const id = (kind === "vision" && env.GEMINI_VISION_MODEL) || env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL;
+    const id = (kind === "vision" && env.GEMINI_VISION_MODEL?.trim()) || env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL;
     return createGoogleGenerativeAI({ apiKey: key })(id);
   }
   return (kind === "vision" && env.AI_GATEWAY_VISION_MODEL) || env.AI_GATEWAY_MODEL || DEFAULT_GATEWAY_MODEL;

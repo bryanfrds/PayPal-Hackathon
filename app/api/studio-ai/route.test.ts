@@ -50,6 +50,7 @@ describe("POST /api/studio-ai", () => {
 
   it("says it isn't connected when there's no AI Gateway key", async () => {
     vi.stubEnv("AI_GATEWAY_API_KEY", "");
+    vi.stubEnv("GEMINI_API_KEY", "");
     vi.stubEnv("VERCEL_OIDC_TOKEN", "");
     const res = await POST(request(BODY));
     expect(res.status).toBe(503);
@@ -102,6 +103,7 @@ describe("POST /api/studio-ai", () => {
 
   it("slows down one IP that sends too many turns", async () => {
     vi.stubEnv("AI_GATEWAY_API_KEY", "");
+    vi.stubEnv("GEMINI_API_KEY", "");
     vi.stubEnv("VERCEL_OIDC_TOKEN", "");
     signedIn.email = "busy-ip@example.com";
     const same = () => new Request("http://localhost/api/studio-ai", { method: "POST", headers: { "x-forwarded-for": "10.9.9.9" }, body: "{}" });
@@ -116,6 +118,7 @@ describe("POST /api/studio-ai", () => {
 
   it("slows down one login sending turns from many IPs", async () => {
     vi.stubEnv("AI_GATEWAY_API_KEY", "");
+    vi.stubEnv("GEMINI_API_KEY", "");
     vi.stubEnv("VERCEL_OIDC_TOKEN", "");
     const statuses: number[] = [];
     for (let i = 0; i < 61; i++) {

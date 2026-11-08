@@ -21,6 +21,10 @@ describe("aiModel", () => {
     expect(aiModel("vision", { AI_GATEWAY_MODEL: "a/b" })).toBe("a/b");
   });
 
+  it("ignores blank Gemini model names", () => {
+    expect(aiModelName("vision", { GEMINI_API_KEY: "k", GEMINI_MODEL: " ", GEMINI_VISION_MODEL: "  " })).toBe(`google/${DEFAULT_GEMINI_MODEL}`);
+  });
+
   it("ignores a blank Gemini key", () => {
     expect(aiModel("chat", { GEMINI_API_KEY: "  " })).toBe(DEFAULT_GATEWAY_MODEL);
   });

@@ -80,7 +80,7 @@ export async function POST(req: Request) {
     return fail(429, "Nudge has answered a lot of questions today. Try again tomorrow.", { "Retry-After": String(dailyWait) });
   }
   const tools = toToolSet(request.tools);
-  
+
   const result = streamText({
     model: aiModel("chat"),
     system: systemPrompt(request, system),

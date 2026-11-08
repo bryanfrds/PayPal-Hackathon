@@ -43,6 +43,9 @@ describe("Scans API", () => {
   }
 
   it("POST /api/scans: returns 503 when AI is unconfigured and saves no fake entries", async () => {
+    vi.stubEnv("GEMINI_API_KEY", "");
+    vi.stubEnv("AI_GATEWAY_API_KEY", "");
+    vi.stubEnv("VERCEL_OIDC_TOKEN", "");
     const unconfiguredJpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x47]);
     const req = makeUploadRequest(unconfiguredJpeg);
     const res = await createScan(req);
