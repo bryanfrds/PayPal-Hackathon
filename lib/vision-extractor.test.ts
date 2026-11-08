@@ -2,33 +2,32 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const ai = vi.hoisted(() => ({ generateText: vi.fn(), object: vi.fn((value) => value) }));
 vi.mock("ai", () => ({ generateText: ai.generateText, Output: { object: ai.object } }));
-import { extractNotebookEntries, fitDate, showsYear, type ExtractionOptions } from "./vision-extractor";
+import { extractNotebookEntries, fitDate, type ExtractionOptions } from "./vision-extractor";
 
 describe("fitDate", () => {
   const today = "2026-11-08";
-  it("reads a leading day/month and picks the most recent such day", () => {
+  it("takes day/month from the start of the line and the most recent such day", () => {
     expect(fitDate("2025-11-08", today, "8/11 Kak Ros gula 12.80")).toBe("2026-11-08");
     expect(fitDate("2025-09-11", today, "9/11 Abang Din roti 9.50")).toBe("2025-11-09");
     expect(fitDate("2026-07-11", "2026-11-10", "9/11 Abang Din roti 9.50")).toBe("2026-11-09");
     expect(fitDate("2026-12-01", today, "1/12 X 5.00")).toBe("2025-12-01");
   });
-  it("keeps a written year", () => {
+  it("uses a year written on the line", () => {
     expect(fitDate("2024-03-05", today, "5/3/2024 Ali 10.00")).toBe("2024-03-05");
     expect(fitDate("2020-01-01", today, "10.11.20 Ali 10.00")).toBe("2020-11-10");
-    expect(fitDate("2024-03-05", today, "Ali 2024 10.00")).toBe("2024-03-05");
   });
-  it("keeps the model's date when the page shows a year", () => {
-    expect(fitDate("2025-03-01", today, "Ali roti 5.00", true)).toBe("2025-03-01");
+  it("does not read a leading amount as a date", () => {
+    expect(fitDate("2026-11-01", today, "5.10 Ali roti")).toBe("2026-11-01");
+    expect(fitDate("2026-11-01", today, "8/11-12.80 Ali")).toBe("2026-11-01");
   });
-  it("never makes an impossible date", () => {
+  it("keeps the model's date when the line has no leading date", () => {
+    expect(fitDate("2025-03-01", today, "Ali roti 5.00")).toBe("2025-03-01");
+  });
+  it("returns null rather than an impossible date", () => {
     expect(fitDate("2024-02-29", today, "29/2 Ali 5.00")).toBe("2024-02-29");
-    expect(fitDate("2024-02-29", today, "Ali 5.00")).toBe("2024-02-29");
-    expect(fitDate("2026-04-31", today, "31/4 Ali 5.00")).toBe("2026-04-31");
-    expect(fitDate("soon", today)).toBe("soon");
-  });
-  it("does not take a date joined to an amount as a year", () => {
-    expect(showsYear("8/11-12.80 Ali")).toBe(false);
-    expect(showsYear("Ali RM 12.80")).toBe(false);
+    expect(fitDate("2026-04-31", today, "31/4 Ali 5.00")).toBeNull();
+    expect(fitDate("2026-04-31", today, "Ali 5.00")).toBeNull();
+    expect(fitDate("soon", today)).toBeNull();
   });
 });
 
@@ -73,6 +72,22 @@ describe("vision-extractor", () => {
       })],
     }));
     expect(entries[0]).toMatchObject({ customerName: "Aisyah", amountSen: 1250 });
+  });
+
+  it("fixes a swapped date and flags an unreadable one when reading a page", async () => {
+    vi.stubEnv("AI_GATEWAY_API_KEY", "test-key");
+    ai.generateText.mockResolvedValueOnce({ output: { entries: [
+      { customerName: "Abang Din", item: "roti", amount: "9.50", date: "2025-09-11", classification: "debt", rawText: "9/11 Abang Din roti 9.50" },
+      { customerName: "Ali", item: "motor", amount: "2000", date: "2024-03-05", classification: "debt", rawText: "5/3/2024 Ali motor 2000" },
+      { customerName: "Siti", item: "gula", amount: "4.00", date: "2026-04-31", classification: "debt", rawText: "Siti gula 4.00" },
+    ] } });
+
+    const entries = await extractNotebookEntries(dummyBytes, "image/png", { ...opts, today: "2026-11-08" });
+
+    expect(entries[0]).toMatchObject({ date: "2025-11-09", isAmbiguous: false });
+    expect(entries[1]).toMatchObject({ date: "2024-03-05" });
+    expect(entries[2]).toMatchObject({ date: "2026-11-08", isAmbiguous: true, included: false });
+    expect(entries[2].ambiguityReason).toMatch(/couldn't be read/);
   });
 
   it("keeps at most 100 lines from one photo", async () => {

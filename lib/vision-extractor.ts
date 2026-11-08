@@ -103,39 +103,37 @@ function isRealDay(value: string): boolean {
 }
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
-/** A date at the start of a notebook line, written day/month with an optional year: 9/11, 9.11.26, 9-11-2026. */
-const LEADING_DATE = /^\s*(\d{1,2})[/.-](\d{1,2})(?:[/.-](\d{4}|\d{2}))?(?=\s|$)/;
-
-/** True when a line's text shows a written year: a full leading date, or a 4-digit year on its own. */
-export function showsYear(rawText: string): boolean {
-  const m = rawText.match(LEADING_DATE);
-  return Boolean(m?.[3]) || /(^|\s)(19|20)\d{2}(\s|$)/.test(rawText);
-}
+/**
+ * A date at the start of a notebook line, written day/month as in Malaysia: 9/11 or 9-11, with an
+ * optional year (9/11/26, 9/11/2026). A dot only counts when a year follows (9.11.26), so a line
+ * that starts with an amount like "5.10" isn't read as a date.
+ */
+const LEADING_DATE = /^\s*(?:(\d{1,2})[/-](\d{1,2})(?:[/-](\d{4}|\d{2}))?|(\d{1,2})\.(\d{1,2})\.(\d{4}|\d{2}))(?=\s|$)/;
 
 /**
- * The date for one notebook line. The model sometimes swaps day and month or picks the wrong year
- * (a live scan of "9/11" came back as 2025-09-11), so a date written at the start of the line wins:
- * day/month as in Malaysia, with its year if written. Without a written year, the date is the most
- * recent such day on or before today, unless the page shows a year somewhere (pageHasYear), when
- * the model's own date is kept.
+ * The date for one notebook line, or null if it can't be worked out. The model sometimes swaps day
+ * and month or picks the wrong year (a live scan of "9/11" came back as 2025-09-11), so a date
+ * written at the start of the line wins: its day and month always, its year if written, otherwise
+ * the most recent such day on or before today. A year written elsewhere on the page (a header) is
+ * not used; notebook lines are taken as recent. Without a leading date the model's date is kept
+ * when it's a real day.
  */
-export function fitDate(modelDate: string, today: string, rawText = "", pageHasYear = false): string {
-  if (!isRealDay(today)) return modelDate;
+export function fitDate(modelDate: string, today: string, rawText = ""): string | null {
   const m = rawText.match(LEADING_DATE);
-  if (m?.[3]) {
-    const y = m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3]);
-    const written = `${y}-${pad2(Number(m[2]))}-${pad2(Number(m[1]))}`;
-    return isRealDay(written) ? written : modelDate;
+  if (!m) return isRealDay(modelDate) ? modelDate : null;
+  const day = Number(m[1] ?? m[4]), month = Number(m[2] ?? m[5]), written = m[3] ?? m[6];
+  if (written) {
+    const y = written.length === 2 ? 2000 + Number(written) : Number(written);
+    const date = `${y}-${pad2(month)}-${pad2(day)}`;
+    return isRealDay(date) ? date : null;
   }
-  if ((pageHasYear || showsYear(rawText)) && isRealDay(modelDate)) return modelDate;
-  const md = m ? `${pad2(Number(m[2]))}-${pad2(Number(m[1]))}` : isRealDay(modelDate) ? modelDate.slice(5) : null;
-  if (!md) return modelDate;
+  if (!isRealDay(today)) return null;
   const year = Number(today.slice(0, 4));
   for (let y = year; y >= year - 4; y--) {
-    const candidate = `${y}-${md}`;
+    const candidate = `${y}-${pad2(month)}-${pad2(day)}`;
     if (candidate <= today && isRealDay(candidate)) return candidate;
   }
-  return modelDate;
+  return null;
 }
 
 function buildSyntheticLines(scenario: SyntheticScenario, today: string): RawExtractedLine[] {
@@ -192,11 +190,12 @@ export async function extractNotebookEntries(
     rawLines = await extractWithGateway(imageBytes, mimeType, today);
   }
 
-  const pageHasYear = rawLines.some((l) => showsYear(l.rawText));
   return rawLines.map((l, index) => {
     const amountSen = moneyToSen(l.amount) ?? 0;
+    const fitted = l.date ? fitDate(l.date, today, l.rawText) : null;
     const missingDate = !l.date;
-    const isAmbiguous = Boolean(l.isAmbiguous || l.classification === "ambiguous" || missingDate);
+    const unreadableDate = Boolean(l.date) && !fitted;
+    const isAmbiguous = Boolean(l.isAmbiguous || l.classification === "ambiguous" || missingDate || unreadableDate);
     const isExcluded = l.classification === "crossed_out" || l.classification === "repayment" || isAmbiguous;
 
     return {
@@ -208,11 +207,11 @@ export async function extractNotebookEntries(
       item: l.item,
       amountSen,
       rawAmountText: l.amount,
-      date: l.date ? fitDate(l.date, today, l.rawText, pageHasYear) : today,
+      date: fitted ?? today,
       classification: l.classification,
       confidence: l.confidence ?? (isAmbiguous ? 0.65 : 0.95),
       isAmbiguous,
-      ambiguityReason: l.ambiguityReason || (missingDate ? "Date is missing; scan date used pending owner review." : undefined),
+      ambiguityReason: l.ambiguityReason || (missingDate ? "Date is missing; scan date used pending owner review." : unreadableDate ? "Date couldn't be read; scan date used pending owner review." : undefined),
       included: !isExcluded,
       sourceRef: { lineIndex: index + 1 },
       ownerEdited: false,
