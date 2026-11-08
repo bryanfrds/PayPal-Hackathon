@@ -30,6 +30,19 @@ function assertOwnerKey(ownerEmail: string, imageKey: string): void {
 // In-memory backing buffer store for serverless runtime & testing
 const storageRegistry = new Map<string, { ownerEmail: string; bytes: Uint8Array; mimeType: string }>();
 
+/**
+ * How to reach the private Blob store, or null when none is set up. Either a read-write token
+ * (BLOB_READ_WRITE_TOKEN), or on Vercel the project's OIDC token plus the store id, which is how
+ * newly connected stores work (BLOB_STORE_ID, or BLOB_READ_WRITE_TOKEN_STORE_ID when the store was
+ * connected with that variable prefix).
+ */
+function blobAccess(env: Record<string, string | undefined> = process.env): { storeId?: string } | null {
+  const storeId = (env.BLOB_STORE_ID || env.BLOB_READ_WRITE_TOKEN_STORE_ID)?.trim();
+  if (storeId) return { storeId };
+  if (env.BLOB_READ_WRITE_TOKEN) return {};
+  return null;
+}
+
 export function isSupportedMime(mime: string): mime is SupportedImageMime {
   return SUPPORTED_IMAGE_MIMES.includes(mime.toLowerCase() as SupportedImageMime);
 }
@@ -91,11 +104,12 @@ export async function saveScanImage(
   const imageKey = `scans/${ownerSlug}/${scanId}.${ext}`;
   const hash = computeImageHash(bytes);
 
-  if (process.env.BLOB_READ_WRITE_TOKEN) {
-    const blob = await put(imageKey, Buffer.from(bytes), { access: "private", addRandomSuffix: false, contentType: mimeType });
+  const blobStore = blobAccess();
+  if (blobStore) {
+    const blob = await put(imageKey, Buffer.from(bytes), { access: "private", addRandomSuffix: false, contentType: mimeType, ...blobStore });
     return { imageKey: blob.pathname, hash };
   }
-  if (process.env.NODE_ENV === "production" && !process.env.BLOB_READ_WRITE_TOKEN) {
+  if (process.env.NODE_ENV === "production") {
     throw new ImageStorageError("Private scan storage is not configured.", 503);
   }
 
@@ -113,11 +127,12 @@ export async function getScanImage(
   imageKey: string,
 ): Promise<Uint8Array | null> {
   assertOwnerKey(ownerEmail, imageKey);
-  if (process.env.NODE_ENV === "production" && !process.env.BLOB_READ_WRITE_TOKEN) {
+  const blobStore = blobAccess();
+  if (process.env.NODE_ENV === "production" && !blobStore) {
     throw new ImageStorageError("Private scan storage is not configured.", 503);
   }
-  if (process.env.BLOB_READ_WRITE_TOKEN) {
-    const result = await get(imageKey, { access: "private", useCache: false });
+  if (blobStore) {
+    const result = await get(imageKey, { access: "private", useCache: false, ...blobStore });
     if (!result || result.statusCode !== 200) return null;
     return new Uint8Array(await new Response(result.stream).arrayBuffer());
   }
@@ -133,11 +148,12 @@ export async function getScanImage(
 
 export async function deleteScanImage(ownerEmail: string, imageKey: string): Promise<void> {
   assertOwnerKey(ownerEmail, imageKey);
-  if (process.env.NODE_ENV === "production" && !process.env.BLOB_READ_WRITE_TOKEN) {
+  const blobStore = blobAccess();
+  if (process.env.NODE_ENV === "production" && !blobStore) {
     throw new ImageStorageError("Private scan storage is not configured.", 503);
   }
-  if (process.env.BLOB_READ_WRITE_TOKEN) {
-    await del(imageKey);
+  if (blobStore) {
+    await del(imageKey, blobStore);
     return;
   }
   const item = storageRegistry.get(imageKey);
