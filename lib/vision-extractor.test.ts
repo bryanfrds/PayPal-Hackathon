@@ -2,7 +2,22 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const ai = vi.hoisted(() => ({ generateText: vi.fn(), object: vi.fn((value) => value) }));
 vi.mock("ai", () => ({ generateText: ai.generateText, Output: { object: ai.object } }));
-import { extractNotebookEntries, type ExtractionOptions } from "./vision-extractor";
+import { extractNotebookEntries, fitYear, type ExtractionOptions } from "./vision-extractor";
+
+describe("fitYear", () => {
+  it("moves a year-less date to the most recent such day on or before today", () => {
+    expect(fitYear("2025-11-08", "2026-11-08", "8/11 Kak Ros gula 12.80")).toBe("2026-11-08");
+    expect(fitYear("2025-09-11", "2026-11-08", "9/11 Abang Din roti 9.50")).toBe("2026-09-11");
+    expect(fitYear("2026-12-01", "2026-11-08", "1/12 X 5.00")).toBe("2025-12-01");
+  });
+  it("keeps dates whose text shows a year", () => {
+    expect(fitYear("2024-03-05", "2026-11-08", "5/3/2024 Ali 10.00")).toBe("2024-03-05");
+    expect(fitYear("2024-03-05", "2026-11-08", "Ali 2024 10.00")).toBe("2024-03-05");
+  });
+  it("leaves malformed dates alone", () => {
+    expect(fitYear("soon", "2026-11-08")).toBe("soon");
+  });
+});
 
 describe("vision-extractor", () => {
   const dummyBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47]); // PNG header
@@ -68,6 +83,7 @@ describe("vision-extractor", () => {
     const text = call.messages[0].content.find((p: { type: string }) => p.type === "text").text as string;
     expect(text).toContain("Today is 2026-10-18");
     expect(text).toContain("plain number");
+    expect(text).toContain("day/month");
   });
 
   it("extracts clearly legible handwriting lines", async () => {

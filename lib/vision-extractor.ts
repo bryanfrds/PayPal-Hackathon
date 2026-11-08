@@ -84,7 +84,7 @@ async function extractWithGateway(imageBytes: Uint8Array, mimeType: string, toda
     messages: [{
       role: "user",
       content: [
-        { type: "text", text: `Read this notebook image. Return each line with customer, item, amount, optional YYYY-MM-DD date, classification, raw text, confidence, and ambiguity details. Write the amount as a plain number with no currency, e.g. 18.50 for "RM 18.50". Today is ${today}: a date written without a year is the most recent such date on or before today.` },
+        { type: "text", text: `Read this notebook image. Return each line with customer, item, amount, optional YYYY-MM-DD date, classification, raw text, confidence, and ambiguity details. Write the amount as a plain number with no currency, e.g. 18.50 for "RM 18.50". Dates are written day/month, as in Malaysia: 9/11 means 9 November. Today is ${today}: a date written without a year is the most recent such date on or before today.` },
         { type: "file", mediaType: mimeType, data: imageBytes },
       ],
     }],
@@ -92,6 +92,23 @@ async function extractWithGateway(imageBytes: Uint8Array, mimeType: string, toda
     maxOutputTokens: 3000,
   });
   return result.output.entries.slice(0, MAX_LINES);
+}
+
+/**
+ * Notebook dates rarely carry a year, and the model sometimes picks the wrong one (a page from this
+ * week came back as last year). When the line's own text shows no year, move the date to the most
+ * recent such day on or before today. Dates with a written year are left alone.
+ */
+export function fitYear(date: string, today: string, rawText = ""): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{4}-\d{2}-\d{2}$/.test(today)) return date;
+  if (/\b(19|20)\d{2}\b|\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}/.test(rawText)) return date;
+  const md = date.slice(5);
+  const year = Number(today.slice(0, 4));
+  for (const y of [year, year - 1]) {
+    const candidate = `${y}-${md}`;
+    if (candidate <= today && !Number.isNaN(Date.parse(candidate))) return candidate;
+  }
+  return date;
 }
 
 function buildSyntheticLines(scenario: SyntheticScenario, today: string): RawExtractedLine[] {
@@ -163,7 +180,7 @@ export async function extractNotebookEntries(
       item: l.item,
       amountSen,
       rawAmountText: l.amount,
-      date: l.date || today,
+      date: l.date ? fitYear(l.date, today, l.rawText) : today,
       classification: l.classification,
       confidence: l.confidence ?? (isAmbiguous ? 0.65 : 0.95),
       isAmbiguous,
