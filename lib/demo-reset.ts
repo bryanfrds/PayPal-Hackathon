@@ -17,7 +17,10 @@ export { SCAN_DRAFT_KEYS };
 /** What a reset clears from localStorage. Anything else on the device is left alone. */
 export const DEMO_KEYS = [DEBTS_KEY, INVOICES_KEY, PENDING_KEY, EMAILS_KEY, RULES_KEY, MOVES_KEY, SENT_KEY] as const;
 
-type StorageLike = Pick<Storage, "removeItem">;
+/** When the demo was last reset: invoices the server has from before then aren't brought back. */
+export const INVOICE_IMPORT_AFTER_KEY = "buku.invoices.importAfter.v1";
+
+type StorageLike = Pick<Storage, "removeItem"> & Partial<Pick<Storage, "setItem">>;
 
 /** Clears the demo keys. Returns false if storage is missing or a removal failed (some may be cleared). */
 export function resetDemoData(storage: StorageLike | null, sessionStorage?: StorageLike | null): boolean {
@@ -29,6 +32,11 @@ export function resetDemoData(storage: StorageLike | null, sessionStorage?: Stor
     } catch {
       ok = false;
     }
+  }
+  try {
+    storage.setItem?.(INVOICE_IMPORT_AFTER_KEY, new Date().toISOString());
+  } catch {
+    ok = false;
   }
   if (sessionStorage) {
     for (const key of SCAN_DRAFT_KEYS) {

@@ -12,13 +12,16 @@ export default defineConfig({
     baseURL,
   },
   webServer: {
+    // Dev server, not `next start`: a production build refuses the in-memory scan store, and E2E
+    // runs have no database, so the scan and reminder routes would answer 500.
     command: `${npmCommand} run dev -- -p ${e2ePort}`,
     url: `${baseURL}/sign-in`,
     reuseExistingServer,
     timeout: 60000,
     env: {
       PORT: String(e2ePort),
-      NODE_ENV: "test",
+      // Anything else makes `next dev` write a stray .next/dev/dev/types path into tsconfig.json.
+      NODE_ENV: "development",
       DATABASE_URL: "",
       PAYPAL_API_BASE: "https://api-m.sandbox.paypal.com",
       PAYPAL_CLIENT_ID: "",

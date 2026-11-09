@@ -72,7 +72,15 @@ export async function POST(req: Request) {
   const scanId = existingScan?.id ?? `scan-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const now = new Date().toISOString();
   const scan: ScanRecord = existingScan
-    ? { ...existingScan, status: "processing", error: undefined, updatedAt: now }
+    ? {
+        ...existingScan,
+        // The same bytes can arrive with a corrected file type, so the record follows this upload.
+        imageKey: scanImageKey(owner.email, scanId, mimeType),
+        mimeType,
+        status: "processing",
+        error: undefined,
+        updatedAt: now,
+      }
     : {
         id: scanId,
         ownerEmail: owner.email,
@@ -96,6 +104,8 @@ export async function POST(req: Request) {
 
   try {
     await saveScanImage(owner.email, scanId, bytes, mimeType);
+    // Only now: a refused upload must not repoint the record away from an image that's stored.
+    if (existingScan) await store.saveScan(scan);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to store image.";
     const status = (err as { statusCode?: number }).statusCode || 400;

@@ -68,6 +68,8 @@ export type ApprovedDebtRecord = {
   date: string;
   approvedAt: string;
   handoffKey: string;
+  /** Every PayPal invoice made for this debt, oldest first, recorded before it's sent. */
+  paypalInvoiceIds?: string[];
 };
 
 export type ReminderRuleRecord = {

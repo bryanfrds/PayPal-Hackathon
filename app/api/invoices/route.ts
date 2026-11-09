@@ -2,14 +2,27 @@ import { NextResponse } from "next/server";
 import { invoiceRequestId, isValidEmail } from "@/lib/collect";
 import { MAX_AMOUNT_SEN, MAX_NAME_LENGTH } from "@/lib/debts";
 import { customerSlug } from "@/lib/customer-tab";
+import { debtInvoices, type DebtInvoices } from "@/lib/debt-invoices";
 import { paymentDb, within } from "@/lib/payment-db";
-import { createDraftInvoice, getInvoice, getPayerLink, PayPalError, sendInvoice, shopCurrency } from "@/lib/paypal";
+import { invoiceFacts, settlementOf } from "@/lib/payments";
+import { createDraftInvoice, getInvoice, getPayerLink, PayPalError, sendInvoice, shopCurrency, type PayPalInvoice } from "@/lib/paypal";
 import { paypalFailure } from "./errors";
 import { requireOwner } from "@/lib/auth-server";
 import { getPerson1Store } from "@/lib/person1-store";
 
 /** Statuses that mean the invoice has gone out to the customer. */
 const OUT = new Set(["SENT", "SHARED", "UNPAID", "PARTIALLY_PAID", "PAYMENT_PENDING", "PAID", "MARKED_AS_PAID", "PAID_EXTERNAL"]);
+
+const CANCELLED_MESSAGE = "This invoice was cancelled on PayPal. Check it there before sending again.";
+const DIFFERS_MESSAGE = "This invoice already went out on PayPal with a different amount or recipient. Check it there before changing it.";
+
+/** True when PayPal's invoice bills a different amount or person. Only what PayPal reported counts. */
+function differs(invoice: PayPalInvoice, email: string, totalSen: number): boolean {
+  const paypalTotal = invoiceFacts(invoice).totalSen;
+  const recipient = invoice.primary_recipients?.[0]?.billing_info?.email_address;
+  if (paypalTotal !== undefined && paypalTotal !== totalSen) return true;
+  return recipient !== undefined && recipient.trim().toLowerCase() !== email.trim().toLowerCase();
+}
 
 type ManualBody = {
   kind: "manual";
@@ -115,6 +128,50 @@ export async function POST(request: Request) {
       if (!debt) {
         return NextResponse.json({ error: "Approved debt not found." }, { status: 404 });
       }
+      // Without this answer a second invoice can't be ruled out, so nothing is sent.
+      let links: DebtInvoices;
+      try {
+        links = await debtInvoices(owner.email);
+      } catch (error) {
+        console.error("POST /api/invoices: couldn't check existing invoices:", error instanceof Error ? error.message : error);
+        return NextResponse.json({ error: "Couldn't check this debt's invoices. Try again." }, { status: 503 });
+      }
+      const closedIds = [...(links.closed.get(debt.id) ?? [])];
+      const existing = links.live.get(debt.id);
+      if (existing) {
+        // Never a second invoice. A retry whose answer was lost gets the same invoice back.
+        const invoice = await getInvoice(existing.id);
+        const facts = invoiceFacts(invoice);
+        if (settlementOf(facts, existing.amountSen, existing.currency) === "closed") {
+          // Cancelled or refunded, and the webhook hasn't said so: note it, then bill again below.
+          closedIds.push(existing.id);
+          try {
+            await within(paymentDb()!.saveFacts(existing.id, facts, new Date(), "app"));
+          } catch (error) {
+            console.error("POST /api/invoices: couldn't save a cancelled invoice:", error instanceof Error ? error.message : error);
+          }
+        } else {
+          if (!OUT.has(invoice.status ?? "")) return NextResponse.json({ error: CANCELLED_MESSAGE }, { status: 409 });
+          if (existing.amountSen !== debt.amountSen || differs(invoice, debt.customerEmail, debt.amountSen)) {
+            return NextResponse.json({ error: DIFFERS_MESSAGE }, { status: 409 });
+          }
+          return NextResponse.json({ id: existing.id, number: invoice.detail?.invoice_number, payerLink: getPayerLink(invoice) });
+        }
+      }
+      // Every invoice ever made for this debt, in case one went out but never reached the invoices
+      // table: that one is the debt's invoice, whatever the debt has been corrected to since.
+      for (const id of debt.paypalInvoiceIds ?? []) {
+        if (closedIds.includes(id)) continue;
+        const invoice = await getInvoice(id);
+        if (OUT.has(invoice.status ?? "")) {
+          if (differs(invoice, debt.customerEmail, debt.amountSen)) return NextResponse.json({ error: DIFFERS_MESSAGE }, { status: 409 });
+          const number = invoice.detail?.invoice_number;
+          const payerLink = getPayerLink(invoice);
+          await saveToDb(owner.email, debt.customerName, invoiceFacts(invoice).totalSen ?? debt.amountSen, [debt.id], { id, number, payerLink });
+          return NextResponse.json({ id, number, payerLink });
+        }
+        if (invoice.status !== "DRAFT") closedIds.push(id);
+      }
       const [customer, entry, scan] = await Promise.all([
         store.getCustomer(owner.email, debt.customerId),
         store.getEntry(owner.email, debt.sourceEntryId),
@@ -128,7 +185,9 @@ export async function POST(request: Request) {
       email = debt.customerEmail;
       lines = [{ name: debt.item, amountSen: debt.amountSen }];
       debtIds = [body.approvedDebtId]; // Use the approved debt ID for idempotency tracking
-      requestId = invoiceRequestId({ debtIds, email: "approved-debt", lines: [] });
+      // Stable across corrections, so a lost answer can't become a second invoice. Billing again
+      // after a cancelled or refunded invoice gets a new id.
+      requestId = invoiceRequestId({ debtIds, email: "approved-debt", lines: [], previousInvoiceIds: closedIds });
     } else {
       customerName = body.customerName;
       email = body.email;
@@ -136,15 +195,36 @@ export async function POST(request: Request) {
       debtIds = body.debtIds;
     }
 
-    const draft = await createDraftInvoice({
-      recipientEmail: email,
-      recipientName: customerName,
-      items: lines.map((l) => ({ name: l.name, amount: l.amountSen / 100 })),
-      requestId,
-    });
+    const totalSen = lines.reduce((sum, l) => sum + l.amountSen, 0);
+    const createDraft = (id: string) =>
+      createDraftInvoice({
+        recipientEmail: email,
+        recipientName: customerName,
+        items: lines.map((l) => ({ name: l.name, amount: l.amountSen / 100 })),
+        requestId: id,
+      });
+    // Recorded before anything is sent; if this fails, nothing goes out.
+    const remember = async (invoiceId: string) => {
+      if (body.kind === "approved") await getPerson1Store().addApprovedDebtInvoiceId(owner.email, body.approvedDebtId, invoiceId);
+    };
+    let draft = await createDraft(requestId);
+    await remember(draft.id);
     // A retry gets back the create response from the first try, which can still say DRAFT
     // after that try sent it. So always ask PayPal where the invoice stands now.
     let current = await getInvoice(draft.id);
+    const paypalName = current.primary_recipients?.[0]?.billing_info?.name?.full_name;
+    const paypalItems = current.items?.map((item) => item.name);
+    const oldWording = (paypalName !== undefined && paypalName !== customerName) || (paypalItems !== undefined && JSON.stringify(paypalItems) !== JSON.stringify(lines.map((l) => l.name)));
+    if (current.status === "DRAFT" && (oldWording || differs(current, email, totalSen))) {
+      // A draft from a send that failed before the debt was corrected. It never went out, so it
+      // is left unsent and the corrected details get their own draft (the same one on a retry).
+      draft = await createDraft(invoiceRequestId({ debtIds, email, lines, previousInvoiceIds: [draft.id] }));
+      await remember(draft.id);
+      current = await getInvoice(draft.id);
+    }
+    if ((current.status === "DRAFT" || OUT.has(current.status ?? "")) && differs(current, email, totalSen)) {
+      return NextResponse.json({ error: DIFFERS_MESSAGE }, { status: 409 });
+    }
     if (current.status === "DRAFT") {
       try {
         await sendInvoice(draft.id);
@@ -156,15 +236,11 @@ export async function POST(request: Request) {
       current = await getInvoice(draft.id);
     }
     if (!OUT.has(current.status ?? "")) {
-      return NextResponse.json(
-        { error: "This invoice was cancelled on PayPal. Check it there before sending again." },
-        { status: 409 },
-      );
+      return NextResponse.json({ error: CANCELLED_MESSAGE }, { status: 409 });
     }
     const number = current.detail?.invoice_number;
     const payerLink = getPayerLink(current);
-    const totalSen = lines.reduce((sum, l) => sum + l.amountSen, 0);
-    await saveToDb(owner.email, customerName, totalSen, debtIds, { id: draft.id, number, payerLink });
+    await saveToDb(owner.email, customerName, invoiceFacts(current).totalSen ?? totalSen, debtIds, { id: draft.id, number, payerLink });
     return NextResponse.json({ id: draft.id, number, payerLink });
   } catch (error) {
     // Messages from lib/paypal.ts are already redacted; this keeps PayPal's debug id for us.

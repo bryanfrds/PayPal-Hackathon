@@ -83,10 +83,6 @@ export function parseActiveScan(raw: string | null | undefined): ActiveScan | nu
   return value as ActiveScan;
 }
 
-export function unconfirmedIncludedEntryIds(lines: ScanLine[]): string[] {
-  return lines.filter((line) => line.include && !line.confirmedCustomerId).map((line) => line.entryId);
-}
-
 export type ScanLine = {
   /** Stable UI key; server-backed lines use the entry ID. */
   key: string;

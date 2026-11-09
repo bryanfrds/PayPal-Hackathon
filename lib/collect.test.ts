@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Debt } from "./debts";
-import { approvedDebtGroups, collectGroups, invoiceLines, invoiceRequestId, isInvoiceable, isValidEmail, loadApprovedDebts, pickPreview, sendRequest, SHOP_ITEMS, withDomain, type CollectGroup, type PendingSend } from "./collect";
+import { approvedDebtGroups, collectGroups, invoicesToImport, invoiceLines, invoiceRequestId, isInvoiceable, isValidEmail, loadApprovedDebts, pickPreview, sendRequest, SHOP_ITEMS, withDomain, type CollectGroup, type PendingSend } from "./collect";
 import { LANGUAGES } from "./i18n";
 
 function debt(id: string, customerName: string, amountSen: number, status: Debt["status"], date = "2026-10-01", item = "Milo"): Debt {
@@ -66,9 +66,20 @@ describe("approved debt queue", () => {
   };
 
   it("loads the signed-in owner's server queue", async () => {
-    const fetchImpl = vi.fn(async () => Response.json({ approvedDebts: [approved] }));
-    await expect(loadApprovedDebts(fetchImpl)).resolves.toEqual([approved]);
+    const fetchImpl = vi.fn(async () => Response.json({ approvedDebts: [approved], invoiced: [], withdrawnDebtIds: ["approved-2"] }));
+    await expect(loadApprovedDebts(fetchImpl)).resolves.toEqual({ approvedDebts: [approved], invoiced: [], withdrawnDebtIds: ["approved-2"] });
     expect(fetchImpl).toHaveBeenCalledWith("/api/debts/approved");
+  });
+
+  it("brings in invoices this device doesn't have, unless they predate a demo reset", () => {
+    const invoice = (id: string, sentAt: string) => ({ debt: approved, invoice: { id, amountSen: 3600, sentAt, number: "0042", payerLink: "https://pay/1" } });
+    const list = [invoice("known", "2026-10-20T00:00:00Z"), invoice("old", "2026-10-01T00:00:00Z"), invoice("new", "2026-10-20T00:00:00Z")];
+
+    const imported = invoicesToImport(list, new Set(["known"]), "2026-10-10T00:00:00Z");
+
+    expect(imported.map((i) => i.record.id)).toEqual(["new"]);
+    expect(imported[0].record).toMatchObject({ customerName: "Pak Ali", email: "ali@example.com", debtIds: ["approved-1"], amountSen: 3600, number: "0042" });
+    expect(imported[0].debt).toMatchObject({ id: "approved-1", amountSen: 3600, status: "sent" });
   });
 
   it("turns each approved record into one server-authoritative invoice choice", () => {

@@ -16,6 +16,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     headers: {
       "Content-Type": scan.mimeType,
       "Cache-Control": "private, no-store, max-age=0",
+      "X-Content-Type-Options": "nosniff",
     },
   });
 }

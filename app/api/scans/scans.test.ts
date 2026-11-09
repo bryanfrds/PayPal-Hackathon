@@ -16,7 +16,7 @@ import { POST as retryScan } from "./[id]/retry/route";
 import { POST as rescanScan } from "./[id]/rescan/route";
 import { PATCH as updateEntry } from "./[id]/entries/[entryId]/route";
 import { getPerson1Store } from "@/lib/person1-store";
-import { scanImageKey } from "@/lib/image-storage";
+import { computeImageHash, scanImageKey } from "@/lib/image-storage";
 
 describe("Scans API", () => {
   const dummyJpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46]);
@@ -162,6 +162,33 @@ describe("Scans API", () => {
     expect(second.status).toBe(200);
     expect(body.entries.length).toBeGreaterThan(0);
     expect(blob.put.mock.calls.length - putCallCount).toBe(2);
+  });
+
+  it("POST /api/scans: a retried upload's file type updates the saved path and record together", async () => {
+    const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x11]);
+    const upload = (type: string) => createScan(makeUploadRequest(png, type, "notebook", "clear_handwriting"));
+
+    expect((await upload("image/jpeg")).status).toBe(400); // PNG bytes don't pass as a JPEG
+    const res = await upload("image/png");
+
+    expect(res.status).toBe(200);
+    const { scan } = await res.json();
+    const saved = await getPerson1Store().getScan(signedIn.email, scan.id);
+    expect(saved?.mimeType).toBe("image/png");
+    expect(saved?.imageKey).toBe(scanImageKey(signedIn.email, scan.id, "image/png"));
+    expect(blob.put.mock.lastCall?.[0]).toBe(saved?.imageKey);
+  });
+
+  it("POST /api/scans: a refused retry leaves the record pointing at the same file", async () => {
+    const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x22]);
+    blob.put.mockRejectedValueOnce(Object.assign(new Error("temporary blob failure"), { statusCode: 503 }));
+    await createScan(makeUploadRequest(png, "image/png", "notebook", "clear_handwriting"));
+
+    expect((await createScan(makeUploadRequest(png, "image/jpeg", "notebook", "clear_handwriting"))).status).toBe(400);
+
+    const scan = await getPerson1Store().findScanByHash(signedIn.email, computeImageHash(png));
+    expect(scan?.mimeType).toBe("image/png");
+    expect(scan?.imageKey).toMatch(/\.png$/);
   });
 
   it("GET /api/scans/[id]: returns scan and draft entries", async () => {

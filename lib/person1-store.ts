@@ -49,6 +49,7 @@ export interface Person1Store {
   // Approved Debts Handoff
   saveApprovedDebts(debts: ApprovedDebtRecord[]): Promise<ApprovedDebtRecord[]>;
   replaceApprovedDebt(debt: ApprovedDebtRecord): Promise<ApprovedDebtRecord | null>;
+  addApprovedDebtInvoiceId(ownerEmail: string, approvedDebtId: string, invoiceId: string): Promise<void>;
   getApprovedDebt(ownerEmail: string, approvedDebtId: string): Promise<ApprovedDebtRecord | null>;
   getApprovedDebts(ownerEmail: string): Promise<ApprovedDebtRecord[]>;
   getApprovedDebtByHandoffKey(ownerEmail: string, handoffKey: string): Promise<ApprovedDebtRecord | null>;
@@ -237,6 +238,12 @@ export function createMemoryPerson1Store(): Person1Store {
         }
       }
       return stored;
+    },
+    async addApprovedDebtInvoiceId(ownerEmail, approvedDebtId, invoiceId) {
+      const current = approvedDebts.get(approvedDebtId);
+      if (!current || current.ownerEmail.toLowerCase() !== ownerEmail.toLowerCase()) return;
+      const ids = current.paypalInvoiceIds ?? [];
+      if (!ids.includes(invoiceId)) approvedDebts.set(approvedDebtId, { ...current, paypalInvoiceIds: [...ids, invoiceId] });
     },
     async getApprovedDebts(ownerEmail) {
       const result: ApprovedDebtRecord[] = [];

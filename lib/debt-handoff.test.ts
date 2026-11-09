@@ -206,6 +206,43 @@ describe("debt-handoff", () => {
     expect(allDebts[0].item).toBe("Beras Wangi");
   });
 
+  it("refuses to change an approved debt that already has an invoice, but allows saving it unchanged", async () => {
+    await store.saveEntries([{
+      id: "entry-invoiced",
+      scanId: "scan-1",
+      revision: 1,
+      rawText: "Pak Ali 100.00",
+      customerName: "Pak Ali",
+      item: "Beras",
+      amountSen: 10000,
+      rawAmountText: "100.00",
+      date: "2026-10-18",
+      classification: "debt",
+      confidence: 0.95,
+      isAmbiguous: false,
+      included: true,
+      confirmedCustomerId: "cust-1",
+      sourceRef: { lineIndex: 1 },
+      ownerEdited: false,
+      createdAt: "2026-10-18T00:00:00Z",
+      updatedAt: "2026-10-18T00:00:00Z",
+    }]);
+    const [debt] = (await approveDebtsForInvoicing(owner, ["entry-invoiced"], store)).approved;
+    const invoiced = new Set([debt.id]);
+
+    // Touched but not changed: updatedAt moves the handoff key, the details stay the same.
+    await store.updateEntry(owner, "entry-invoiced", { ownerEdited: true });
+    const same = await approveDebtsForInvoicing(owner, ["entry-invoiced"], store, invoiced);
+    expect(same.rejected).toHaveLength(0);
+    expect(same.approved[0]).toEqual(debt);
+
+    await store.updateEntry(owner, "entry-invoiced", { amountSen: 12000 });
+    const changed = await approveDebtsForInvoicing(owner, ["entry-invoiced"], store, invoiced);
+    expect(changed.approved).toHaveLength(0);
+    expect(changed.rejected[0].reason).toMatch(/already has a PayPal invoice/);
+    expect((await store.getApprovedDebts(owner))[0].amountSen).toBe(10000);
+  });
+
   it("reconciles the same physical notebook line across rescans and rejects stale revisions", async () => {
     // 1. Scan at revision 1, line 1 entry
     const entryRev1: ExtractedEntry = {

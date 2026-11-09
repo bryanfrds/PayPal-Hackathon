@@ -22,8 +22,8 @@ import {
   type ScanLine,
   type ScanMode,
   scanDraftKey,
-  unconfirmedIncludedEntryIds,
 } from "@/lib/scan";
+import { isInvoiceable, isValidEmail, loadApprovedDebts } from "@/lib/collect";
 import {
   approveScanEntries,
   confirmEntryCustomer,
@@ -651,7 +651,7 @@ function PhotoModal({
 function Check({ mode, photo, read, onRetake }: { mode: ScanMode; photo: string | null; read: CompletedRead; onRetake: () => void }) {
   const { t, formatDay } = useT();
   const router = useRouter();
-  const { debts, ready, addMany } = useDebts();
+  const { debts, ready, addMany, updateMany, remove } = useDebts();
   const titleRef = useFocusOnMount<HTMLHeadingElement>();
   // After a refused save: the line whose first bad field gets focus once it's open.
   const [focusLine, setFocusLine] = useState<{ key: string; n: number } | null>(null);
@@ -736,31 +736,44 @@ function Check({ mode, photo, read, onRetake }: { mode: ScanMode; photo: string 
       setFocusLine((prev) => ({ key: result.problems[0].key, n: (prev?.n ?? 0) + 1 }));
       return;
     }
-    const unconfirmed = mode === "notebook" ? unconfirmedIncludedEntryIds(lines) : [];
-    if (unconfirmed.length > 0) {
-      setOpen(unconfirmed[0]);
-      setSaveError("Confirm every included customer before adding these debts.");
-      return;
+    const original = new Map(read.lines.map((line) => [line.entryId, line]));
+    const changed = (line: ScanLine) => {
+      const before = original.get(line.entryId);
+      return (
+        !before ||
+        line.customerName !== before.customerName ||
+        line.item !== before.item ||
+        line.amount !== before.amount ||
+        line.date !== before.date ||
+        line.include !== before.include ||
+        line.unsure !== before.unsure
+      );
+    };
+    const held = new Map(debts.map((debt) => [debt.id, debt]));
+    if (mode === "notebook") {
+      // Confirmed on the server means it may already be an approved debt: losing the confirmation
+      // here would skip approval and put a second, plain copy on the ledger.
+      const unconfirmed = included.find((line) => original.get(line.entryId)?.confirmedCustomerId && !line.confirmedCustomerId);
+      // A plain debt that already went out can't be corrected, or billed again as an approved one.
+      const billed = included.find((line) => {
+        const debt = held.get(line.entryId);
+        return debt && !isInvoiceable(debt) && (line.confirmedCustomerId || changed(line));
+      });
+      if (unconfirmed || billed) {
+        setOpen((unconfirmed ?? billed)!.key);
+        setSaveError(t(unconfirmed ? "scanx.reconfirm" : "scanx.alreadyInvoiced"));
+        return;
+      }
     }
     setSaving(true);
+    let savedCount = 0;
     try {
       let approvedByEntry = new Map<string, string>();
       if (mode === "notebook") {
-        const original = new Map(read.lines.map((line) => [line.entryId, line]));
-        const changedOrExcluded = lines.filter((line) => {
-          const before = original.get(line.entryId);
-          return (
-            !line.include ||
-            !before ||
-            line.customerName !== before.customerName ||
-            line.item !== before.item ||
-            line.amount !== before.amount ||
-            line.date !== before.date ||
-            line.include !== before.include ||
-            line.unsure !== before.unsure
-          );
-        });
-        for (const line of changedOrExcluded) {
+        // A line unticked on a reopened scan is withdrawn, so its debt leaves this ledger too.
+        const withdrawn = lines.filter((l) => !l.include && original.get(l.entryId)?.include);
+        const approvedDebts = withdrawn.some((l) => original.get(l.entryId)?.confirmedCustomerId) ? (await loadApprovedDebts()).approvedDebts : [];
+        for (const line of lines.filter((l) => !l.include || changed(l))) {
           const amountSen = parseRmToSen(line.amount);
           await patchScanEntry(read.scanId, line.entryId, {
             ...(amountSen && amountSen > 0 ? { amountSen } : {}),
@@ -772,22 +785,42 @@ function Check({ mode, photo, read, onRetake }: { mode: ScanMode; photo: string 
             date: line.date,
           });
         }
+        for (const line of withdrawn) {
+          const id = approvedDebts.find((debt) => debt.sourceEntryId === line.entryId)?.id ?? line.entryId;
+          const debt = held.get(id);
+          if (debt && isInvoiceable(debt)) remove(id);
+        }
         const confirmedEntryIds = included.filter((line) => line.confirmedCustomerId).map((line) => line.entryId);
         if (confirmedEntryIds.length > 0) {
           const approval = await approveScanEntries(confirmedEntryIds);
-          if (approval.rejected.length > 0) throw new Error(approval.rejected[0].reason);
+          if (approval.rejected.length > 0) {
+            setSaveError(approval.rejected[0].reason);
+            setSaving(false);
+            return;
+          }
           approvedByEntry = new Map(approval.approved.map((debt) => [debt.sourceEntryId, debt.id]));
         }
       }
+      // A confirmed line is the approved debt. A line with no confirmed customer is a plain ledger
+      // debt, invoiced from Collect once it has an email. Ids follow the entry, so saving a
+      // reopened scan corrects its debts instead of adding them twice.
       const savedDebts =
         mode === "notebook"
-          ? result.debts.flatMap((debt, index) => {
-              const line = included[index];
-              const approvedId = line?.confirmedCustomerId ? approvedByEntry.get(line.entryId) : undefined;
-              return approvedId ? [{ ...debt, id: approvedId }] : [];
-            })
+          ? result.debts.map((debt, index) => ({ ...debt, id: approvedByEntry.get(included[index].entryId) ?? included[index].entryId }))
           : result.debts;
-      if (savedDebts.length > 0) addMany(savedDebts); // one write: all of them or none
+      const fresh = savedDebts.filter((debt) => !held.has(debt.id));
+      if (fresh.length > 0) addMany(fresh); // one write: all of them or none
+      savedCount = fresh.length;
+      savedDebts.forEach(({ id, customerName, item, amountSen, date }, index) => {
+        const line = included[index];
+        // Only what the owner changed here: an untouched line must not undo edits made on the ledger.
+        if (held.has(id) && mode === "notebook" && changed(line) && isInvoiceable(held.get(id)!)) {
+          updateMany([id], { customerName, item, amountSen, date });
+          savedCount += 1;
+        }
+        // The line was saved as a plain debt before its customer was confirmed.
+        if (mode === "notebook" && id !== line.entryId && held.has(line.entryId)) remove(line.entryId);
+      });
       try {
         sessionStorage.removeItem(draftKey);
         sessionStorage.removeItem(activeScanKey(mode));
@@ -797,7 +830,6 @@ function Check({ mode, photo, read, onRetake }: { mode: ScanMode; photo: string 
       setSaving(false);
       return;
     }
-    const savedCount = mode === "notebook" ? included.filter((line) => line.confirmedCustomerId).length : result.debts.length;
     router.push(`/ledger?scanned=${savedCount}`);
   }
 
@@ -817,9 +849,9 @@ function Check({ mode, photo, read, onRetake }: { mode: ScanMode; photo: string 
       </div>
 
       {read.isDuplicate && read.warning && (
-        <div className="card" role="status" style={{ padding: "1rem", marginBottom: "1rem", background: "var(--color-warning-bg, #fff3cd)", border: "1px solid var(--color-warning-border, #ffc107)" }}>
-          ⚠️ {read.warning}
-        </div>
+        <p className="notice notice-warning" role="status">
+          {t("scanx.duplicateNotice")}
+        </p>
       )}
 
       <section className="card scan-thumb">
@@ -955,6 +987,8 @@ function Check({ mode, photo, read, onRetake }: { mode: ScanMode; photo: string 
                     <input
                       type="checkbox"
                       checked={l.include}
+                      // Crossed out or a repayment: not a debt, unless the owner corrects the line first.
+                      disabled={Boolean(l.skipped && l.unsure)}
                       onChange={(e) => toggle(l.key, e.target.checked)}
                       aria-label={t("scan.addLine", { name: l.customerName || t("scan.thisLine"), amount: l.amount || t("scan.noAmount") })}
                     />
@@ -1076,6 +1110,7 @@ function CustomerMatch({
   line: ScanLine;
   onConfirmed: (name: string, customerId: string) => void;
 }) {
+  const { t } = useT();
   const [suggestions, setSuggestions] = useState<CustomerMatchSuggestion[]>([]);
   const [selectedId, setSelectedId] = useState(line.confirmedCustomerId ?? "");
   const [email, setEmail] = useState("");
@@ -1093,14 +1128,18 @@ function CustomerMatch({
         setSelectedId(matches[0].customer.id);
         setEmail(matches[0].customer.email ?? "");
       }
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not load customer matches.");
+    } catch {
+      setError(t("scanx.match.loadFailed"));
     } finally {
       setBusy(false);
     }
   }
 
   async function confirm() {
+    if (!isValidEmail(email)) {
+      setError(t("collect.email.invalid"));
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -1113,26 +1152,27 @@ function CustomerMatch({
       const confirmed = await confirmEntryCustomer(line.entryId, customer.id);
       setSelectedId(customer.id);
       onConfirmed(confirmed.customer.name, customer.id);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not confirm the customer.");
+    } catch {
+      setError(t("scanx.match.confirmFailed"));
     } finally {
       setBusy(false);
     }
   }
 
   if (line.confirmedCustomerId) {
-    return <p className="tab-note">Customer confirmed for PayPal invoicing.</p>;
+    return <p className="tab-note">{t("scanx.match.confirmed")}</p>;
   }
 
   return (
     <div className="field">
+      <p className="tab-note">{t("scanx.match.optional")}</p>
       {suggestions.length === 0 ? (
         <button type="button" className="button button-sm" disabled={busy} onClick={() => void load()}>
-          {busy ? "Finding customersâ€¦" : "Find customer matches"}
+          {busy ? t("scanx.match.finding") : t("scanx.match.find")}
         </button>
       ) : (
         <>
-          <label htmlFor={`${line.key}-customer-match`}>Customer match</label>
+          <label htmlFor={`${line.key}-customer-match`}>{t("scanx.match.label")}</label>
           <select
             id={`${line.key}-customer-match`}
             value={selectedId}
@@ -1144,14 +1184,14 @@ function CustomerMatch({
           >
             {suggestions.map(({ customer, confidence }) => (
               <option key={customer.id} value={customer.id}>
-                {customer.name} ({Math.round(confidence * 100)}%)
+                {t("scanx.match.option", { name: customer.name, percent: Math.round(confidence * 100) })}
               </option>
             ))}
-            <option value="">Create â€œ{line.customerName}â€</option>
+            <option value="">{t("scanx.match.create", { name: line.customerName })}</option>
           </select>
         </>
       )}
-      <label htmlFor={`${line.key}-customer-email`}>PayPal email</label>
+      <label htmlFor={`${line.key}-customer-email`}>{t("scanx.match.email")}</label>
       <input
         id={`${line.key}-customer-email`}
         type="email"
@@ -1160,7 +1200,7 @@ function CustomerMatch({
         onChange={(event) => setEmail(event.target.value)}
       />
       <button type="button" className="button button-sm button-primary" disabled={busy || !email.trim()} onClick={() => void confirm()}>
-        {busy ? "Confirmingâ€¦" : "Confirm customer"}
+        {busy ? t("scanx.match.confirming") : t("scanx.match.confirm")}
       </button>
       {error && <p className="field-error" role="alert">{error}</p>}
     </div>

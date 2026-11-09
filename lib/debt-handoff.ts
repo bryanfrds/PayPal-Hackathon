@@ -12,6 +12,8 @@ export async function approveDebtsForInvoicing(
   ownerEmail: string,
   entryIds: string[],
   store: Person1Store,
+  /** Approved debts that already have an invoice: those can't change any more. */
+  invoicedDebtIds: ReadonlySet<string> = new Set(),
 ): Promise<HandoffResult> {
   const approved: ApprovedDebtRecord[] = [];
   const rejected: Array<{ entryId: string; reason: string }> = [];
@@ -98,6 +100,21 @@ export async function approveDebtsForInvoicing(
     if (existingDebt) {
       if (existingDebt.sourceEntryId === entry.id && existingDebt.handoffKey === handoffKey) {
         approved.push(existingDebt);
+        continue;
+      }
+
+      if (invoicedDebtIds.has(existingDebt.id)) {
+        // Saving the same details again is harmless; changing them would leave the invoice wrong.
+        const unchanged =
+          existingDebt.customerId === customer.id &&
+          existingDebt.customerName === customer.name &&
+          existingDebt.customerEmail === customer.email &&
+          existingDebt.amountSen === entry.amountSen &&
+          existingDebt.item === (entry.item || "Barang kedai") &&
+          existingDebt.date === entry.date;
+        // After a rescan the caller looks this up by the entry it asked about, so name that entry.
+        if (unchanged) approved.push({ ...existingDebt, sourceEntryId: entry.id });
+        else rejected.push({ entryId, reason: "This debt already has a PayPal invoice, so it can't be changed. Cancel the invoice on PayPal first." });
         continue;
       }
 

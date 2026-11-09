@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Debt } from "./debts";
-import { customerNames, entriesToLines, includedTotalSen, isNewCustomer, linesToDebts, parseActiveScan, sampleRead, unconfirmedIncludedEntryIds, type ReadEntry, type ScanLine } from "./scan";
+import { customerNames, entriesToLines, includedTotalSen, isNewCustomer, linesToDebts, parseActiveScan, sampleRead, type ReadEntry, type ScanLine } from "./scan";
 
 const TODAY = "2026-10-12";
 
@@ -39,12 +39,6 @@ describe("parseActiveScan", () => {
   ])("rejects malformed or incompatible active state", (raw) => {
     expect(parseActiveScan(raw)).toBeNull();
   });
-});
-
-it("lists included notebook entries that still need customer confirmation", () => {
-  const lines = sampleRead("notebook", TODAY).slice(0, 2);
-  lines[0].confirmedCustomerId = "cust-1";
-  expect(unconfirmedIncludedEntryIds(lines)).toEqual([lines[1].entryId]);
 });
 
 describe("sampleRead", () => {

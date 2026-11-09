@@ -42,12 +42,51 @@ export type CollectGroup = {
   approvedDebtId?: string;
 };
 
-export async function loadApprovedDebts(fetchImpl: typeof fetch = fetch): Promise<ApprovedDebtRecord[]> {
+export type InvoicedDebt = {
+  debt: ApprovedDebtRecord;
+  invoice: { id: string; number?: string; amountSen: number; sentAt: string; payerLink?: string };
+};
+
+export type ApprovedQueue = {
+  /** Approved debts with no invoice yet. */
+  approvedDebts: ApprovedDebtRecord[];
+  /** Approved debts the server already has an invoice for, even if this device doesn't know. */
+  invoiced: InvoicedDebt[];
+  /** Approved debts the owner unticked afterwards: not billed from anywhere. */
+  withdrawnDebtIds: string[];
+};
+
+export async function loadApprovedDebts(fetchImpl: typeof fetch = fetch): Promise<ApprovedQueue> {
   const response = await fetchImpl("/api/debts/approved");
-  const body = (await response.json().catch(() => null)) as { approvedDebts?: unknown; error?: unknown } | null;
+  const body = (await response.json().catch(() => null)) as { approvedDebts?: unknown; invoiced?: unknown; withdrawnDebtIds?: unknown; error?: unknown } | null;
   if (!response.ok) throw new Error(typeof body?.error === "string" ? body.error : "Could not load approved debts.");
-  if (!Array.isArray(body?.approvedDebts)) throw new Error("Could not load approved debts.");
-  return body.approvedDebts as ApprovedDebtRecord[];
+  if (!Array.isArray(body?.approvedDebts) || !Array.isArray(body?.invoiced) || !Array.isArray(body?.withdrawnDebtIds)) throw new Error("Could not load approved debts.");
+  return { approvedDebts: body.approvedDebts as ApprovedDebtRecord[], invoiced: body.invoiced as InvoicedDebt[], withdrawnDebtIds: body.withdrawnDebtIds as string[] };
+}
+
+/**
+ * Invoices the server knows and this device doesn't (sent from another device, or browser data
+ * cleared), as the records and debts to save here. An invoice the device already has is skipped,
+ * so a debt deleted from the ledger stays deleted. `after` is when the demo was last reset:
+ * anything older belongs to the demo that was cleared.
+ */
+export function invoicesToImport(invoiced: InvoicedDebt[], knownInvoiceIds: Set<string>, after = "") {
+  return invoiced
+    .filter(({ invoice }) => !knownInvoiceIds.has(invoice.id) && invoice.sentAt > after)
+    .map(({ debt, invoice }) => ({
+      record: {
+        id: invoice.id,
+        number: invoice.number,
+        customerName: debt.customerName,
+        slug: customerSlug(debt.customerName),
+        email: debt.customerEmail,
+        debtIds: [debt.id],
+        amountSen: invoice.amountSen,
+        sentAt: invoice.sentAt,
+        payerLink: invoice.payerLink,
+      },
+      debt: { ...approvedDebtGroups([debt])[0].debts[0], status: "sent" as const },
+    }));
 }
 
 /** The approved-debt invoice API accepts one stable server record per invoice. */

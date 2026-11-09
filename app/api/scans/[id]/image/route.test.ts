@@ -12,6 +12,17 @@ vi.mock("@/lib/image-storage", () => ({ getScanImage: image.get }));
 import { getPerson1Store } from "@/lib/person1-store";
 import { GET } from "./route";
 
+describe("GET /api/scans/[id]/image headers", () => {
+  it("tells browsers not to guess the type of an uploaded file", async () => {
+    signedIn.email = `image-owner-nosniff-${Date.now()}@example.com`;
+    image.get.mockReset().mockResolvedValue(new Uint8Array([0xff, 0xd8, 0xff]));
+    const now = new Date().toISOString();
+    await getPerson1Store().saveScan({ id: "scan-nosniff", ownerEmail: signedIn.email, imageKey: "scans/owner/scan.jpg", imageHash: "hash", mimeType: "image/jpeg", sizeBytes: 3, status: "completed", mode: "notebook", revision: 1, createdAt: now, updatedAt: now });
+    const res = await GET(new Request("http://localhost/api/scans/scan-nosniff/image"), { params: Promise.resolve({ id: "scan-nosniff" }) });
+    expect(res.headers.get("X-Content-Type-Options")).toBe("nosniff");
+  });
+});
+
 describe("GET /api/scans/[id]/image", () => {
   beforeEach(async () => {
     signedIn.value = true;

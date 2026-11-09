@@ -9,6 +9,8 @@ import {
   approvedDebtGroups,
   collectGroups,
   EMAIL_DOMAINS,
+  invoicesToImport,
+  isInvoiceable,
   isValidEmail,
   loadApprovedDebts,
   pickPreview,
@@ -23,6 +25,7 @@ import { refreshPublishedTabs } from "../tabLinks";
 import { isPayPalUrl } from "@/lib/customer-pay";
 import { customerSlug, tabPath } from "@/lib/customer-tab";
 import { DebtStoreError } from "@/lib/debt-store";
+import { INVOICE_IMPORT_AFTER_KEY } from "@/lib/demo-reset";
 import { formatSen } from "@/lib/debts";
 import { customerSummaries } from "@/lib/home";
 import type { T, TKey } from "@/lib/i18n";
@@ -54,8 +57,8 @@ type Tab = "toSend" | "sent" | "paid";
 const rm = (sen: number) => `RM ${formatSen(sen)}`;
 
 export default function CollectFlow() {
-  const { debts } = useDebts();
-  const { emails, invoices, pending } = useCollect();
+  const { debts, ready: debtsReady, addMany, updateMany } = useDebts();
+  const { emails, invoices, pending, addInvoice } = useCollect();
   const { t, formatDay } = useT();
   const [phase, setPhase] = useState<Phase>("list");
   const [tab, setTab] = useState<Tab>("toSend");
@@ -83,9 +86,38 @@ export default function CollectFlow() {
     void reloadQueue();
   }, [reloadQueue]);
 
-  const invoicedApprovedIds = new Set(invoices.flatMap((invoice) => invoice.debtIds));
-  const approvedGroups = approvedDebtGroups((approvedQueue ?? []).filter((debt) => !invoicedApprovedIds.has(debt.id)));
-  const approvedIds = new Set((approvedQueue ?? []).map((debt) => debt.id));
+  // Catch up on invoices sent from another device, so they show as sent and get tracked here too.
+  useEffect(() => {
+    if (!approvedQueue || !debtsReady) return;
+    let after = "";
+    try {
+      after = localStorage.getItem(INVOICE_IMPORT_AFTER_KEY) ?? "";
+    } catch {}
+    try {
+      for (const { record, debt } of invoicesToImport(approvedQueue.invoiced, new Set(invoices.map((r) => r.id)), after)) {
+        addInvoice(record);
+        const held = debts.find((d) => d.id === debt.id);
+        if (!held) addMany([debt]);
+        else if (isInvoiceable(held)) updateMany([debt.id], { status: "sent" });
+      }
+    } catch (error) {
+      // Harmless: these debts stay out of "To send", and the next visit tries again.
+      if (!(error instanceof CollectStoreError || error instanceof DebtStoreError)) throw error;
+    }
+    // Runs for each loaded queue; the lists are read as they are then.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [approvedQueue, debtsReady]);
+
+  // This device's own invoices hide debts straight after sending, before the queue reloads. A
+  // cancelled or refunded one doesn't: that debt needs billing again.
+  const invoicedApprovedIds = new Set(invoices.filter((invoice) => invoice.standing?.settlement !== "closed").flatMap((invoice) => invoice.debtIds));
+  const approvedGroups = approvedDebtGroups((approvedQueue?.approvedDebts ?? []).filter((debt) => !invoicedApprovedIds.has(debt.id)));
+  // Local copies of approved debts never bill on their own: the server record decides.
+  const approvedIds = new Set([
+    ...(approvedQueue?.approvedDebts ?? []).map((debt) => debt.id),
+    ...(approvedQueue?.invoiced ?? []).map(({ debt }) => debt.id),
+    ...(approvedQueue?.withdrawnDebtIds ?? []),
+  ]);
   const groups = [...approvedGroups, ...collectGroups(debts.filter((debt) => !approvedIds.has(debt.id)), emails, pending)];
   const ready = approvedQueue !== null;
   const chosen = groups.filter((g) => g.email && !off.has(g.slug));
