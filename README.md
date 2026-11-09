@@ -76,7 +76,7 @@ Other useful commands: `npm test` (unit tests), `npm run typecheck`, `npm run bu
 
 ### Complete Person 1 production journey
 
-Notebook scanning, approved-debt invoicing, and scheduled reminders require persistent server services in production: `DATABASE_URL`, `BLOB_READ_WRITE_TOKEN`, AI Gateway credentials (or Vercel OIDC), and `CRON_SECRET`. Local fallbacks are for development only. Run `npm run db:migrate` after setting the database URL. The optional live vision smoke test uses only sanitized fixtures and runs only with `RUN_LIVE_VISION_SMOKE=true` plus AI credentials.
+Notebook scanning, approved-debt invoicing, and scheduled reminders require persistent server services in production: `DATABASE_URL`, `BLOB_READ_WRITE_TOKEN`, AI Gateway credentials (or Vercel OIDC), and `CRON_SECRET`. Local fallbacks are for development only. Run `npm run db:migrate` after setting the database URL. `vercel.json` lists one once-a-day cron per hour because Vercel's Hobby plan fails any deployment with a cron that runs more often, such as `0 * * * *`. The optional live vision smoke test uses only sanitized fixtures and runs only with `RUN_LIVE_VISION_SMOKE=true` plus AI credentials.
 
 ## Payments database and webhook
 
