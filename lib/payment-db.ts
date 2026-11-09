@@ -63,6 +63,8 @@ export type PaymentDb = {
   getOwnerInvoice(ownerEmail: string, invoiceId: string): Promise<StoredInvoice | null>;
   listOwnerInvoices(ownerEmail: string): Promise<StoredInvoice[]>;
   invoiceExists(invoiceId: string): Promise<boolean>;
+  /** Which of these invoices the database has as sent by a different owner. */
+  othersInvoices(ownerEmail: string, ids: string[]): Promise<string[]>;
 };
 
 export function createPaymentDb(query: Query): PaymentDb {
@@ -168,6 +170,11 @@ export function createPaymentDb(query: Query): PaymentDb {
     async invoiceExists(invoiceId) {
       const rows = await query(`SELECT 1 FROM invoices WHERE id = $1 LIMIT 1`, [invoiceId]);
       return rows.length > 0;
+    },
+    async othersInvoices(ownerEmail, ids) {
+      if (ids.length === 0) return [];
+      const rows = await query(`SELECT id FROM invoices WHERE id = ANY($1) AND owner_email <> $2`, [ids, ownerEmail.trim().toLowerCase()]);
+      return rows.map((r) => String(r.id));
     },
   };
 }

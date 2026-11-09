@@ -20,10 +20,11 @@
     "db:migrate": "tsx scripts/db-migrate.ts"
   },
   "dependencies": {
+    "@ai-sdk/google": "4.0.94",
     "@ai-sdk/react": "^4.0.141",
     "@bryntum/calendar": "npm:@bryntum/calendar-trial@^7.3.7",
     "@neondatabase/serverless": "1.1.0",
-    "@vercel/blob": "^2.3.0",
+    "@vercel/blob": "2.8.2",
     "ag-grid-community": "~36.2.0",
     "ag-grid-react": "~36.2.0",
     "ag-studio": "3.0.0",

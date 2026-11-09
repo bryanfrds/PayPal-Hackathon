@@ -3,6 +3,7 @@ import { generateText, Output } from "ai";
 import { z } from "zod";
 import { moneyToSen } from "./payments";
 import type { EntryClassification, ExtractedEntry } from "./person1-types";
+import { aiConnected, aiModel } from "./ai-model";
 
 export const SYNTHETIC_SCENARIOS = [
   "clear_handwriting",
@@ -70,26 +71,69 @@ const visionResultSchema = z.object({
     isAmbiguous: z.boolean().optional(),
     ambiguityReason: z.string().max(500).optional(),
     confidence: z.number().min(0).max(1).optional(),
-  })).max(100),
+  })),
 });
 
-const DEFAULT_VISION_MODEL = "anthropic/claude-haiku-5.5";
+/** Most lines kept from one photo. Capped after reading: Gemini rejects maxItems on a list this detailed. */
+const MAX_LINES = 100;
 
-async function extractWithGateway(imageBytes: Uint8Array, mimeType: string): Promise<RawExtractedLine[]> {
+async function extractWithGateway(imageBytes: Uint8Array, mimeType: string, today: string): Promise<RawExtractedLine[]> {
   const result = await generateText({
-    model: process.env.AI_GATEWAY_VISION_MODEL || process.env.AI_GATEWAY_MODEL || DEFAULT_VISION_MODEL,
+    model: aiModel("vision"),
     system: "Extract handwritten shop debt entries accurately. Never guess unclear values; mark them ambiguous. Preserve crossed-out entries and repayments for human review.",
     messages: [{
       role: "user",
       content: [
-        { type: "text", text: "Read this notebook image. Return each line with customer, item, amount, optional YYYY-MM-DD date, classification, raw text, confidence, and ambiguity details." },
+        { type: "text", text: `Read this notebook image. Return each line with customer, item, amount, optional YYYY-MM-DD date, classification, raw text, confidence, and ambiguity details. Write the amount as a plain number with no currency, e.g. 18.50 for "RM 18.50". Dates are written day/month, as in Malaysia: 9/11 means 9 November. Today is ${today}: a date written without a year is the most recent such date on or before today.` },
         { type: "file", mediaType: mimeType, data: imageBytes },
       ],
     }],
     output: Output.object({ schema: visionResultSchema, name: "notebook_entries" }),
     maxOutputTokens: 3000,
   });
-  return result.output.entries;
+  return result.output.entries.slice(0, MAX_LINES);
+}
+
+/** A real calendar day in YYYY-MM-DD (2026-02-29 and 2026-04-31 are not). */
+function isRealDay(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [y, m, d] = value.split("-").map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  return date.getUTCFullYear() === y && date.getUTCMonth() === m - 1 && date.getUTCDate() === d;
+}
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+/**
+ * A date at the start of a notebook line, written day/month as in Malaysia: 9/11 or 9-11, with an
+ * optional year (9/11/26, 9/11/2026). A dot only counts when a year follows (9.11.26), so a line
+ * that starts with an amount like "5.10" isn't read as a date.
+ */
+const LEADING_DATE = /^\s*(?:(\d{1,2})[/-](\d{1,2})(?:[/-](\d{4}|\d{2}))?|(\d{1,2})\.(\d{1,2})\.(\d{4}|\d{2}))(?=\s|$)/;
+
+/**
+ * The date for one notebook line, or null if it can't be worked out. The model sometimes swaps day
+ * and month or picks the wrong year (a live scan of "9/11" came back as 2025-09-11), so a date
+ * written at the start of the line wins: its day and month always, its year if written, otherwise
+ * the most recent such day on or before today. A year written elsewhere on the page (a header) is
+ * not used; notebook lines are taken as recent. Without a leading date the model's date is kept
+ * when it's a real day.
+ */
+export function fitDate(modelDate: string, today: string, rawText = ""): string | null {
+  const m = rawText.match(LEADING_DATE);
+  if (!m) return isRealDay(modelDate) ? modelDate : null;
+  const day = Number(m[1] ?? m[4]), month = Number(m[2] ?? m[5]), written = m[3] ?? m[6];
+  if (written) {
+    const y = written.length === 2 ? 2000 + Number(written) : Number(written);
+    const date = `${y}-${pad2(month)}-${pad2(day)}`;
+    return isRealDay(date) ? date : null;
+  }
+  if (!isRealDay(today)) return null;
+  const year = Number(today.slice(0, 4));
+  for (let y = year; y >= year - 4; y--) {
+    const candidate = `${y}-${pad2(month)}-${pad2(day)}`;
+    if (candidate <= today && isRealDay(candidate)) return candidate;
+  }
+  return null;
 }
 
 function buildSyntheticLines(scenario: SyntheticScenario, today: string): RawExtractedLine[] {
@@ -132,7 +176,7 @@ export async function extractNotebookEntries(
   const { scanId, revision, today, fixtureScenario } = opts;
   const now = new Date().toISOString();
 
-  const connected = Boolean(process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN);
+  const connected = aiConnected();
   let rawLines: RawExtractedLine[];
   if (fixtureScenario !== undefined) {
     const resolved = resolveFixtureScenario(fixtureScenario);
@@ -141,15 +185,17 @@ export async function extractNotebookEntries(
     }
     rawLines = buildSyntheticLines(resolved.scenario, today);
   } else if (!connected) {
-    throw new Error("AI document scanning is not configured. Missing AI_GATEWAY_API_KEY.");
+    throw new Error("AI document scanning is not configured. Missing GEMINI_API_KEY.");
   } else {
-    rawLines = await extractWithGateway(imageBytes, mimeType);
+    rawLines = await extractWithGateway(imageBytes, mimeType, today);
   }
 
   return rawLines.map((l, index) => {
     const amountSen = moneyToSen(l.amount) ?? 0;
+    const fitted = l.date ? fitDate(l.date, today, l.rawText) : null;
     const missingDate = !l.date;
-    const isAmbiguous = Boolean(l.isAmbiguous || l.classification === "ambiguous" || missingDate);
+    const unreadableDate = Boolean(l.date) && !fitted;
+    const isAmbiguous = Boolean(l.isAmbiguous || l.classification === "ambiguous" || missingDate || unreadableDate);
     const isExcluded = l.classification === "crossed_out" || l.classification === "repayment" || isAmbiguous;
 
     return {
@@ -161,11 +207,11 @@ export async function extractNotebookEntries(
       item: l.item,
       amountSen,
       rawAmountText: l.amount,
-      date: l.date || today,
+      date: fitted ?? today,
       classification: l.classification,
       confidence: l.confidence ?? (isAmbiguous ? 0.65 : 0.95),
       isAmbiguous,
-      ambiguityReason: l.ambiguityReason || (missingDate ? "Date is missing; scan date used pending owner review." : undefined),
+      ambiguityReason: l.ambiguityReason || (missingDate ? "Date is missing; scan date used pending owner review." : unreadableDate ? "Date couldn't be read; scan date used pending owner review." : undefined),
       included: !isExcluded,
       sourceRef: { lineIndex: index + 1 },
       ownerEdited: false,

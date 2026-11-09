@@ -18,6 +18,8 @@ describe("image-storage", () => {
   const samplePngBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]); // PNG header bytes
   beforeEach(() => {
     vi.stubEnv("BLOB_READ_WRITE_TOKEN", "");
+    vi.stubEnv("BLOB_STORE_ID", "");
+    vi.stubEnv("BLOB_READ_WRITE_TOKEN_STORE_ID", "");
     vi.stubEnv("NODE_ENV", "test");
   });
   afterEach(() => vi.unstubAllEnvs());
@@ -27,6 +29,29 @@ describe("image-storage", () => {
     blob.put.mockResolvedValueOnce({ pathname: "scans/path/scan.jpg" });
     await saveScanImage(owner, "scan-blob", sampleBytes, "image/jpeg");
     expect(blob.put).toHaveBeenCalledWith(expect.stringContaining("scans/"), expect.any(Uint8Array), expect.objectContaining({ access: "private", addRandomSuffix: false }));
+  });
+
+  it("uses a store connected by id (OIDC) for saves, reads and deletes", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("BLOB_READ_WRITE_TOKEN_STORE_ID", "store_abc");
+    blob.put.mockImplementationOnce(async (key: string) => ({ pathname: key }));
+    const { imageKey } = await saveScanImage(owner, "scan-oidc", sampleBytes, "image/jpeg");
+    expect(blob.put).toHaveBeenLastCalledWith(expect.any(String), expect.any(Uint8Array), expect.objectContaining({ access: "private", storeId: "store_abc" }));
+
+    blob.get.mockResolvedValueOnce({ statusCode: 200, stream: new Response(sampleBytes).body });
+    await expect(getScanImage(owner, imageKey)).resolves.toEqual(sampleBytes);
+    expect(blob.get).toHaveBeenLastCalledWith(imageKey, expect.objectContaining({ access: "private", storeId: "store_abc" }));
+
+    await deleteScanImage(owner, imageKey);
+    expect(blob.del).toHaveBeenLastCalledWith(imageKey, { storeId: "store_abc" });
+  });
+
+  it("prefers BLOB_STORE_ID over the prefixed store id", async () => {
+    vi.stubEnv("BLOB_STORE_ID", "store_main");
+    vi.stubEnv("BLOB_READ_WRITE_TOKEN_STORE_ID", "store_other");
+    blob.put.mockResolvedValueOnce({ pathname: "scans/o/scan-main.jpg" });
+    await saveScanImage(owner, "scan-main", sampleBytes, "image/jpeg");
+    expect(blob.put).toHaveBeenLastCalledWith(expect.any(String), expect.any(Uint8Array), expect.objectContaining({ storeId: "store_main" }));
   });
 
   it("requires private Blob storage in production even under Vitest", async () => {

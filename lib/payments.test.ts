@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { InvoiceRecord } from "./collect-store";
 import type { Debt, DebtStatus } from "./debts";
-import { invoiceView, invoicesToCheck, invoicesToRead, standingsFromStored, invoicesToRemind, moneyToSen, noReminderReason, reconcileDebts, settlementOf, standingFrom, type InvoiceStanding, type Settlement } from "./payments";
+import { checkBatch, invoiceView, invoicesToCheck, invoicesToRead, serverClockOffset, standingsFromStored, invoicesToRemind, moneyToSen, noReminderReason, reconcileDebts, settlementOf, standingFrom, type InvoiceStanding, type Settlement } from "./payments";
 
 function debt(id: string, status: DebtStatus): Debt {
   return { id, customerName: "Mr Raj", item: "", amountSen: 500, date: "2026-10-01", status, source: "manual", createdAt: "2026-10-01T00:00:00Z" };
@@ -104,6 +104,51 @@ describe("reconcileDebts", () => {
 
   it("ignores debts with no invoice and invoices for deleted debts", () => {
     expect(reconcileDebts([debt("D1", "paid")], [rec("INV1", ["GONE"], standing("open"))])).toEqual(NONE);
+  });
+});
+
+describe("serverClockOffset", () => {
+  const sent = Date.parse("2026-10-14T12:00:00Z");
+
+  it("says how far the server's clock is ahead of the device's", () => {
+    expect(serverClockOffset("2026-10-14T14:00:00Z", sent)).toBe(2 * 60 * 60 * 1000);
+    expect(serverClockOffset("2026-10-14T11:30:00Z", sent)).toBe(-30 * 60 * 1000);
+  });
+
+  it("gives up on a missing or unreadable time", () => {
+    expect(serverClockOffset(undefined, sent)).toBeNull();
+    expect(serverClockOffset("soon", sent)).toBeNull();
+  });
+
+  it("keeps a paid invoice on its hourly re-check when the device clock is two hours slow", () => {
+    const paid = [rec("PAID", ["D1"], standing("paid", "2026-10-14T12:30:00Z"))];
+    const deviceNow = new Date("2026-10-14T11:45:00Z"); // really 13:45 on the server
+    expect(invoicesToCheck(paid, 10, deviceNow)).toEqual([]); // the bug: device time says not yet
+    const offset = serverClockOffset("2026-10-14T14:00:00Z", sent)!;
+    expect(invoicesToCheck(paid, 10, new Date(deviceNow.getTime() + offset)).map((r) => r.id)).toEqual(["PAID"]);
+  });
+});
+
+describe("checkBatch", () => {
+  const now = new Date("2026-10-14T12:00:00Z");
+  const records = [
+    rec("PAID-NEWER", ["D1"], standing("paid", "2026-10-14T11:50:00Z")),
+    rec("PAID-OLDER", ["D2"], standing("paid", "2026-10-14T11:40:00Z")),
+    rec("GONE", ["D3"], standing("closed", "2026-10-01T00:00:00Z")),
+  ];
+
+  it("checks the least recently checked paid invoice when nothing is due but the clock isn't known", () => {
+    expect(checkBatch(records, 25, now, {}, true).map((r) => r.id)).toEqual(["PAID-OLDER"]);
+  });
+
+  it("checks nothing extra once the clock is known, or when only closed invoices are left", () => {
+    expect(checkBatch(records, 25, now, {}, false)).toEqual([]);
+    expect(checkBatch([records[2]], 25, now, {}, true)).toEqual([]);
+  });
+
+  it("is invoicesToCheck when something is due", () => {
+    const open = [...records, rec("OPEN", ["D4"], standing("open", "2026-10-14T11:59:00Z"))];
+    expect(checkBatch(open, 25, now, {}, true).map((r) => r.id)).toEqual(["OPEN"]);
   });
 });
 

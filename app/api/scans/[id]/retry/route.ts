@@ -4,6 +4,7 @@ import { requireOwner } from "@/lib/auth-server";
 import { getScanImage } from "@/lib/image-storage";
 import { getPerson1Store } from "@/lib/person1-store";
 import { extractNotebookEntries, resolveFixtureScenario } from "@/lib/vision-extractor";
+import { malaysiaDate } from "@/lib/person1-validation";
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const owner = await requireOwner();
@@ -49,7 +50,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const entries = await extractNotebookEntries(bytes, scan.mimeType, {
       scanId: scan.id,
       revision: scan.revision,
-      today: new Date().toISOString().slice(0, 10),
+      today: malaysiaDate(),
       fixtureScenario,
     });
 
