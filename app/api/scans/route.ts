@@ -8,6 +8,8 @@ import { extractNotebookEntries, resolveFixtureScenario } from "@/lib/vision-ext
 import { malaysiaDate } from "@/lib/person1-validation";
 import { clientIp, createThrottle } from "@/lib/throttle";
 
+export const maxDuration = 60;
+
 const uploads = createThrottle(10, 60_000);
 const MAX_MULTIPART_OVERHEAD_BYTES = 1024 * 1024;
 

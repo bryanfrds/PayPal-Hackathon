@@ -6,6 +6,8 @@ import { getPerson1Store } from "@/lib/person1-store";
 import { extractNotebookEntries, resolveFixtureScenario } from "@/lib/vision-extractor";
 import { malaysiaDate } from "@/lib/person1-validation";
 
+export const maxDuration = 60;
+
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const owner = await requireOwner();
   if (owner instanceof Response) return owner;

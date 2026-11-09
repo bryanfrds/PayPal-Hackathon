@@ -126,6 +126,15 @@ describe("vision-extractor", () => {
     expect(entries[99].customerName).toBe("C99");
   });
 
+  it("gives the model call a time limit", async () => {
+    vi.stubEnv("AI_GATEWAY_API_KEY", "test-key");
+    ai.generateText.mockResolvedValueOnce({ output: { entries: [] } });
+
+    await extractNotebookEntries(dummyBytes, "image/png", opts);
+
+    expect(ai.generateText.mock.calls.at(-1)![0].abortSignal).toBeInstanceOf(AbortSignal);
+  });
+
   it("tells the model today's date and to write amounts as plain numbers", async () => {
     vi.stubEnv("AI_GATEWAY_API_KEY", "test-key");
     ai.generateText.mockResolvedValueOnce({ output: { entries: [] } });
