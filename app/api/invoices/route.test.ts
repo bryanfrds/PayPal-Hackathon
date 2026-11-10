@@ -253,6 +253,28 @@ describe("POST /api/invoices", () => {
       expect(paypal.createDraftInvoice.mock.calls[0][0].requestId).not.toBe(paypal.createDraftInvoice.mock.calls[1][0].requestId);
     });
 
+    it("skips an unsent draft the owner deleted on PayPal instead of failing every retry", async () => {
+      await getPerson1Store().addApprovedDebtInvoiceId(signedIn.email, baseDebt.id, "INV2-GONE");
+      paypal.createDraftInvoice.mockResolvedValue({ id: "INV2-NEW", status: "SENT" });
+      paypal.getInvoice.mockImplementation(async (id: string) => {
+        if (id === "INV2-GONE") throw new PayPalError("not found", { status: 404 });
+        return { ...onPayPal("SENT"), id };
+      });
+
+      const res = await post({ approvedDebtId: baseDebt.id, requestId: GOOD.requestId });
+
+      expect(res.status).toBe(200);
+      expect((await res.json()).id).toBe("INV2-NEW");
+    });
+
+    it("still fails when PayPal can't be asked about an earlier invoice", async () => {
+      await getPerson1Store().addApprovedDebtInvoiceId(signedIn.email, baseDebt.id, "INV2-BUSY");
+      paypal.getInvoice.mockRejectedValue(new PayPalError("busy", { status: 503 }));
+
+      expect((await post({ approvedDebtId: baseDebt.id, requestId: GOOD.requestId })).status).toBeGreaterThanOrEqual(500);
+      expect(paypal.createDraftInvoice).not.toHaveBeenCalled();
+    });
+
     it("sends nothing when the database can't say whether the debt has an invoice", async () => {
       db.value = { saveInvoice: vi.fn(), listOwnerInvoices: vi.fn().mockRejectedValue(new Error("db down")) };
       expect((await post({ approvedDebtId: baseDebt.id, requestId: GOOD.requestId })).status).toBe(503);

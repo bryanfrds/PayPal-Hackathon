@@ -162,7 +162,14 @@ export async function POST(request: Request) {
       // table: that one is the debt's invoice, whatever the debt has been corrected to since.
       for (const id of debt.paypalInvoiceIds ?? []) {
         if (closedIds.includes(id)) continue;
-        const invoice = await getInvoice(id);
+        let invoice: PayPalInvoice;
+        try {
+          invoice = await getInvoice(id);
+        } catch (error) {
+          // A draft the owner deleted on PayPal is gone, and must not block the debt for good.
+          if (error instanceof PayPalError && error.status === 404) continue;
+          throw error;
+        }
         if (OUT.has(invoice.status ?? "")) {
           if (differs(invoice, debt.customerEmail, debt.amountSen)) return NextResponse.json({ error: DIFFERS_MESSAGE }, { status: 409 });
           const number = invoice.detail?.invoice_number;

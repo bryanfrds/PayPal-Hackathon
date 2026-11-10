@@ -25,6 +25,12 @@ export async function approveDebtsForInvoicing(
       continue;
     }
 
+    // A plain debt saved from this line (keyed by the entry id) may already have been invoiced from Collect.
+    if (invoicedDebtIds.has(entry.id)) {
+      rejected.push({ entryId, reason: "This line already has a PayPal invoice, so it can't be approved again. Cancel the invoice on PayPal first." });
+      continue;
+    }
+
     const scan = await store.getScan(ownerEmail, entry.scanId);
     if (!scan) {
       rejected.push({ entryId, reason: "Source scan no longer exists." });

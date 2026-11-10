@@ -243,6 +243,35 @@ describe("debt-handoff", () => {
     expect((await store.getApprovedDebts(owner))[0].amountSen).toBe(10000);
   });
 
+  it("rejects a line whose entry id already has a live invoice as a plain debt", async () => {
+    await store.saveEntries([{
+      id: "entry-plain-invoiced",
+      scanId: "scan-1",
+      revision: 1,
+      rawText: "Pak Ali 100.00",
+      customerName: "Pak Ali",
+      item: "Beras",
+      amountSen: 10000,
+      rawAmountText: "100.00",
+      date: "2026-10-18",
+      classification: "debt",
+      confidence: 0.95,
+      isAmbiguous: false,
+      included: true,
+      confirmedCustomerId: "cust-1",
+      sourceRef: { lineIndex: 7 },
+      ownerEdited: false,
+      createdAt: "2026-10-18T00:00:00Z",
+      updatedAt: "2026-10-18T00:00:00Z",
+    }]);
+
+    const result = await approveDebtsForInvoicing(owner, ["entry-plain-invoiced"], store, new Set(["entry-plain-invoiced"]));
+
+    expect(result.approved).toHaveLength(0);
+    expect(result.rejected[0].reason).toMatch(/already has a PayPal invoice/);
+    expect(await store.getApprovedDebtBySourceEntryId(owner, "entry-plain-invoiced")).toBeFalsy();
+  });
+
   it("reconciles the same physical notebook line across rescans and rejects stale revisions", async () => {
     // 1. Scan at revision 1, line 1 entry
     const entryRev1: ExtractedEntry = {
