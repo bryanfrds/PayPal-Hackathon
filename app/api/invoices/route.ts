@@ -167,7 +167,12 @@ export async function POST(request: Request) {
           invoice = await getInvoice(id);
         } catch (error) {
           // A draft the owner deleted on PayPal is gone, and must not block the debt for good.
-          if (error instanceof PayPalError && error.status === 404) continue;
+          // Count it as closed too, so the retry gets a new request id instead of PayPal replaying
+          // the deleted draft.
+          if (error instanceof PayPalError && error.status === 404) {
+            closedIds.push(id);
+            continue;
+          }
           throw error;
         }
         if (OUT.has(invoice.status ?? "")) {

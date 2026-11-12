@@ -25,6 +25,7 @@ vi.mock("@/lib/paypal", async (importOriginal) => {
 const db = vi.hoisted(() => ({ value: null as null | { saveInvoice: ReturnType<typeof vi.fn>; listOwnerInvoices?: ReturnType<typeof vi.fn> } }));
 vi.mock("@/lib/payment-db", () => ({ paymentDb: () => db.value, within: <T,>(p: Promise<T>) => p }));
 
+import { invoiceRequestId } from "@/lib/collect";
 import { PayPalError } from "@/lib/paypal";
 import { getPerson1Store } from "@/lib/person1-store";
 import { POST } from "./route";
@@ -258,6 +259,26 @@ describe("POST /api/invoices", () => {
       paypal.createDraftInvoice.mockResolvedValue({ id: "INV2-NEW", status: "SENT" });
       paypal.getInvoice.mockImplementation(async (id: string) => {
         if (id === "INV2-GONE") throw new PayPalError("not found", { status: 404 });
+        return { ...onPayPal("SENT"), id };
+      });
+
+      const res = await post({ approvedDebtId: baseDebt.id, requestId: GOOD.requestId });
+
+      expect(res.status).toBe(200);
+      expect((await res.json()).id).toBe("INV2-NEW");
+    });
+
+    it("gets a new request id when the deleted draft was the debt's first invoice", async () => {
+      // PayPal replays the invoice it made for a request id it has seen. Reusing the first request
+      // id would bring back the deleted draft and fail again.
+      await getPerson1Store().addApprovedDebtInvoiceId(signedIn.email, baseDebt.id, "INV2-FIRST");
+      const firstRequestId = invoiceRequestId({ debtIds: [baseDebt.id], email: "approved-debt", lines: [], previousInvoiceIds: [] });
+      paypal.createDraftInvoice.mockImplementation(async (draft: { requestId: string }) => ({
+        id: draft.requestId === firstRequestId ? "INV2-FIRST" : "INV2-NEW",
+        status: "SENT",
+      }));
+      paypal.getInvoice.mockImplementation(async (id: string) => {
+        if (id === "INV2-FIRST") throw new PayPalError("not found", { status: 404 });
         return { ...onPayPal("SENT"), id };
       });
 
