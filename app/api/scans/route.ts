@@ -1,0 +1,144 @@
+// POST /api/scans: Uploads a notebook/receipt photo and extracts reviewable draft entries
+import { NextResponse } from "next/server";
+import { requireOwner } from "@/lib/auth-server";
+import { computeImageHash, MAX_SCAN_IMAGE_BYTES, saveScanImage, scanImageKey } from "@/lib/image-storage";
+import { getPerson1Store } from "@/lib/person1-store";
+import type { ScanRecord } from "@/lib/person1-types";
+import { extractNotebookEntries, resolveFixtureScenario } from "@/lib/vision-extractor";
+import { malaysiaDate } from "@/lib/person1-validation";
+import { clientIp, createThrottle } from "@/lib/throttle";
+
+export const maxDuration = 60;
+
+const uploads = createThrottle(10, 60_000);
+const MAX_MULTIPART_OVERHEAD_BYTES = 1024 * 1024;
+
+async function duplicateResponse(ownerEmail: string, scan: ScanRecord) {
+  const store = getPerson1Store();
+  const entries = await store.getEntriesByScan(ownerEmail, scan.id, scan.revision);
+  if (scan.status === "processing") {
+    return NextResponse.json(
+      { scan, entries, isDuplicate: true, warning: "This photo is already being scanned.", error: "This photo is still being scanned. Try again shortly." },
+      { status: 409 },
+    );
+  }
+  if (scan.status === "failed") {
+    return NextResponse.json(
+      { scan, entries, isDuplicate: true, warning: "This photo was uploaded before and extraction failed. Retry the scan.", error: scan.error || "Image extraction failed. Retry this scan." },
+      { status: scan.error?.includes("not configured") ? 503 : 502 },
+    );
+  }
+  return NextResponse.json({ scan, entries, isDuplicate: true, warning: "This photo was uploaded before. Reopening the existing scan." });
+}
+
+export async function POST(req: Request) {
+  const owner = await requireOwner();
+  if (owner instanceof Response) return owner;
+  const wait = uploads.hit(`${owner.email}:${clientIp(req)}`);
+  if (wait) return NextResponse.json({ error: "Too many scan uploads." }, { status: 429, headers: { "Retry-After": String(wait) } });
+  const contentLength = Number(req.headers.get("content-length"));
+  if (Number.isFinite(contentLength) && contentLength > MAX_SCAN_IMAGE_BYTES + MAX_MULTIPART_OVERHEAD_BYTES) {
+    return NextResponse.json({ error: "Image file exceeds the 10MB limit." }, { status: 413 });
+  }
+
+  let formData: FormData;
+  try {
+    formData = await req.formData();
+  } catch {
+    return NextResponse.json({ error: "Invalid form data submission." }, { status: 400 });
+  }
+
+  const file = formData.get("file");
+  if (!file || !(file instanceof Blob)) {
+    return NextResponse.json({ error: "Image file is required." }, { status: 400 });
+  }
+  if (file.size > MAX_SCAN_IMAGE_BYTES) return NextResponse.json({ error: "Image file exceeds the 10MB limit." }, { status: 413 });
+
+  const mode = formData.get("mode") === "receipt" ? "receipt" : "notebook";
+  const rawFixture = formData.get("fixtureScenario");
+  const resolvedFixture = resolveFixtureScenario(typeof rawFixture === "string" ? rawFixture : undefined);
+  if (resolvedFixture.error) {
+    return NextResponse.json({ error: resolvedFixture.error }, { status: 400 });
+  }
+  const fixtureScenario = resolvedFixture.scenario;
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const mimeType = file.type || "image/jpeg";
+  const store = getPerson1Store();
+
+  const imageHash = computeImageHash(bytes);
+  const existingScan = await store.findScanByHash(owner.email, imageHash);
+  if (existingScan && existingScan.status !== "failed") return duplicateResponse(owner.email, existingScan);
+
+  const scanId = existingScan?.id ?? `scan-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const now = new Date().toISOString();
+  const scan: ScanRecord = existingScan
+    ? {
+        ...existingScan,
+        // The same bytes can arrive with a corrected file type, so the record follows this upload.
+        imageKey: scanImageKey(owner.email, scanId, mimeType),
+        mimeType,
+        status: "processing",
+        error: undefined,
+        updatedAt: now,
+      }
+    : {
+        id: scanId,
+        ownerEmail: owner.email,
+        imageKey: scanImageKey(owner.email, scanId, mimeType),
+        imageHash,
+        mimeType,
+        sizeBytes: bytes.byteLength,
+        status: "processing",
+        mode,
+        revision: 1,
+        createdAt: now,
+        updatedAt: now,
+      };
+  if (existingScan) {
+    await store.updateScanStatus(owner.email, scanId, "processing");
+  } else if (!(await store.claimScan(scan))) {
+    const winner = await store.findScanByHash(owner.email, imageHash);
+    if (!winner) return NextResponse.json({ error: "Scan upload conflict. Please retry." }, { status: 409 });
+    return duplicateResponse(owner.email, winner);
+  }
+
+  try {
+    await saveScanImage(owner.email, scanId, bytes, mimeType);
+    // Only now: a refused upload must not repoint the record away from an image that's stored.
+    if (existingScan) await store.saveScan(scan);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to store image.";
+    const status = (err as { statusCode?: number }).statusCode || 400;
+    await store.updateScanStatus(owner.email, scanId, "failed", message);
+    return NextResponse.json({ error: message }, { status });
+  }
+
+  let entries;
+  try {
+    entries = await extractNotebookEntries(bytes, mimeType, { scanId, revision: scan.revision, today: malaysiaDate(), fixtureScenario });
+    await store.saveEntries(entries);
+    await store.updateScanStatus(owner.email, scanId, "completed");
+    scan.status = "completed";
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Image extraction failed.";
+    await store.updateScanStatus(owner.email, scanId, "failed", message);
+    const isUnconfigured = message.includes("not configured");
+    return NextResponse.json(
+      {
+        scan: { ...scan, status: "failed", error: message },
+        error: isUnconfigured ? "AI document scanning is not configured." : "Image extraction failed. Retry this scan.",
+      },
+      { status: isUnconfigured ? 503 : 502 },
+    );
+  }
+
+  return NextResponse.json(
+    {
+      scan,
+      entries,
+      isDuplicate: Boolean(existingScan),
+      ...(existingScan ? { warning: "The previous upload failed, so this photo was scanned again." } : {}),
+    },
+    { status: existingScan ? 200 : 201 },
+  );
+}

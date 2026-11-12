@@ -1,0 +1,8392 @@
+:root {
+  /* Style H, Soft Premium (docs/design/style-options.html) */
+  --ink: #141414;
+  --muted: #6f6b64;
+  --paper: #f3f1ec;
+  --card: #ffffff;
+  --line: #ebe7df;
+  --field-line: #8a8579; /* 3:1 or more on white and paper, so input edges stay visible */
+  --accent: #141414;
+  --accent-ink: #ffffff;
+  --overdue: #c23b22;
+  --overdue-bg: #ffe9e4;
+  --paid: #2b7a46;
+  --paid-bg: #e6f3ea;
+  --sent: #2f55c4;
+  --sent-bg: #e8eefc;
+  --unpaid: #8c6512;
+  --unpaid-bg: #f6efdc;
+  --wa: #1f8f4e;
+  --wa-bg: #e3f4e9;
+  /* Added for dark mode. Light values are the colours these spots always had. */
+  --on-ink: #ffffff; /* text on an --ink background */
+  --on-ink-muted: #c9c5bd;
+  --on-ink-soft: rgba(255, 255, 255, 0.2);
+  --hero: #141414; /* the dark hero cards: dark in both themes */
+  --soft: #f7f5f1;
+  --track: #efece6; /* empty part of bars and meters */
+  --line-strong: #e2ded6;
+  --segment: #e9e6df;
+  --switch-off: #dcd7cd;
+  --dash: #ddd8ce;
+  --dot: #cfc9bd;
+  --bar-muted: #d8d3c8;
+  --chev: #b9b5ad;
+  --card-tint: #f6f3ec;
+  --nav-muted: #a3a3a3;
+  --focus-ring: rgba(20, 20, 20, 0.1);
+  --focus-ring-soft: rgba(20, 20, 20, 0.08);
+  --overdue-soft: #fff8f6;
+  --overdue-edge: #f3c9bf;
+  --error-ink: #9b2d1a;
+  --wa-ink: #1a6e3e;
+  --wa-soft: #e7f6ec;
+  --wa-hover: #d3eedd;
+  --wa-on: #ffffff;
+  --wa-chat-bg: #efe7dd;
+  --wa-chat-dot: rgba(0, 0, 0, 0.05);
+  --wa-bubble: #d9fdd3;
+  --wa-bubble-ink: #141414;
+  --wa-paylink: rgba(255, 255, 255, 0.65);
+  color-scheme: light;
+  --radius: 24px;
+  /* The app is a phone app: one phone-width column on every screen size. */
+  --column: 480px;
+  --shadow: 0 1px 0 var(--line), 0 12px 30px rgba(0, 0, 0, 0.05);
+  font-family: var(--font-manrope), system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--ink);
+  background: var(--paper);
+}
+
+/* Dark mode: data-theme on <html> is set by the theme script in layout.tsx and by Settings.
+   "auto" follows the device. Palette from the mock's phone 4. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ink: #f2efe9;
+  --muted: #a39e95;
+  --paper: #121212;
+  --card: #1d1d1c;
+  --line: #2c2b29;
+  --field-line: #77736b;
+  --accent: #f2efe9;
+  --accent-ink: #141414;
+  --overdue: #ff8a73;
+  --overdue-bg: #3a1d17;
+  --paid: #7fd19b;
+  --paid-bg: #183022;
+  --sent: #9db4ff;
+  --sent-bg: #1b2440;
+  --unpaid: #e8c06a;
+  --unpaid-bg: #33290f;
+  --wa: #6fdc98;
+  --wa-bg: #173322;
+  --shadow: 0 1px 0 var(--line);
+  --on-ink: #141414;
+  --on-ink-muted: #6f6b64;
+  --on-ink-soft: rgba(20, 20, 20, 0.12);
+  --hero: #262624;
+  --soft: #252523;
+  --track: #2c2b29;
+  --line-strong: #3a3936;
+  --segment: #252523;
+  --switch-off: #3a3936;
+  --dash: #3a3936;
+  --dot: #4a4843;
+  --bar-muted: #4a4843;
+  --chev: #77736b;
+  --card-tint: #232321;
+  --nav-muted: #5c5852;
+  --focus-ring: rgba(242, 239, 233, 0.18);
+  --focus-ring-soft: rgba(242, 239, 233, 0.14);
+  --overdue-soft: #2a1814;
+  --overdue-edge: #5c2a20;
+  --error-ink: #ff8a73;
+  --wa-ink: #6fdc98;
+  --wa-soft: #173322;
+  --wa-hover: #1f4430;
+  --wa-on: #0e2416;
+  --wa-chat-bg: #0b1410;
+  --wa-chat-dot: rgba(255, 255, 255, 0.05);
+  --wa-bubble: #144d37;
+  --wa-bubble-ink: #ecf5ef;
+  --wa-paylink: rgba(0, 0, 0, 0.25);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="auto"] {
+    color-scheme: dark;
+    --ink: #f2efe9;
+    --muted: #a39e95;
+    --paper: #121212;
+    --card: #1d1d1c;
+    --line: #2c2b29;
+    --field-line: #77736b;
+    --accent: #f2efe9;
+    --accent-ink: #141414;
+    --overdue: #ff8a73;
+    --overdue-bg: #3a1d17;
+    --paid: #7fd19b;
+    --paid-bg: #183022;
+    --sent: #9db4ff;
+    --sent-bg: #1b2440;
+    --unpaid: #e8c06a;
+    --unpaid-bg: #33290f;
+    --wa: #6fdc98;
+    --wa-bg: #173322;
+    --shadow: 0 1px 0 var(--line);
+    --on-ink: #141414;
+    --on-ink-muted: #6f6b64;
+    --on-ink-soft: rgba(20, 20, 20, 0.12);
+    --hero: #262624;
+    --soft: #252523;
+    --track: #2c2b29;
+    --line-strong: #3a3936;
+    --segment: #252523;
+    --switch-off: #3a3936;
+    --dash: #3a3936;
+    --dot: #4a4843;
+    --bar-muted: #4a4843;
+    --chev: #77736b;
+    --card-tint: #232321;
+    --nav-muted: #5c5852;
+    --focus-ring: rgba(242, 239, 233, 0.18);
+    --focus-ring-soft: rgba(242, 239, 233, 0.14);
+    --overdue-soft: #2a1814;
+    --overdue-edge: #5c2a20;
+    --error-ink: #ff8a73;
+    --wa-ink: #6fdc98;
+    --wa-soft: #173322;
+    --wa-hover: #1f4430;
+    --wa-on: #0e2416;
+    --wa-chat-bg: #0b1410;
+    --wa-chat-dot: rgba(255, 255, 255, 0.05);
+    --wa-bubble: #144d37;
+    --wa-bubble-ink: #ecf5ef;
+    --wa-paylink: rgba(0, 0, 0, 0.25);
+  }
+}
+
+/* Avatar colours (app/components/palette.ts): each element carries a light and a dark pair. */
+[data-pal] {
+  --pal-bg-now: var(--pal-bg);
+  --pal-fg-now: var(--pal-fg);
+}
+
+:root[data-theme="dark"] [data-pal] {
+  --pal-bg-now: var(--pal-bg-dark);
+  --pal-fg-now: var(--pal-fg-dark);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="auto"] [data-pal] {
+    --pal-bg-now: var(--pal-bg-dark);
+    --pal-fg-now: var(--pal-fg-dark);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+a {
+  color: var(--accent);
+}
+
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  max-width: var(--column);
+  margin: 0 auto;
+  padding: 1.1rem 1.25rem 0;
+}
+
+.brand {
+  font-weight: 800;
+  font-size: 1.2rem;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+/* The floating black menu from style H, at the bottom of the column on every screen. */
+.site-header nav {
+  position: fixed;
+  left: 50%;
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  z-index: 10;
+  width: min(calc(100% - 2rem), calc(var(--column) - 2.5rem));
+  transform: translateX(-50%);
+}
+
+.site-nav {
+  display: flex;
+  gap: 0.25rem;
+  list-style: none;
+  margin: 0;
+  padding: 0.35rem;
+  background: var(--accent);
+  border-radius: 999px;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.25);
+}
+
+.site-nav li {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Phone tabs: one line per label in every language; a label too long for its tab ends in "…". */
+.site-nav a span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.site-nav a {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.5rem 0.25rem 0.45rem;
+  color: var(--nav-muted);
+  font-weight: 600;
+  font-size: 0.72rem;
+  text-decoration: none;
+  border-radius: 999px;
+}
+
+.site-nav .icon {
+  width: 22px;
+  height: 22px;
+}
+
+.site-nav a:hover,
+.site-nav a:focus-visible {
+  color: var(--accent-ink);
+}
+
+.site-nav a:focus-visible {
+  outline: 2px solid var(--accent-ink);
+  outline-offset: -2px;
+}
+
+.site-nav a[aria-current="page"] {
+  color: var(--accent);
+  background: var(--accent-ink);
+}
+
+.site-main {
+  max-width: var(--column);
+  margin: 0 auto;
+  /* bottom room for the floating menu */
+  padding: 1.25rem 1.25rem 7rem;
+}
+
+@media (max-width: 600px) {
+  .site-header {
+    padding: 1rem 1rem 0;
+  }
+
+  .site-main {
+    padding: 1rem 1rem 7rem;
+  }
+}
+
+.page-title {
+  margin: 0 0 0.5rem;
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+
+.page-intro {
+  margin: 0 0 1.5rem;
+  color: var(--muted);
+}
+
+.card {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1.4rem;
+}
+
+.card-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.card h2 {
+  margin: 0 0 0.4rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.card h2 a {
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.card h2 a::after {
+  content: " →" / "";
+  color: var(--muted);
+}
+
+.card p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.status-cell {
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+/* Invoice state plus a late badge side by side ("Invoice sent" · "10 days late"). */
+.tab-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
+  height: 1.5rem;
+  padding: 0 0.6rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.badge-overdue {
+  color: var(--overdue);
+  background: var(--overdue-bg);
+}
+
+.badge-sent {
+  color: var(--sent);
+  background: var(--sent-bg);
+}
+
+.badge-paid {
+  color: var(--paid);
+  background: var(--paid-bg);
+}
+
+.badge-unpaid {
+  color: var(--unpaid);
+  background: var(--unpaid-bg);
+}
+
+.placeholder {
+  text-align: center;
+  padding: 3rem 1.5rem;
+}
+
+.ledger-toolbar {
+  margin-bottom: 0.75rem;
+}
+
+.ledger-toolbar input {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.5rem 1rem;
+  font: inherit;
+  font-size: 1rem;
+  border: 1.5px solid var(--field-line);
+  border-radius: 999px;
+  background: var(--card);
+}
+
+.ledger-toolbar input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.page-head .page-intro {
+  margin-bottom: 0.5rem;
+}
+
+.narrow {
+  max-width: 560px;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: 0 1.3rem;
+  font: inherit;
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--card);
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.button-primary {
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.link-button {
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--accent);
+  background: none;
+  border: 0;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.notice {
+  margin: 0 0 1rem;
+  padding: 0.8rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--card);
+}
+
+.notice-success {
+  border-color: transparent;
+  background: var(--paid-bg);
+}
+
+.notice-warning {
+  border-color: transparent;
+  background: var(--unpaid-bg);
+}
+
+.notice-error {
+  color: var(--overdue);
+  border-color: transparent;
+  background: var(--overdue-bg);
+}
+
+.loading {
+  color: var(--muted);
+}
+
+.empty-state {
+  text-align: center;
+  padding: 2.5rem 1.25rem;
+}
+
+.empty-state h2 {
+  margin: 0 0 0.4rem;
+}
+
+.empty-state p {
+  margin: 0 0 1.25rem;
+}
+
+.empty-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.form {
+  display: grid;
+  gap: 1rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.35rem;
+  align-content: start; /* an error under one field mustn't push its neighbour down */
+}
+
+.field label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.optional {
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.field input {
+  min-height: 2.75rem;
+  padding: 0.5rem 0.75rem;
+  font: inherit;
+  font-size: 1rem; /* 16px stops iOS zooming into the field */
+  color: var(--ink);
+  border: 1.5px solid var(--field-line);
+  border-radius: 12px;
+  background: var(--paper);
+}
+
+.field input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.field input[aria-invalid="true"] {
+  border-color: var(--overdue);
+}
+
+.field-error {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--overdue);
+}
+
+.field-row {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr 1fr;
+}
+
+.form-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.row-delete {
+  width: 2rem;
+  height: 2rem;
+  font-size: 1.2rem;
+  line-height: 1;
+  color: var(--muted);
+  background: none;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.row-delete {
+  display: inline-grid;
+  place-items: center;
+}
+
+.row-delete-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.row-delete:hover,
+.row-delete:focus-visible {
+  color: var(--overdue);
+  background: var(--overdue-bg);
+}
+
+@media (max-width: 600px) {
+  .field-row {
+    grid-template-columns: 1fr;
+  }
+
+  .form-actions .button {
+    flex: 1;
+  }
+}
+
+.notice-text {
+  margin: 0 0 0.6rem;
+}
+
+.notice-actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+/* AG Grid sits in a card like the lists in style H. */
+.ledger-grid {
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+/* Home dashboard (style H) */
+.dash-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.dash-hello {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.dash-shop {
+  margin: 0.1rem 0 0;
+  font-size: 1.3rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.avatar-me {
+  background: var(--card);
+  border: 1px solid var(--line);
+}
+
+.hero {
+  padding: 1.35rem;
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.hero p {
+  margin: 0;
+}
+
+.hero-label,
+.hero-sub,
+.meter-label {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.hero-big {
+  margin: 0.2rem 0 0.15rem !important;
+  font-size: 2.9rem;
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.hero-big small {
+  margin-right: 0.3rem;
+  font-size: 0.45em;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.meter {
+  height: 6px;
+  margin-top: 1.1rem;
+  overflow: hidden;
+  background: var(--track);
+  border-radius: 3px;
+}
+
+.meter b {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+.meter-label {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.4rem !important;
+  font-size: 0.78rem;
+}
+
+.quick-actions {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.65rem;
+  margin: 1rem 0 1.6rem;
+}
+
+.quick {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.9rem 0.4rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--ink);
+  text-decoration: none;
+  background: var(--card);
+  border-radius: 17px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.04);
+}
+
+.quick .icon {
+  width: 24px;
+  height: 24px;
+}
+
+.quick-primary {
+  color: var(--accent-ink);
+  background: var(--accent);
+}
+
+.quick:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 0 0.15rem 0.6rem;
+}
+
+.section-head h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.section-head a {
+  /* A 44px-tall tap area; the negative margins keep the heading row the same height. */
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin: -12px -0.5rem;
+  padding: 0 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.tab-list {
+  margin: 0;
+  padding: 0.25rem 1rem;
+  list-style: none;
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.04);
+}
+
+.tab-row {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.8rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.tab-row:last-child {
+  border-bottom: 0;
+}
+
+.tab-row-link {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 0.8rem;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.tab-row-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+  border-radius: 12px;
+}
+
+.tab-who {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.tab-name {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.tab-item {
+  overflow: hidden;
+  font-size: 0.8rem;
+  color: var(--muted);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.tab-amt {
+  display: grid;
+  justify-items: end;
+  gap: 0.25rem;
+  font-weight: 800;
+  font-size: 0.95rem;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.tab-amt .badge {
+  height: 1.3rem;
+  font-size: 0.7rem;
+}
+
+.powered {
+  margin: 0.9rem 0.25rem 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+/* Customer's tab (SPayLater-style), app/tab/[slug] */
+.badge-text {
+  text-transform: none;
+}
+
+.tab-page {
+  display: grid;
+  gap: 0;
+}
+
+.tab-page-paybar {
+  padding-bottom: 9rem;
+}
+
+.tab-empty-title {
+  margin: 0 0 0.4rem;
+  font-size: 1.3rem;
+}
+
+.tab-hero {
+  padding: 1.35rem;
+  color: #ffffff;
+  background: var(--hero);
+  border-radius: var(--radius);
+}
+
+.tab-hero p {
+  margin: 0;
+}
+
+.tab-hero .tab-hero-label {
+  color: #c9c5bd;
+}
+
+.tab-hero-label {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.tab-hero-big {
+  margin: 0.2rem 0 0.9rem !important;
+  font-size: 2.9rem;
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.tab-hero-big small,
+.bill-left-amt small {
+  margin-right: 0.3rem;
+  font-size: 0.45em;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.tab-limit {
+  height: 6px;
+  margin-bottom: 0.45rem;
+  overflow: hidden;
+  background: #3a3a3a;
+  border-radius: 3px;
+}
+
+.tab-limit b {
+  display: block;
+  height: 100%;
+  background: #ffffff;
+  border-radius: 3px;
+}
+
+.tab-bill {
+  margin-top: 0.75rem;
+  padding-bottom: 0;
+}
+
+.tab-bill p {
+  margin: 0;
+}
+
+.tab-bill-amt {
+  margin: 0.15rem 0 !important;
+  font-size: 1.8rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.tab-bill-due {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+}
+
+.dot-due {
+  background: #e0a100;
+}
+
+.dot-over {
+  background: var(--overdue);
+}
+
+.tab-pay {
+  width: 100%;
+  min-height: 3.1rem;
+  margin-top: 1rem;
+  border-radius: 16px;
+  font-size: 1rem;
+}
+
+.tab-note {
+  margin: 0.5rem 0 0 !important;
+  font-size: 0.78rem;
+  text-align: center;
+  color: var(--muted);
+}
+
+.tab-links {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin: 1rem -1.4rem 0;
+  border-top: 1px solid var(--line);
+}
+
+.tab-links a {
+  padding: 0.95rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-align: center;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.tab-links a + a {
+  border-left: 1px solid var(--line);
+}
+
+.tab-page .section-head {
+  margin-top: 1.4rem;
+}
+
+.tab-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  font-size: 1rem;
+  background: var(--unpaid-bg);
+  border-radius: 50%;
+}
+
+.tab-icon-paid {
+  color: var(--paid);
+  font-weight: 800;
+  background: var(--paid-bg);
+}
+
+.tab-top {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.25rem 0 1rem;
+}
+
+.tab-top h1 {
+  flex: 1;
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.tab-back {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  font-size: 1.3rem;
+  color: var(--ink);
+  text-decoration: none;
+  border-radius: 50%;
+}
+
+a.tab-back:focus-visible,
+.bill-card:focus-visible,
+.tab-links a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.segmented {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+  padding: 0.25rem;
+  background: var(--segment);
+  border-radius: 999px;
+}
+
+.segmented button,
+.chips button {
+  min-height: 2.5rem;
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 999px;
+}
+
+.segmented button {
+  background: none;
+  border: 0;
+}
+
+.segmented button[aria-pressed="true"] {
+  color: var(--ink);
+  background: var(--card);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+.chips {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.chips button {
+  padding: 0 1rem;
+  color: var(--ink);
+  background: var(--card);
+  border: 1.5px solid var(--line);
+}
+
+.chips button[aria-pressed="true"] {
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.segmented button:focus-visible,
+.chips button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.bill-list {
+  display: grid;
+  gap: 0.65rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bill-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.2rem;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.bill-card .tab-who {
+  justify-items: start;
+  gap: 0.25rem;
+}
+
+.bill-month {
+  font-weight: 800;
+  font-size: 1.1rem;
+}
+
+.chev {
+  margin-left: 0.4rem;
+  color: var(--chev);
+}
+
+.bill-card .tab-amt {
+  display: block;
+}
+
+.bill-breakdown {
+  padding: 0.4rem 1.2rem;
+}
+
+.bill-left {
+  display: grid;
+  justify-items: center;
+  gap: 0.25rem;
+  padding: 1rem 0 1.1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.bill-left p {
+  margin: 0;
+}
+
+.bill-left-amt {
+  margin: 0 !important;
+  font-size: 2.3rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.bill-breakdown dl {
+  margin: 0;
+}
+
+.bill-breakdown dl div {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.75rem 0;
+  font-size: 0.9rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.bill-breakdown dl div:last-child {
+  border-bottom: 0;
+}
+
+.bill-breakdown dt {
+  color: var(--muted);
+}
+
+.bill-breakdown dd {
+  margin: 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.bill-breakdown .bill-total dt,
+.bill-breakdown .bill-total dd {
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.bill-meta,
+.month-head {
+  display: flex;
+  justify-content: space-between;
+  margin: 1rem 0.25rem 0.5rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.pay-total {
+  margin-bottom: 0.75rem;
+  text-align: center;
+}
+
+.pay-total p {
+  margin: 0;
+}
+
+.pay-pick {
+  margin: 0;
+  padding: 0.25rem 1.1rem 0.25rem;
+  border: 0;
+}
+
+.pay-pick legend {
+  float: left;
+  width: 100%;
+  padding: 0.9rem 0 0.7rem;
+  font-weight: 800;
+  border-bottom: 1px solid var(--line);
+}
+
+.pay-pick legend span {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.pay-row {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  clear: both;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+}
+
+.pay-row:last-child {
+  border-bottom: 0;
+}
+
+.pay-row input {
+  width: 1.4rem;
+  height: 1.4rem;
+  flex: none;
+  accent-color: var(--accent);
+}
+
+.pay-row .tab-who {
+  justify-items: start;
+  gap: 0.2rem;
+}
+
+.paybar {
+  position: fixed;
+  left: 50%;
+  bottom: 0;
+  z-index: 10;
+  width: min(100%, var(--column));
+  padding: 0.9rem 1.25rem max(1.1rem, env(safe-area-inset-bottom));
+  background: var(--card);
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.06);
+  transform: translateX(-50%);
+}
+
+.paybar-sum {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.paybar-sum b {
+  font-size: 1.05rem;
+  color: var(--ink);
+}
+
+.paybar .tab-pay {
+  margin-top: 0.6rem;
+}
+
+/* .card p is muted by default; headline amounts inside cards stay black. */
+.card .tab-bill-amt,
+.card .bill-left-amt {
+  color: var(--ink);
+}
+
+/* Home: Scan button beside the total, like Shopee's "Scan & Pay" */
+.hero-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.hero-scan {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.9rem;
+  padding: 0 1.05rem;
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: var(--accent-ink);
+  text-decoration: none;
+  background: var(--accent);
+  border-radius: 14px;
+  box-shadow: 0 0 0 4px var(--focus-ring-soft);
+}
+
+.hero-scan .icon {
+  width: 20px;
+  height: 20px;
+}
+
+.hero-scan:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
+/* Scanner (app/scan): a choice screen, then full-screen camera, reading sheet, check screen */
+
+/* The camera, reading and check screens have their own close and back buttons: no app menu. */
+body:has(.scan-camera, .scan-no-chrome) > .site-header {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  /* html > : outranks the sidebar grid (body:has(> .site-header)) further down. */
+  html > body:has(.scan-camera, .scan-no-chrome) {
+    display: block;
+  }
+}
+
+.scan-choose-mode button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.scan-choose-mode .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.scan-choose-options {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.scan-option {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  min-height: 5rem;
+  padding: 1rem 1.1rem;
+  font: inherit;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  background: var(--card);
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.scan-option-primary {
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.scan-option:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.scan-option-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 50%;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.scan-option-icon .icon {
+  width: 22px;
+  height: 22px;
+}
+
+.scan-option-text {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.scan-option-text strong {
+  font-size: 1.02rem;
+  font-weight: 800;
+}
+
+.scan-option-text small {
+  font-size: 0.82rem;
+  opacity: 0.75;
+}
+.scan-camera {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  overflow: hidden;
+  color: #ffffff;
+  background: radial-gradient(ellipse at 50% 40%, #3b3a36, #0d0d0d 70%);
+}
+
+.scan-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.scan-photo-dim {
+  filter: brightness(0.45);
+}
+
+.scan-camtop {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: min(100%, var(--column));
+  padding: max(1rem, env(safe-area-inset-top)) 1.1rem 0.5rem;
+  transform: translateX(-50%);
+}
+
+.scan-camtop h1,
+.scan-sheet h1,
+.tab-top h1 {
+  outline: none;
+}
+
+.scan-camtop h1 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.scan-round {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  font: inherit;
+  font-size: 1.1rem;
+  color: #ffffff;
+  text-decoration: none;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.16);
+  border: 0;
+  border-radius: 50%;
+}
+
+.scan-round[aria-pressed="true"] {
+  color: #141414;
+  background: #ffffff;
+}
+
+.scan-round-empty {
+  background: none;
+}
+
+.scan-round:focus-visible,
+.scan-mode button:focus-visible,
+.scan-gallery:focus-visible,
+.scan-shutter:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 3px;
+}
+
+.scan-frame {
+  position: absolute;
+  top: 16%;
+  left: 50%;
+  z-index: 1;
+  width: min(80vw, 380px);
+  height: min(52vh, 460px);
+  transform: translateX(-50%);
+}
+
+.scan-frame i {
+  position: absolute;
+  width: 36px;
+  height: 36px;
+  border: 4px solid #ffffff;
+}
+
+.scan-frame i:nth-child(1) {
+  top: 0;
+  left: 0;
+  border-right: 0;
+  border-bottom: 0;
+  border-radius: 14px 0 0 0;
+}
+
+.scan-frame i:nth-child(2) {
+  top: 0;
+  right: 0;
+  border-bottom: 0;
+  border-left: 0;
+  border-radius: 0 14px 0 0;
+}
+
+.scan-frame i:nth-child(3) {
+  bottom: 0;
+  left: 0;
+  border-top: 0;
+  border-right: 0;
+  border-radius: 0 0 0 14px;
+}
+
+.scan-frame i:nth-child(4) {
+  right: 0;
+  bottom: 0;
+  border-top: 0;
+  border-left: 0;
+  border-radius: 0 0 14px 0;
+}
+
+.scan-line {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #ffffff, transparent);
+  box-shadow: 0 0 12px #ffffff;
+  animation: scan-sweep 2.4s ease-in-out infinite;
+}
+
+@keyframes scan-sweep {
+  0%,
+  100% {
+    top: 8%;
+  }
+  50% {
+    top: 90%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scan-line {
+    top: 50%;
+    animation: none;
+  }
+}
+
+.scan-tip {
+  position: absolute;
+  top: calc(16% + min(52vh, 460px) + 0.8rem);
+  left: 0;
+  right: 0;
+  z-index: 1;
+  margin: 0;
+  font-size: 0.85rem;
+  text-align: center;
+  color: #e5e5e5;
+}
+
+.scan-tip-mid {
+  top: 45%;
+}
+
+.scan-fallback {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
+  display: grid;
+  gap: 0.6rem;
+  width: min(calc(100% - 2.5rem), 360px);
+  text-align: center;
+  transform: translate(-50%, -60%);
+}
+
+.scan-fallback p {
+  margin: 0;
+  color: #d4d4d4;
+}
+
+.scan-fallback .scan-fallback-title {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.scan-fallback .button-primary {
+  margin-top: 0.6rem;
+  color: #141414;
+  background: #ffffff;
+  border-color: #ffffff;
+}
+
+.scan-fallback-alt {
+  color: #ffffff;
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.scan-camfoot {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  padding: 2.5rem 1.25rem max(1.6rem, env(safe-area-inset-bottom));
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.75) 35%);
+}
+
+.scan-mode {
+  display: flex;
+  justify-content: center;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+
+.scan-mode button {
+  min-height: 2.5rem;
+  padding: 0 1.05rem;
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: #d4d4d4;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+}
+
+.scan-mode button[aria-pressed="true"] {
+  color: #141414;
+  background: #ffffff;
+}
+
+.scan-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: min(100%, 360px);
+  margin: 0 auto;
+}
+
+.scan-gallery {
+  display: grid;
+  justify-items: center;
+  gap: 0.25rem;
+  width: 4rem;
+  padding: 0;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #e5e5e5;
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+
+.scan-gallery span {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  font-size: 1.3rem;
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 12px;
+}
+
+.scan-shutter {
+  display: grid;
+  place-items: center;
+  width: 4.6rem;
+  height: 4.6rem;
+  padding: 0;
+  cursor: pointer;
+  background: none;
+  border: 4px solid #ffffff;
+  border-radius: 50%;
+}
+
+.scan-shutter b {
+  display: block;
+  width: 3.6rem;
+  height: 3.6rem;
+  background: #ffffff;
+  border-radius: 50%;
+}
+
+.scan-shutter-off {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.scan-sheet {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: min(100%, var(--column));
+  padding: 1.4rem 1.25rem max(2rem, env(safe-area-inset-bottom));
+  color: var(--ink);
+  background: var(--paper);
+  border-radius: 26px 26px 0 0;
+  transform: translateX(-50%);
+}
+
+.scan-sheet h1 {
+  margin: 0 0 0.2rem;
+  font-size: 1.15rem;
+}
+
+.scan-sheet > p {
+  margin: 0 0 0.9rem;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.scan-sheet-actions {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.scan-bar {
+  height: 6px;
+  overflow: hidden;
+  background: var(--line-strong);
+  border-radius: 3px;
+}
+
+.scan-bar b {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+.scan-steps {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.9rem 0 0;
+  padding: 0;
+  font-size: 0.88rem;
+  list-style: none;
+}
+
+.scan-steps li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.scan-steps span {
+  width: 1.1rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.scan-steps .done span {
+  color: var(--paid);
+}
+
+.scan-steps .later {
+  color: #a8a39a;
+}
+
+.scan-thumb {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin-bottom: 0.75rem;
+  padding: 0.8rem 1rem;
+}
+
+.scan-thumb p {
+  margin: 0;
+}
+
+/* The words may wrap or shrink, so the card never pushes the page wider than the phone
+   (the text block's default min-content width did, by a pixel). */
+.scan-thumb-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.scan-thumb img,
+.scan-thumb-empty {
+  width: 54px;
+  height: 64px;
+  flex: none;
+  object-fit: cover;
+  background: repeating-linear-gradient(#f4ecd6 0 7px, #c9d6e6 7px 8px);
+  border-radius: 10px;
+}
+
+.scan-thumb .tab-name,
+.scan-thumb .tab-item {
+  display: block;
+}
+
+.scan-retake {
+  margin-left: auto;
+  color: var(--ink);
+}
+
+/* ---------- Scan check, Collect and Reminders history (PR #37 review fixes) ---------- */
+
+/* (A) Scan side-by-side inspect and photo viewer.
+   The side photo shows from the app's laptop width (1024px, same as useIsWide), and the
+   two-column grid only applies when there is a photo, so no empty column at 900-1023px. */
+.scan-check-split {
+  display: block;
+}
+
+.scan-photo-inspect {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  /* With a photo, the check page widens so the photo and the lines each get a real column. */
+  .site-main:has(.scan-check-split-photo) {
+    max-width: 1040px;
+  }
+
+  .scan-check-split-photo {
+    display: grid;
+    grid-template-columns: minmax(300px, 400px) minmax(420px, 1fr);
+    gap: 1.5rem;
+    align-items: start;
+  }
+
+  .scan-photo-inspect {
+    display: block;
+    position: sticky;
+    top: 1.5rem;
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 1rem;
+    box-shadow: var(--shadow);
+  }
+
+  .scan-photo-inspect img {
+    display: block;
+    width: 100%;
+    max-height: 60vh;
+    object-fit: contain;
+    border-radius: 8px;
+    background: var(--hero);
+  }
+}
+
+.scan-photo-inspect-title {
+  margin: 0 0 0.5rem;
+  font-weight: 700;
+}
+
+.scan-photo-expand {
+  display: block;
+  margin-top: 0.5rem;
+}
+
+/* The full-screen viewer: a dark surface in both themes (like the hero cards), so the
+   photo reads the same; white text and translucent white edges are on purpose. */
+.scan-photo-modal {
+  position: fixed;
+  inset: 1rem;
+  z-index: 35;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: #ffffff;
+  background: var(--hero);
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+}
+
+.scan-photo-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.scan-photo-modal-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.scan-photo-zoom {
+  min-width: 3.2em;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Sits in the header row rather than floating in the corner like other sheets. */
+.scan-photo-modal .sheet-close {
+  position: static;
+}
+
+/* The photo is centred with margin: auto rather than flex centring, so when it's zoomed past
+   the box every edge can still be scrolled to (flex centring pushes the top out of reach). */
+.scan-photo-modal-body {
+  flex: 1;
+  overflow: auto;
+  display: grid;
+  padding: 1rem;
+  touch-action: pan-x pan-y;
+}
+
+.scan-photo-modal-body img {
+  display: block;
+  margin: auto;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  user-select: none;
+}
+
+/* Once measured, the photo has an exact size for the zoom level; the fit limits no longer apply. */
+.scan-photo-modal-body img.scan-photo-sized {
+  max-width: none;
+  max-height: none;
+}
+
+/* (B) "Not sure" note under a scanned line: the same amber as the Not sent badge, from tokens,
+   so dark mode follows on its own. */
+.scan-unsure-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+  padding: 0.4rem 0.6rem;
+  color: var(--unpaid);
+  background: var(--unpaid-bg);
+  border: 1px solid color-mix(in srgb, var(--unpaid) 35%, transparent);
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+/* ---- NEW rules below (nothing to replace) ---- */
+
+/* Scan check: View photo + Retake beside the thumbnail. */
+.scan-thumb-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+/* Collect: customers with no email, above the To send list. */
+.collect-missing {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.85rem;
+}
+
+.collect-missing-body {
+  margin: 0.15rem 0 0;
+  font-size: 0.82rem;
+}
+
+.collect-missing-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 0.4rem;
+}
+
+.collect-missing-actions .button {
+  white-space: nowrap;
+}
+
+/* Collect Review: "Send N PayPal invoices?" confirm sheet. */
+.collect-confirm {
+  max-width: 480px;
+}
+
+.collect-confirm-title {
+  margin: 0 0 0.5rem;
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+
+.collect-confirm-body {
+  margin: 0 0 1.25rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.collect-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+/* Collect Send: amount with the PayPal link under it. */
+.send-row-end {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.2rem;
+}
+
+.send-paypal-link {
+  font-size: 0.78rem;
+}
+
+/* Reminders history: the tick and day of a reminder already sent, or a settled tab. */
+.reminder-when-done {
+  align-content: center;
+  gap: 0.15rem;
+  color: var(--paid);
+}
+
+/* The tick is a small mark, not a picture: 20px, like the other inline icons. */
+.reminder-when-done .icon {
+  width: 20px;
+  height: 20px;
+}
+
+/* Phones: the date box (Coming up) and the View tab button (History) drop to a second line
+   under the name, so the name and details keep a sensible width instead of a word per line. */
+@media (max-width: 600px) {
+  .reminder-list .reminder-row:has(> .reminder-when) {
+    flex-wrap: wrap;
+  }
+
+  /* A real minimum width, so the box wraps to the next line instead of squeezing the name. */
+  .reminder-list .reminder-row:has(> .reminder-when) > .reminder-main {
+    flex: 1 1 10rem;
+  }
+
+  .reminder-list .reminder-row:has(> .reminder-when) > .reminder-date,
+  .reminder-list .reminder-row:has(> .reminder-when) > .reminder-actions {
+    margin-left: calc(5.5rem + 0.75rem);
+  }
+}
+
+.scan-who {
+  display: grid;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.scan-who label {
+  font-weight: 700;
+}
+
+.scan-who select,
+.scan-who input {
+  min-height: 2.75rem;
+  padding: 0.5rem 0.75rem;
+  font: inherit;
+  font-size: 1rem;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1.5px solid var(--field-line);
+  border-radius: 12px;
+}
+
+.scan-who select:focus,
+.scan-who input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.scan-row {
+  display: grid;
+  border-bottom: 1px solid var(--line);
+}
+
+.scan-row:last-child {
+  border-bottom: 0;
+}
+
+.scan-row-main {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.scan-row-main input[type="checkbox"] {
+  width: 1.4rem;
+  height: 1.4rem;
+  flex: none;
+  accent-color: var(--accent);
+}
+
+.scan-row-open {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+  padding: 0.8rem 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+
+.scan-row-open .tab-who {
+  justify-items: start;
+  gap: 0.15rem;
+}
+
+.scan-row-open:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 10px;
+}
+
+.scan-row-error .tab-name {
+  color: var(--overdue);
+}
+
+.scan-edit {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0 0 1rem 2.15rem;
+}
+
+button.tab-back {
+  padding: 0;
+  font: inherit;
+  font-size: 1.3rem;
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+
+button.tab-back:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* .card p is muted by default; errors and names inside cards keep their own colour. */
+.card .field-error {
+  color: var(--overdue);
+}
+
+.card .tab-name {
+  color: var(--ink);
+}
+
+.scan-who select[aria-invalid="true"],
+.scan-who input[aria-invalid="true"] {
+  border-color: var(--overdue);
+}
+
+.scan-fallback .button:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 3px;
+}
+
+/* Logo: black notebook mark with spiral holes and "555" (see app/components/Logo.tsx) */
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-weight: 800;
+  font-size: 1.15rem;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.logo-mark {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+  color: var(--accent-ink);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  background: var(--accent);
+  border-radius: 30%;
+}
+
+.logo-mark::before {
+  content: "";
+  position: absolute;
+  left: 13%;
+  top: 20%;
+  bottom: 20%;
+  width: 7%;
+  background: repeating-linear-gradient(var(--accent-ink) 0 2px, transparent 2px 5px);
+  opacity: 0.7;
+}
+
+.logo-mark span {
+  margin-left: 14%;
+}
+
+.app-head {
+  margin: 0.25rem 0 1rem;
+}
+
+.tab-intro {
+  margin-bottom: 1rem;
+}
+
+.tab-intro p,
+.tab-intro h1 {
+  margin: 0;
+}
+
+/* Line icons inside controls */
+.scan-mode button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.scan-mode .icon,
+.tab-links .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.scan-round .icon,
+.scan-gallery .icon {
+  width: 20px;
+  height: 20px;
+}
+
+.tab-back .icon {
+  width: 22px;
+  height: 22px;
+}
+
+.tab-icon {
+  color: var(--unpaid);
+}
+
+.tab-icon .icon {
+  width: 19px;
+  height: 19px;
+}
+
+.chev.icon {
+  width: 16px;
+  height: 16px;
+  margin-left: 0.3rem;
+  vertical-align: -3px;
+  color: var(--chev);
+}
+
+.tab-links a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.scan-steps .icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* Collect (app/collect): black hero, customer cards with switches, paper invoice
+   previews, a progress ring while sending, and parcel-style tracking. */
+.collect {
+  display: grid;
+  /* room for the action bar above the floating menu */
+  padding-bottom: 6.5rem;
+}
+
+.collect-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0.25rem 0.1rem 0.9rem;
+}
+
+.collect-top h1 {
+  margin: 0;
+  font-size: 1.85rem;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+}
+
+.collect-hero {
+  position: relative;
+  overflow: hidden;
+  padding: 1.15rem 1.15rem 1rem;
+  color: #ffffff;
+  background: var(--hero);
+  border-radius: 26px;
+}
+
+.collect-hero::after {
+  content: "";
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 170px;
+  height: 170px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.1), transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.collect-hero p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #c9c5bd;
+}
+
+.collect-hero .collect-hero-big {
+  margin: 0.25rem 0 0.75rem;
+  font-size: 2.75rem;
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  line-height: 1.05;
+  color: #ffffff;
+  font-variant-numeric: tabular-nums;
+}
+
+.collect-hero-big small {
+  margin-right: 0.25rem;
+  font-size: 0.42em;
+  letter-spacing: 0;
+}
+
+.collect-stack {
+  display: flex;
+  align-items: center;
+}
+
+.collect-stack .avatar {
+  width: 30px;
+  height: 30px;
+  margin-left: -8px;
+  font-size: 0.65rem;
+  border: 2px solid var(--hero);
+}
+
+.collect-stack .avatar:first-child {
+  margin-left: 0;
+}
+
+.collect-stack span:last-child {
+  margin-left: 0.6rem;
+  font-size: 0.82rem;
+  color: #d9d5cd;
+}
+
+.collect-tabs {
+  display: flex;
+  gap: 0.4rem;
+  margin: 0.9rem 0 0.75rem;
+  /* Last resort for a single word longer than its pill: the row scrolls, never the page. */
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+
+/* Pills may shrink and wrap their words onto two lines, so long labels in any language fit
+   the row without the page scrolling sideways. */
+.collect-tabs button {
+  display: inline-flex;
+  flex: 0 1 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-width: 0;
+  min-height: 2.5rem;
+  padding: 0.3rem 0.85rem;
+  line-height: 1.2;
+  text-align: center;
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--muted);
+  cursor: pointer;
+  background: var(--card);
+  border: 0;
+  border-radius: 999px;
+  box-shadow: 0 1px 0 var(--line);
+}
+
+.collect-tabs button b {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  padding: 0 0.3rem;
+  font-size: 0.7rem;
+  color: var(--ink);
+  background: var(--track);
+  border-radius: 999px;
+}
+
+.collect-tabs button[aria-selected="true"] {
+  color: var(--accent-ink);
+  background: var(--accent);
+  box-shadow: none;
+}
+
+.collect-tabs button[aria-selected="true"] b {
+  color: var(--accent-ink);
+  background: var(--on-ink-soft);
+}
+
+.collect-tabs button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.collect-list {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.collect-card,
+.collect-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.8rem 0.75rem;
+  color: inherit;
+  text-decoration: none;
+  border-radius: 22px;
+}
+
+.collect-card .avatar,
+.collect-row .avatar,
+.send-row .avatar {
+  width: 38px;
+  height: 38px;
+}
+
+.collect-card .tab-who {
+  justify-items: start;
+  gap: 0.2rem;
+}
+
+.collect-card .tab-name {
+  overflow: hidden;
+  max-width: 100%;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.collect-card-missing {
+  background: var(--overdue-soft);
+  box-shadow: 0 0 0 1.5px var(--overdue-edge) inset;
+}
+
+.collect-email {
+  /* About 28px tall to tap; the negative margins keep the row's spacing as it was. */
+  display: block;
+  overflow: hidden;
+  max-width: 100%;
+  margin: -0.35rem 0;
+  padding: 0.35rem 0;
+  text-align: left;
+  font: inherit;
+  font-size: 0.78rem;
+  color: var(--muted);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+
+.collect-add-email {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-height: 1.9rem;
+  padding: 0 0.7rem;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--on-ink);
+  cursor: pointer;
+  background: var(--overdue);
+  border: 0;
+  border-radius: 999px;
+}
+
+.collect-add-email .icon {
+  width: 14px;
+  height: 14px;
+}
+
+.collect-email:focus-visible,
+.collect-add-email:focus-visible,
+.collect-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.collect-amt {
+  font-weight: 800;
+  font-size: 0.98rem;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.collect-switch {
+  position: relative;
+  flex: none;
+  width: 2.75rem;
+  height: 1.65rem;
+  padding: 0;
+  cursor: pointer;
+  background: var(--switch-off);
+  border: 0;
+  border-radius: 999px;
+  transition: background 0.15s;
+}
+
+.collect-switch::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: calc(1.65rem - 6px);
+  height: calc(1.65rem - 6px);
+  background: #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: transform 0.15s;
+}
+
+.collect-switch[aria-checked="true"] {
+  background: var(--accent);
+}
+
+/* Dark: the accent is near-white, so "on" is green with a dark knob, like Settings' switch. */
+:root[data-theme="dark"] .collect-switch[aria-checked="true"] {
+  background: var(--paid);
+}
+
+:root[data-theme="dark"] .collect-switch[aria-checked="true"]::after {
+  background: #0e2416;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="auto"] .collect-switch[aria-checked="true"] {
+    background: var(--paid);
+  }
+
+  :root[data-theme="auto"] .collect-switch[aria-checked="true"]::after {
+    background: #0e2416;
+  }
+}
+
+.collect-switch[aria-checked="true"]::after {
+  transform: translateX(1.1rem);
+}
+
+.collect-switch:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.collect-switch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.collect-row .tab-amt {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.collect-row .tab-amt .chev {
+  display: none;
+}
+
+.collect-bar {
+  position: fixed;
+  left: 50%;
+  bottom: calc(max(1rem, env(safe-area-inset-bottom)) + 4.6rem);
+  z-index: 9;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: min(calc(100% - 1.5rem), calc(var(--column) - 1.5rem));
+  padding: 0.75rem 0.75rem 0.75rem 1.1rem;
+  color: #ffffff;
+  background: var(--hero);
+  border-radius: 22px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+  transform: translateX(-50%);
+}
+
+.collect-bar p {
+  flex: 1;
+  margin: 0;
+}
+
+.collect-bar small {
+  display: block;
+  font-size: 0.75rem;
+  color: #c9c5bd;
+}
+
+.collect-bar b {
+  font-size: 1.15rem;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.collect-bar button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2.75rem;
+  padding: 0 1rem;
+  font: inherit;
+  font-weight: 800;
+  font-size: 0.9rem;
+  color: #141414;
+  cursor: pointer;
+  background: #ffffff;
+  border: 0;
+  border-radius: 15px;
+}
+
+.collect-bar button .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.collect-bar button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.collect-bar button:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
+.collect-bar-light {
+  color: var(--ink);
+  background: var(--card);
+  box-shadow: 0 1px 0 var(--line), 0 18px 40px rgba(0, 0, 0, 0.12);
+}
+
+.collect-bar-light small {
+  color: var(--muted);
+}
+
+.collect-bar-light button {
+  color: var(--on-ink);
+  background: var(--accent);
+}
+
+.collect-bar-light .collect-bar-ghost {
+  color: var(--ink);
+  background: var(--track);
+}
+
+.collect-bar-light button:focus-visible {
+  outline-color: var(--accent);
+}
+
+/* Bottom sheet (email) */
+.sheet-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+}
+
+.sheet-dim {
+  position: absolute;
+  inset: 0;
+  background: rgba(20, 20, 20, 0.4);
+}
+
+.sheet {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: min(100%, var(--column));
+  padding: 1.25rem 1.25rem max(1.6rem, env(safe-area-inset-bottom));
+  background: var(--paper);
+  border-radius: 28px 28px 0 0;
+  transform: translateX(-50%);
+}
+
+.sheet-close {
+  position: absolute;
+  top: 0.9rem;
+  right: 0.9rem;
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  color: var(--ink);
+  cursor: pointer;
+  background: var(--card);
+  border: 0;
+  border-radius: 50%;
+}
+
+.sheet-close .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.sheet-close:focus-visible,
+.sheet-chips button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.sheet-who {
+  display: grid;
+  justify-items: center;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.sheet-who h2 {
+  margin: 0.5rem 0 0;
+  font-size: 1.2rem;
+  letter-spacing: -0.02em;
+}
+
+.sheet-who p {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.avatar-lg {
+  width: 58px;
+  height: 58px;
+  font-size: 1.05rem;
+}
+
+.sheet-input {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0 0.9rem;
+  color: var(--muted);
+  background: var(--card);
+  border: 1.5px solid var(--field-line);
+  border-radius: 15px;
+}
+
+.sheet-input:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--focus-ring-soft);
+}
+
+.sheet-input .icon {
+  width: 20px;
+  height: 20px;
+}
+
+.sheet-input-error,
+.sheet-input-error:focus-within {
+  border-color: var(--overdue);
+}
+
+.sheet-input input {
+  flex: 1;
+  min-width: 0;
+  min-height: 3rem;
+  font: inherit;
+  font-size: 1rem;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  outline: none;
+}
+
+.sheet .field-error {
+  margin: 0.4rem 0.2rem 0;
+}
+
+.sheet-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.65rem 0 0.25rem;
+}
+
+.sheet-chips button {
+  min-height: 2.25rem;
+  padding: 0 0.75rem;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--ink);
+  cursor: pointer;
+  background: var(--card);
+  border: 0;
+  border-radius: 999px;
+  box-shadow: 0 1px 0 var(--line);
+}
+
+/* Paper invoice previews */
+.paper-rail {
+  display: flex;
+  /* same as the side padding, so the next paper stays fully out of view */
+  gap: 1rem;
+  /* bleed to the screen edge on phones (main has 1rem side padding there) */
+  margin: 0 -1rem;
+  padding: 0.25rem 1rem 0.75rem;
+  scroll-padding: 0 1rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.paper-rail::-webkit-scrollbar {
+  display: none;
+}
+
+.paper {
+  flex: 0 0 100%;
+  padding: 1.15rem 1.15rem 0;
+  scroll-snap-align: center;
+  background: var(--card);
+  border-radius: 20px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.08);
+}
+
+.paper p {
+  margin: 0;
+}
+
+.paper-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.paper-from {
+  font-weight: 800;
+}
+
+.paper-from small,
+.paper-lines small {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.paper-tag {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.card .paper-to,
+.paper .paper-to {
+  margin: 0.9rem 0 0.6rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.paper-to b {
+  display: block;
+  margin-top: 0.1rem;
+  font-size: 0.95rem;
+  color: var(--ink);
+}
+
+.paper-lines {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.paper-lines li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.6rem 0;
+  font-size: 0.88rem;
+  border-top: 1px dashed var(--dash);
+  font-variant-numeric: tabular-nums;
+}
+
+.paper .paper-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 0.75rem 0 0.9rem;
+  border-top: 1.5px solid var(--ink);
+}
+
+.paper-total span {
+  font-weight: 700;
+}
+
+.paper-total b {
+  font-size: 1.6rem;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.paper .paper-pay {
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  font-size: 0.8rem;
+  text-align: center;
+  color: var(--muted);
+  background: var(--soft);
+  border: 1.5px dashed var(--dash);
+  border-radius: 14px;
+}
+
+.paper-perf {
+  height: 18px;
+  margin: 0 -1.15rem;
+  background: radial-gradient(circle at 9px 18px, var(--paper) 8px, transparent 8.5px) 0 0 / 18px 18px repeat-x;
+}
+
+.paper-dots {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+  margin: 0.25rem 0 0.75rem;
+}
+
+.paper-dots i {
+  width: 6px;
+  height: 6px;
+  background: var(--dot);
+  border-radius: 3px;
+  transition: width 0.2s;
+}
+
+.paper-dots i.on {
+  width: 18px;
+  background: var(--accent);
+}
+
+.paper-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.paper-chips button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.5rem;
+  padding: 0 0.75rem 0 0.3rem;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--ink);
+  cursor: pointer;
+  background: var(--card);
+  border: 0;
+  border-radius: 999px;
+  box-shadow: 0 1px 0 var(--line);
+}
+
+.paper-chips .avatar {
+  width: 28px;
+  height: 28px;
+  font-size: 0.62rem;
+}
+
+.paper-chips button[aria-current="true"] {
+  box-shadow: 0 0 0 2px var(--accent) inset;
+}
+
+.paper-chips button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Sending */
+.send-ring {
+  position: relative;
+  width: 150px;
+  height: 150px;
+  margin: 1rem auto 0.6rem;
+}
+
+.send-ring svg {
+  width: 150px;
+  height: 150px;
+  transform: rotate(-90deg);
+}
+
+.send-ring circle {
+  fill: none;
+  stroke-width: 12;
+}
+
+.send-ring-track {
+  stroke: var(--line-strong);
+}
+
+.send-ring-fill {
+  stroke: var(--accent);
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.5s ease;
+}
+
+.send-ring p {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  margin: 0;
+  text-align: center;
+}
+
+.send-ring b {
+  font-size: 2.1rem;
+  letter-spacing: -0.04em;
+}
+
+.send-ring small {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.send-head {
+  margin-bottom: 0.9rem;
+  text-align: center;
+}
+
+.send-head h1 {
+  margin: 0;
+  font-size: 1.3rem;
+  letter-spacing: -0.02em;
+  outline: none;
+}
+
+.send-head p {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.send-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 20px;
+}
+
+.send-row-failed {
+  background: var(--overdue-soft);
+  box-shadow: 0 0 0 1.5px var(--overdue-edge) inset;
+}
+
+.send-dot {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+}
+
+.send-dot .icon {
+  width: 15px;
+  height: 15px;
+  stroke-width: 2.6;
+}
+
+.send-dot-sent {
+  color: var(--paid);
+  background: var(--paid-bg);
+}
+
+.send-dot-failed {
+  color: var(--overdue);
+  background: var(--overdue-bg);
+}
+
+.send-dot-waiting {
+  border: 2.5px solid var(--line-strong);
+}
+
+.send-dot-sending {
+  border: 2.5px solid var(--line-strong);
+  border-top-color: var(--accent);
+  animation: send-spin 0.8s linear infinite;
+}
+
+@keyframes send-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .send-dot-sending {
+    animation: none;
+  }
+}
+
+.send-error {
+  color: var(--overdue) !important;
+  white-space: normal !important;
+}
+
+.send-retry {
+  min-height: 2.5rem;
+  padding: 0 0.9rem;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--accent-ink);
+  cursor: pointer;
+  background: var(--accent);
+  border: 0;
+  border-radius: 12px;
+}
+
+.send-retry:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Invoice tracking */
+.track-card {
+  margin-bottom: 0.75rem;
+}
+
+.track-card p {
+  margin: 0;
+}
+
+.track-who {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.track-card .track-big {
+  margin: 0.6rem 0 0.1rem;
+  font-size: 2.4rem;
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.track-big small {
+  margin-right: 0.2rem;
+  font-size: 0.45em;
+  letter-spacing: 0;
+}
+
+.track-steps {
+  display: flex;
+  margin: 1.1rem 0 0.25rem;
+  padding: 0;
+  list-style: none;
+}
+
+.track-steps li {
+  position: relative;
+  flex: 1;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: center;
+  color: var(--muted);
+}
+
+.track-steps li span {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin: 0 auto 0.35rem;
+  color: #b0aba2;
+  background: var(--track);
+  border-radius: 50%;
+}
+
+.track-steps li span .icon {
+  width: 15px;
+  height: 15px;
+  stroke-width: 2.4;
+}
+
+.track-steps li small {
+  display: block;
+  margin-top: 0.05rem;
+  font-size: 0.68rem;
+  font-weight: 500;
+}
+
+.track-steps li::before {
+  content: "";
+  position: absolute;
+  top: 13px;
+  left: -50%;
+  right: 50%;
+  height: 2px;
+  background: var(--line-strong);
+}
+
+.track-steps li:first-child::before {
+  display: none;
+}
+
+.track-steps li.done,
+.track-steps li.now {
+  color: var(--ink);
+}
+
+.track-steps li.done span {
+  color: var(--accent-ink);
+  background: var(--accent);
+}
+
+.track-steps li.now span {
+  color: var(--ink);
+  background: var(--card);
+  box-shadow: 0 0 0 2px var(--accent) inset;
+}
+
+.track-steps li.done::before,
+.track-steps li.now::before {
+  background: var(--accent);
+}
+
+.track-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+  margin-bottom: 0.75rem;
+}
+
+.track-actions button,
+.track-actions a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 3rem;
+  font: inherit;
+  font-weight: 800;
+  font-size: 0.88rem;
+  color: var(--ink);
+  text-decoration: none;
+  cursor: pointer;
+  background: var(--card);
+  border: 0;
+  border-radius: 16px;
+  box-shadow: 0 1px 0 var(--line), 0 8px 20px rgba(0, 0, 0, 0.04);
+}
+
+.track-actions .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.track-actions .track-wa {
+  color: var(--wa-ink);
+  background: var(--wa-soft);
+}
+
+.track-actions button:focus-visible,
+.track-actions a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.track-lines {
+  margin: 0;
+  padding: 0.25rem 1rem;
+  list-style: none;
+}
+
+.track-lines li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.7rem 0;
+  font-size: 0.88rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.track-lines li:last-child {
+  border-bottom: 0;
+}
+
+.track-lines span {
+  color: var(--muted);
+}
+
+.collect-pending {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--unpaid);
+}
+
+/* Customer pay screen: PayPal invoice links */
+.pay-invoices {
+  margin-top: 0.25rem;
+}
+
+.pay-not-invoiced {
+  margin: 0.75rem 0 0;
+  font-size: 0.85rem;
+}
+
+.pay-small {
+  min-height: 2.5rem;
+  padding: 0 1rem;
+  border-radius: 12px;
+}
+
+a.button.tab-pay {
+  display: flex;
+}
+
+.pay-done {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  font-weight: 800;
+  font-size: 0.88rem;
+  color: var(--paid);
+}
+
+.pay-done .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.pay-done-wide {
+  width: 100%;
+  min-height: 3.1rem;
+  margin-top: 1rem;
+  background: var(--paid-bg);
+  border-radius: 16px;
+}
+
+.pay-state {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.pay-status-wide {
+  display: block;
+}
+
+.pay-status-wide .pay-state {
+  display: block;
+  margin-top: 1rem;
+  padding: 0.9rem;
+  text-align: center;
+  background: var(--soft);
+  border-radius: 16px;
+}
+
+/* Insights: the AG Studio dashboard. Wider than the phone column on a laptop. */
+.site-main:has(.insights) {
+  max-width: 1180px;
+}
+
+.insights-studio {
+  min-height: 12rem;
+  /* Nothing inside may push the page wider than the screen. */
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+/* Nudge in AG Studio's own AI panel (Insights). On a laptop the panel sits right of the
+   dashboard; on a phone "Ask Nudge" opens it over the page. */
+.insights-ask {
+  gap: 0.4rem;
+}
+
+.insights-ask .icon {
+  width: 18px;
+  height: 18px;
+}
+
+/* Under the panel title: Nudge, then the dashboard helpers it hands work to. */
+/* Studio's panel body is a grid; the roster takes its own height and the chat the rest. */
+.insights-studio .ag-studio-panel-content:has(> .nudge-roster-slot) {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.nudge-roster-slot {
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.nudge-roster {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 0.35rem;
+  font-family: var(--font-manrope), system-ui, sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.nudge-roster ul {
+  display: contents;
+  list-style: none;
+}
+
+.nudge-roster li,
+.nudge-roster-on {
+  padding: 0.2rem 0.55rem;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--card);
+  white-space: nowrap;
+}
+
+.nudge-roster .nudge-roster-on {
+  color: var(--on-ink);
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.nudge-roster-label {
+  margin-left: 0.15rem;
+  color: var(--muted);
+}
+
+.insights-studio .ag-studio-ai-panel {
+  font-family: var(--font-manrope), system-ui, sans-serif;
+}
+
+.insights-studio .ag-studio-ai-panel .ag-studio-panel-title {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+/* The owner's own messages: ink bubbles, as in the Nudge chat. */
+.insights-studio .ag-studio-ai-input-message-user {
+  color: var(--on-ink);
+  background: var(--ink);
+  border-radius: 16px 16px 4px 16px;
+}
+
+.insights-studio .ag-studio-ai-input-message-user .ag-studio-ai-input-message-content {
+  color: var(--on-ink);
+  background: transparent;
+}
+
+.studio-draft {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.7rem;
+  background: var(--paper);
+  border-radius: 14px;
+  font-family: var(--font-manrope), system-ui, sans-serif;
+  color: var(--ink);
+}
+
+.studio-draft p {
+  margin: 0;
+}
+
+.studio-draft-to {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--muted);
+}
+
+.studio-draft-text {
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.studio-draft-link,
+.studio-draft-note {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.studio-draft-actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.2rem;
+}
+
+.studio-draft-actions .button {
+  flex: 1;
+  gap: 0.35rem;
+  min-height: 2.4rem;
+  padding: 0 0.7rem;
+  font-size: 0.82rem;
+}
+
+.studio-draft-actions .icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* Phone: the panel covers the screen as a dialog, with its close button in the title row. */
+.nudge-sheet-close {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 2.5rem;
+  height: 2.5rem;
+  color: var(--ink);
+  background: var(--paper);
+  border: 0;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.insights-asking .ag-studio-root-panel-container-right {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  padding-top: env(safe-area-inset-top);
+  width: 100% !important;
+  background: var(--card);
+}
+
+.insights-asking .ag-studio-root-panel-container-right .ag-studio-ai-panel {
+  width: 100% !important;
+  height: 100%;
+}
+
+/* Studio sizes the panel from this variable, set inline; it wins here so the sheet is full width. */
+.insights-asking .ag-studio-root-panel-container-right .ag-studio-ai-panel {
+  --ag-studio-panel-width: 100vw !important;
+}
+
+/* The sheet has its own close button; resizing or folding it away makes no sense on a phone. */
+.insights-asking .ag-studio-ai-panel .ag-studio-panel-divider,
+.insights-asking .ag-studio-ai-panel .ag-studio-panel-chevron {
+  display: none;
+}
+
+body.nudge-sheet-open {
+  overflow: hidden;
+}
+
+/* Step rows and status text: Studio draws them at half-opacity ink (about 3.5:1); ours read 5:1. */
+.insights-studio .ag-studio-ai-step-state,
+.insights-studio .ag-studio-ai-step-text,
+.insights-studio .ag-studio-ai-step-pill,
+.insights-studio .ag-studio-ai-status-bar-thinking-text,
+.insights-studio .ag-studio-ai-status-bar-back-text {
+  color: var(--muted);
+}
+
+/* Nudge couldn't answer: Studio paints these boxes with the message colours, so ours win here. */
+.insights-studio .ag-studio-ai-output-message-error,
+.insights-studio .ag-studio-ai-output-message-error * {
+  color: var(--overdue) !important;
+}
+
+.insights-studio .ag-studio-ai-output-message-error {
+  background: var(--overdue-bg) !important;
+  border-color: var(--overdue) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .insights-studio .ag-studio-ai-panel *,
+  .insights-studio .ag-studio-ai-panel *::before,
+  .insights-studio .ag-studio-ai-panel *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* Studio widgets in view mode (Insights and the Home chart). A tap selects the widget, and
+   Studio marks hover and selection with a square 1px line in the accent colour round the whole
+   tile, outside the rounded card: a hard black box (light box in dark mode). Nothing can be
+   edited in view mode, so drop it. Edit mode keeps Studio's own lines. */
+.ag-studio-layout-widget:not(.ag-studio-layout-widget-editing) {
+  box-shadow: none;
+}
+
+/* Keyboard users still get a ring, on the rounded card. Studio only adds -focus after a key
+   press (its keyboard-mode check), so a tap never shows it. */
+.ag-studio-layout-widget-focus:not(.ag-studio-layout-widget-editing) > .ag-studio-layout-widget-container {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.scoreboard {
+  list-style: none;
+  margin: 0;
+  padding: 0.25rem 0.5rem;
+  display: grid;
+  gap: 0.6rem;
+  font-family: var(--font-manrope), system-ui, sans-serif;
+  color: var(--ink);
+}
+
+.score-row {
+  display: grid;
+  grid-template-columns: 1.2rem 2.1rem 1fr auto;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.score-rank {
+  font-weight: 800;
+  font-size: 0.8rem;
+  color: #a29d93;
+  text-align: center;
+}
+
+.score-avatar {
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.score-main {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.score-name {
+  font-weight: 700;
+  font-size: 0.875rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.score-track {
+  display: block;
+  height: 7px;
+  border-radius: 4px;
+  background: var(--track);
+  overflow: hidden;
+}
+
+.score-track span {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+}
+
+.score-amount {
+  font-weight: 800;
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.score-more {
+  font-size: 0.78rem;
+  color: var(--muted);
+  padding-left: 1.8rem;
+}
+
+/* Reminders: Bryntum Scheduler (wide) or Calendar (phone), plus the send-now list. */
+.site-main:has(.reminders) {
+  max-width: 1180px;
+}
+
+.reminders .card,
+.rules .card {
+  margin-bottom: 1rem;
+}
+
+.reminder-box {
+  margin-bottom: 1rem;
+}
+
+.reminder-board {
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: var(--card);
+  box-shadow: var(--shadow);
+  /* Bryntum fills its parent, so the parent needs a real height. */
+  height: 26rem;
+  /* Our colours and font instead of the Svalbard theme's. */
+  --b-primary: var(--b-color-black);
+  font-family: var(--font-manrope), system-ui, sans-serif;
+}
+
+/* Dark: Bryntum switches to svalbard-dark.css (ReminderBoard.tsx); its accent turns light. */
+:root[data-theme="dark"] .reminder-board {
+  --b-primary: #f2efe9;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="auto"] .reminder-board {
+    --b-primary: #f2efe9;
+  }
+}
+
+/* Dark: event names in white on the filled events (due #c23b22 5.3:1, invoice #2f55c4 6.5:1,
+   reminder #5c5852 7.1:1). Bryntum's dark sheet would otherwise pick near-black text. */
+:root[data-theme="dark"] .reminder-board :is(.b-sch-event, .b-sch-event-content, .b-event-name, .b-cal-event-desc) {
+  color: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="auto"] .reminder-board :is(.b-sch-event, .b-sch-event-content, .b-event-name, .b-cal-event-desc) {
+    color: #ffffff;
+  }
+}
+
+/* Phone: tall enough for the month and four 40px rows of the day's list; a busier day scrolls
+   inside the list instead of being clipped by the card. */
+.reminder-board-phone {
+  height: 33rem;
+}
+
+.reminder-board-phone .b-month-agenda-agenda {
+  min-height: 0;
+}
+
+/* Today's date number: Bryntum's #1e88e5 blue is 2.3:1 on the light card. Our ink is well over
+   4.5:1 in both themes (it follows the light and dark tokens). */
+.reminder-board {
+  --b-date-picker-today-color: var(--ink);
+  --b-calendar-today-color: var(--ink);
+  --b-month-view-today-day-num-color: var(--ink);
+}
+
+/* Bryntum's date picker sets its own today colour on the cell, so it's overridden there too. */
+.reminder-board .b-calendar-panel-cell.b-today,
+.reminder-board .b-calendar-panel-cell.b-today .b-date-picker-cell-inner {
+  --b-calendar-panel-color: var(--ink);
+  --b-date-picker-today-color: var(--ink);
+  color: var(--ink);
+}
+
+/* Keeps "RM" and its amount on one line. */
+.nowrap {
+  white-space: nowrap;
+}
+
+.reminder-board .b-widget,
+.reminder-board .b-grid-header-text,
+.reminder-board .b-sch-event {
+  font-family: inherit;
+}
+
+.reminder-board .b-sch-event {
+  font-weight: 700;
+}
+
+/* A reminder the owner moved by hand: dashed edge. */
+.reminder-board .rb-moved {
+  outline: 2px dashed var(--ink);
+  outline-offset: 1px;
+}
+
+.reminder-hint {
+  margin: 0.5rem 0.25rem 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.reminder-list h2 {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+}
+
+.reminder-list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.reminder-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.reminder-row:last-child {
+  border-bottom: 0;
+}
+
+.reminder-main {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.reminder-name {
+  font-weight: 700;
+}
+
+.reminder-meta {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.reminder-when {
+  display: grid;
+  width: 5.5rem;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.reminder-when small {
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.reminder-send {
+  gap: 0.4rem;
+  min-height: 2.4rem;
+  padding: 0 0.9rem;
+  font-size: 0.85rem;
+}
+
+.reminder-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
+.reminder-send .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.reminder-foot {
+  margin: 0.5rem 0 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+/* Rules */
+.rules-card {
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+}
+
+.rule-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.8rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.rule-row:last-child {
+  border-bottom: 0;
+}
+
+.rule-label {
+  display: grid;
+  font-weight: 700;
+}
+
+.rule-label small {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: var(--paper);
+  border-radius: 12px;
+  padding: 0.2rem;
+}
+
+.stepper button {
+  width: 2.25rem;
+  height: 2.25rem;
+  font: inherit;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--ink);
+  background: var(--card);
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.stepper button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.stepper output {
+  min-width: 5.5rem;
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.rules-preview {
+  margin-bottom: 1rem;
+  padding: 0.8rem 1rem;
+  background: var(--card);
+  border: 1.5px dashed var(--field-line);
+  border-radius: 16px;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.rules-preview p {
+  margin: 0;
+}
+
+.rules-preview .rules-preview-label {
+  margin-bottom: 0.25rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.reminder-date {
+  flex: none;
+  width: 8.5rem;
+  min-height: 2.4rem;
+  padding: 0 0.5rem;
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--ink);
+  background: var(--card);
+  border: 1.5px solid var(--field-line);
+  border-radius: 10px;
+}
+
+.reminder-date:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+
+.page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* Nudge: chat with the reminder assistant. */
+.nudge {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.nudge-new {
+  min-width: 4.5rem;
+  font-size: 0.85rem;
+  text-align: right;
+}
+
+.nudge-log {
+  display: grid;
+  gap: 0.6rem;
+  align-content: start;
+}
+
+.nudge-hello,
+.nudge-bot {
+  justify-self: start;
+  max-width: 92%;
+  padding: 0.7rem 0.9rem;
+  background: var(--card);
+  border-radius: 18px 18px 18px 6px;
+  box-shadow: 0 1px 0 var(--line);
+  line-height: 1.45;
+}
+
+.nudge-me {
+  justify-self: end;
+  max-width: 85%;
+  padding: 0.6rem 0.9rem;
+  color: var(--on-ink);
+  background: var(--ink);
+  border-radius: 18px 18px 6px 18px;
+  line-height: 1.45;
+}
+
+.nudge-hello p,
+.nudge-bot p,
+.nudge-me p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.nudge-bot p + p {
+  margin-top: 0.5rem;
+}
+
+.nudge-working {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.nudge-draft {
+  margin-top: 0.6rem;
+  padding: 0.75rem;
+  background: var(--paper);
+  border-radius: 14px;
+}
+
+.nudge-bot .nudge-draft p {
+  margin: 0;
+}
+
+.nudge-draft-to {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--muted);
+}
+
+.nudge-bot .nudge-draft .nudge-draft-text {
+  margin: 0.3rem 0;
+}
+
+.nudge-draft-link {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.nudge-draft-send {
+  gap: 0.4rem;
+  margin-top: 0.6rem;
+  min-height: 2.4rem;
+  font-size: 0.85rem;
+}
+
+.nudge-draft-send .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.nudge-suggest {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.chip {
+  padding: 0.5rem 0.8rem;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--card);
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.chip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Sits above the floating menu. */
+.nudge-ask {
+  position: sticky;
+  bottom: calc(max(1rem, env(safe-area-inset-bottom)) + 4.5rem);
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.4rem;
+  background: var(--card);
+  border: 1.5px solid var(--field-line);
+  border-radius: 18px;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.08);
+}
+
+.nudge-ask input {
+  flex: 1;
+  min-width: 0;
+  padding: 0 0.6rem;
+  font: inherit;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  outline: 0;
+}
+
+.nudge-ask:focus-within {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+
+.nudge-ask button {
+  display: grid;
+  place-items: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  color: var(--on-ink);
+  background: var(--ink);
+  border: 0;
+  border-radius: 14px;
+  cursor: pointer;
+}
+
+.nudge-ask button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ---------- Home (redesign) ---------- */
+.home-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.home-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.home-head-actions .button {
+  gap: 0.45rem;
+}
+
+.home-head-actions .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.home-top {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 0.9rem;
+}
+
+.home-hero {
+  position: relative;
+  overflow: hidden;
+  padding: 1.15rem 1.15rem 1rem;
+  color: #ffffff;
+  background: var(--hero);
+  border-radius: 26px;
+}
+
+/* A soft light in the corner, like the Insights tiles. */
+.home-hero::after {
+  content: "";
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 170px;
+  height: 170px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.1), transparent 70%);
+  pointer-events: none;
+}
+
+.home-hero p {
+  margin: 0;
+}
+
+.home-hero-label {
+  font-size: 0.82rem;
+  color: #c9c5bd;
+}
+
+.home-hero-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.15rem;
+}
+
+.home-hero-big {
+  font-size: 2.75rem;
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  line-height: 1;
+}
+
+.home-hero-big small {
+  margin-right: 0.25rem;
+  font-size: 0.42em;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: #c9c5bd;
+}
+
+.home-hero-scan {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.7rem 0.9rem;
+  font-weight: 800;
+  font-size: 0.9rem;
+  color: #141414;
+  text-decoration: none;
+  background: #ffffff;
+  border-radius: 14px;
+}
+
+.home-hero-scan .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.home-hero-scan:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
+.home-meter {
+  display: flex;
+  height: 7px;
+  margin: 1rem 0 0.45rem;
+  overflow: hidden;
+  background: #3a3a3a;
+  border-radius: 4px;
+}
+
+.home-meter b {
+  display: block;
+  height: 100%;
+  background: #ffffff;
+}
+
+.home-meter .home-meter-late {
+  background: #ff8a73;
+}
+
+.home-meter-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.76rem;
+  color: #c9c5bd;
+}
+
+.home-meter-label strong {
+  color: #ffffff;
+}
+
+.home-hero .home-late {
+  color: #ff8a73;
+}
+
+.home-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+.home-stat {
+  padding: 0.7rem 0.75rem;
+  background: var(--card);
+  border-radius: 18px;
+  box-shadow: 0 1px 0 var(--line);
+}
+
+.home-stat p {
+  margin: 0;
+}
+
+.home-stat-k {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.home-stat-v {
+  margin-top: 0.1rem;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.home-stat-d {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.home-good {
+  color: var(--paid);
+}
+
+.home-stat .home-late {
+  color: var(--overdue);
+}
+
+.home-acts {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.home-act {
+  display: grid;
+  justify-items: center;
+  /* A label that needs two lines ("Tambah hutang") stays centred under its icon, and every icon
+     stays on the same line. */
+  align-content: start;
+  gap: 0.35rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.home-act span {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  background: var(--card);
+  border-radius: 17px;
+  box-shadow: 0 1px 0 var(--line);
+}
+
+.home-act-primary span {
+  color: var(--on-ink);
+  background: var(--ink);
+}
+
+.home-act:focus-visible span {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+/* Phone: one column, in the mock's order (Today, Nudge, Who owes you, chart). */
+.home-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.home-main,
+.home-side {
+  display: contents;
+}
+
+.home-side > .section-head,
+.home-todo {
+  order: 1;
+}
+
+.home-nudge {
+  order: 2;
+}
+
+.home-main > * {
+  order: 3;
+}
+
+.home-chart {
+  order: 4;
+}
+
+.home-count {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.home-board,
+.home-todo {
+  margin: 0 0 1rem;
+  padding: 0.25rem 0.9rem;
+  list-style: none;
+}
+
+.home-board-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.65rem 0;
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid var(--line);
+}
+
+.home-board li:last-child .home-board-row {
+  border-bottom: 0;
+}
+
+.home-board-main {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.home-board-name {
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-board-track {
+  display: block;
+  height: 6px;
+  overflow: hidden;
+  background: var(--track);
+  border-radius: 4px;
+}
+
+.home-board-track b {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+}
+
+.home-board-amt {
+  display: grid;
+  justify-items: end;
+  gap: 0.2rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.home-todo-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.home-todo-row:last-child {
+  border-bottom: 0;
+}
+
+.home-todo-ic {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+}
+
+.home-todo-ic .icon {
+  width: 19px;
+  height: 19px;
+}
+
+.home-todo-late {
+  color: var(--overdue);
+  background: var(--overdue-bg);
+}
+
+.home-todo-wait {
+  color: var(--unpaid);
+  background: var(--unpaid-bg);
+}
+
+.home-todo-good {
+  color: var(--paid);
+  background: var(--paid-bg);
+}
+
+.home-todo-main {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.home-todo-n {
+  font-weight: 700;
+}
+
+.home-todo-w {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.home-todo-go {
+  padding: 0.45rem 0.7rem;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--on-ink);
+  text-decoration: none;
+  white-space: nowrap;
+  background: var(--ink);
+  border-radius: 11px;
+}
+
+.home-todo-go-light {
+  color: var(--ink);
+  background: var(--paper);
+}
+
+.home-nudge {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding: 0.85rem;
+  color: inherit;
+  text-decoration: none;
+  background: linear-gradient(135deg, var(--card), var(--card-tint));
+}
+
+.home-nudge-dot {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  color: var(--on-ink);
+  background: var(--ink);
+  border-radius: 13px;
+}
+
+.home-nudge-q {
+  display: grid;
+  flex: 1;
+  font-size: 0.85rem;
+}
+
+.home-nudge-q span {
+  color: var(--muted);
+}
+
+.home-chart {
+  margin-bottom: 1rem;
+  padding: 0.9rem 1rem;
+}
+
+.home-chart-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.home-chart-head h2 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.home-chart-sub {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.home-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.6rem;
+  height: 74px;
+  margin-top: 0.75rem;
+}
+
+.home-bars div {
+  display: flex;
+  flex: 1;
+  align-items: flex-end;
+  gap: 3px;
+  height: 100%;
+}
+
+.home-bars i {
+  display: block;
+  flex: 1;
+  min-height: 2px;
+  background: var(--ink);
+  border-radius: 5px 5px 2px 2px;
+}
+
+.home-bars .home-bar-owed {
+  background: var(--bar-muted);
+}
+
+.home-bar-labels {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 0.35rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.home-bar-labels span {
+  flex: 1;
+  text-align: center;
+}
+
+.home-legend {
+  margin: 0.4rem 0 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.home-key {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin: 0 0.15rem 0 0.4rem;
+  vertical-align: -1px;
+  background: var(--ink);
+  border-radius: 3px;
+}
+
+.home-key-owed {
+  background: var(--bar-muted);
+}
+
+.home-wide-only {
+  display: none;
+}
+
+.home-loading {
+  padding: 1rem;
+}
+
+/* Home's AG Grid table (laptop) */
+.home-grid {
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.hg-who {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  height: 100%;
+  font-weight: 700;
+  color: inherit;
+  text-decoration: none;
+}
+
+.hg-who .avatar {
+  width: 30px;
+  height: 30px;
+  font-size: 0.65rem;
+  line-height: 1;
+}
+
+.hg-who-main {
+  display: grid;
+  flex: 1;
+  gap: 0.3rem;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.hg-who-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hg-bar {
+  display: block;
+  width: 100%;
+  max-width: 160px;
+  height: 6px;
+  overflow: hidden;
+  background: var(--track);
+  border-radius: 4px;
+}
+
+.hg-bar b {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+}
+
+.hg-num {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.hg-act {
+  padding: 0.4rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--ink);
+  text-decoration: none;
+  background: var(--paper);
+  border-radius: 10px;
+}
+
+.hg-act-dark {
+  color: var(--on-ink);
+  background: var(--ink);
+}
+
+.home-studio {
+  margin-top: 0.5rem;
+}
+
+/* Studio's tile ran 2px taller than its box and drew a scrollbar inside the chart card. */
+.home-studio .ag-studio-layout {
+  overflow: hidden;
+}
+
+/* The sidebar's Nudge box: laptop only. */
+.side-nudge,
+.nav-wide-only {
+  display: none;
+}
+
+/* ---------- Laptop: sidebar menu and the wide Home ---------- */
+@media (min-width: 1024px) {
+  body:has(> .site-header) {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .site-header {
+    position: sticky;
+    top: 0;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 1.25rem;
+    height: 100vh;
+    max-width: none;
+    margin: 0;
+    padding: 1.25rem 0.9rem;
+    background: var(--card);
+    border-right: 1px solid var(--line);
+  }
+
+  .site-header .brand {
+    padding: 0 0.5rem;
+  }
+
+  .site-header nav {
+    position: static;
+    z-index: auto;
+    width: auto;
+    transform: none;
+  }
+
+  .site-nav {
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 0;
+    background: transparent;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .site-nav li.nav-wide-only {
+    display: block;
+  }
+
+  .site-nav a span {
+    overflow: visible;
+    white-space: normal;
+  }
+
+  .site-nav a {
+    flex-direction: row;
+    gap: 0.65rem;
+    padding: 0.65rem 0.75rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--muted);
+    border-radius: 12px;
+  }
+
+  .site-nav a:hover,
+  .site-nav a:focus-visible {
+    color: var(--ink);
+    background: var(--paper);
+  }
+
+  .site-nav a:focus-visible {
+    outline-color: var(--ink);
+  }
+
+  .site-nav a[aria-current="page"] {
+    color: var(--on-ink);
+    background: var(--ink);
+  }
+
+  .site-nav .icon {
+    width: 20px;
+    height: 20px;
+  }
+
+  .side-nudge {
+    display: grid;
+    gap: 0.2rem;
+    margin-top: auto;
+    padding: 0.8rem;
+    font-size: 0.8rem;
+    color: var(--muted);
+    text-decoration: none;
+    background: var(--paper);
+    border-radius: 16px;
+  }
+
+  .side-nudge strong {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.88rem;
+    color: var(--ink);
+  }
+
+  .side-nudge .icon {
+    width: 16px;
+    height: 16px;
+  }
+
+  /* No floating menu to leave room for. */
+  .site-header + .site-main {
+    width: 100%;
+    padding-bottom: 2.5rem;
+  }
+
+  .site-main:has(.home) {
+    max-width: 1180px;
+    padding: 1.5rem 1.75rem 2.5rem;
+  }
+
+  .home-phone-only {
+    display: none;
+  }
+
+  .home-head-actions .home-wide-only {
+    display: inline-flex;
+  }
+
+  .home-stat.home-wide-only {
+    display: block;
+  }
+
+  .home-stat-d .home-wide-only {
+    display: inline;
+  }
+
+  .home-head {
+    margin-bottom: 1.1rem;
+  }
+
+  .home .dash-shop {
+    font-size: 1.75rem;
+  }
+
+  .home-top {
+    grid-template-columns: 1.35fr 3fr;
+    gap: 0.9rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .home-stats {
+    gap: 0.9rem;
+  }
+
+  .home-stat {
+    padding: 1rem 1.1rem;
+    border-radius: 22px;
+    box-shadow: 0 1px 0 var(--line), 0 10px 26px rgba(0, 0, 0, 0.05);
+  }
+
+  .home-stat-k {
+    font-size: 0.8rem;
+  }
+
+  .home-stat-v {
+    margin-top: 0.35rem;
+    font-size: 1.75rem;
+    letter-spacing: -0.03em;
+  }
+
+  .home-stat-d {
+    margin-top: 0.2rem;
+    font-size: 0.76rem;
+  }
+
+  .home-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+    gap: 0.9rem;
+    align-items: start;
+  }
+
+  .home-main,
+  .home-side {
+    display: block;
+  }
+}
+
+.home-act .icon {
+  width: 22px;
+  height: 22px;
+}
+
+.home-nudge .icon {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+
+.home-nudge > .icon {
+  color: var(--muted);
+}
+
+.home-nudge-dot .icon {
+  width: 20px;
+  height: 20px;
+}
+
+/* The grid's "Next step" header: read by screen readers, not shown. */
+.hg-hidden-header .ag-header-cell-text {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (min-width: 1024px) {
+  /* Floating bars sit over the content column, not the whole window, and there's no
+     bottom menu to clear. */
+  .collect-bar {
+    left: calc(50% + 110px);
+    bottom: 1.5rem;
+  }
+
+  .nudge-ask {
+    bottom: 1.5rem;
+  }
+}
+
+/* Collect on a laptop: the list on the left, the invoice preview and Send pinned on the right. */
+.collect-cols,
+.collect-left {
+  display: contents;
+}
+
+.collect-preview-btn {
+  flex: none;
+  padding: 0.4rem 0.7rem;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--ink);
+  cursor: pointer;
+  background: var(--paper);
+  border: 0;
+  border-radius: 10px;
+}
+
+.collect-preview-btn[aria-pressed="true"] {
+  color: var(--on-ink);
+  background: var(--ink);
+}
+
+.collect-card-previewing {
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+}
+
+@media (min-width: 1024px) {
+  .collect-wide .collect-cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 380px;
+    gap: 1.25rem;
+    align-items: start;
+  }
+
+  .collect-wide .collect-left {
+    display: block;
+  }
+
+  .collect-pane {
+    position: sticky;
+    top: 1.25rem;
+    display: grid;
+    gap: 0.9rem;
+  }
+
+  .collect-pane .paper {
+    width: auto;
+    margin: 0;
+  }
+
+  .collect-sendbox {
+    display: grid;
+    gap: 0.7rem;
+    padding: 1rem 1.1rem;
+  }
+
+  .collect-sendbox p {
+    margin: 0;
+  }
+
+  .collect-sendbox-total {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .collect-sendbox-total b {
+    font-size: 1.4rem;
+    letter-spacing: -0.02em;
+  }
+
+  .collect-sendbox-total span,
+  .collect-sendbox-note {
+    font-size: 0.78rem;
+    color: var(--muted);
+  }
+
+  .collect-sendbox-go {
+    gap: 0.5rem;
+    width: 100%;
+  }
+
+  .collect-sendbox-go .icon {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+/* Ledger on a laptop: full-width grid with every column, status chips and a totals panel.
+   Phones and tablets get the same totals as a compact card above the grid. */
+.ledger-cols {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.ledger-summary {
+  order: -1;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  padding: 0.9rem 1rem;
+}
+
+.ledger-summary .ledger-summary-k {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.ledger-summary .ledger-summary-v {
+  grid-column: 1;
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+
+.ledger-summary ul {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.9rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ledger-summary li {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+}
+
+.ledger-summary .ledger-summary-late {
+  grid-column: 1;
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--overdue);
+}
+
+.ledger-summary-go {
+  grid-column: 2;
+  grid-row: 1 / span 3;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.ledger-summary-go .icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* Ledger grid cells. */
+.ag-cell.ledger-select-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+/* The row tick box: 18px to see, 24px to hit. */
+.ledger-select {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+}
+
+.ledger-select input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--ink);
+  cursor: pointer;
+}
+
+/* The header tick box gets the same 24px hit area around AG Grid's 16px box. */
+.ledger-grid .ag-header-select-all .ag-checkbox-input-wrapper::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+}
+
+.ledger-grid .ag-header-select-all .ag-checkbox-input {
+  inset: -4px;
+  width: 24px;
+  height: 24px;
+}
+
+.ag-cell.ledger-two-line {
+  display: flex;
+  align-items: center;
+  line-height: 1.2;
+}
+
+.ledger-name-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  width: 100%;
+}
+
+.ledger-name-main,
+.ledger-name-sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ledger-name-main {
+  font-weight: 600;
+}
+
+.ledger-name-sub {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+/* The "Still owed" row's count may take two lines rather than be cut. */
+.ledger-name-cell-total .ledger-name-sub {
+  display: -webkit-box;
+  white-space: normal;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.ledger-amount-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  width: 100%;
+}
+
+.ledger-amount-main {
+  font-variant-numeric: tabular-nums;
+}
+
+.ledger-amount-cell .badge {
+  height: 1.3rem;
+  padding: 0 0.5rem;
+  font-size: 0.72rem;
+}
+
+/* Wider grids: "Still owed" and its count across the name and item columns, two lines at most. */
+.ledger-total-label {
+  display: -webkit-box;
+  overflow: hidden;
+  line-height: 1.2;
+  white-space: normal;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.ledger-total-label span {
+  color: var(--muted);
+}
+
+.ledger-grid .ag-row-pinned .ag-cell[col-id="customerName"] {
+  display: flex;
+  align-items: center;
+}
+
+.ledger-page .ledger-chips {
+  display: flex;
+  overflow-x: auto;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.25rem;
+  -webkit-overflow-scrolling: touch;
+  /* Still scrolls sideways; just no grey bar under the chips. */
+  scrollbar-width: none;
+}
+
+.ledger-page .ledger-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.ledger-chips button {
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding: 0.45rem 0.8rem;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--ink);
+  cursor: pointer;
+  background: var(--card);
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+}
+
+.ledger-chips button b {
+  margin-left: 0.2rem;
+  color: var(--muted);
+}
+
+.ledger-chips button[aria-pressed="true"] {
+  color: var(--on-ink);
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.ledger-chips button[aria-pressed="true"] b {
+  color: var(--on-ink-muted);
+}
+
+.ledger-bulk-bar {
+  position: fixed;
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(calc(100% - 2rem), 560px);
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  padding: 0.75rem 1rem;
+  background: var(--ink);
+  color: var(--on-ink);
+  border-radius: 18px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+}
+
+.ledger-bulk-info {
+  font-weight: 700;
+  font-size: 0.88rem;
+}
+
+.ledger-bulk-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.ledger-bulk-btn {
+  padding: 0.4rem 0.75rem;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  border-radius: 999px;
+  cursor: pointer;
+  border: 0;
+  background: var(--card);
+  color: var(--ink);
+}
+
+/* Debt detail sheet */
+.debt-detail-sheet {
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.debt-detail-content {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 1rem;
+}
+
+.debt-detail-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.debt-detail-label {
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.debt-detail-value {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--ink);
+  text-align: right;
+}
+
+.debt-detail-amount {
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.debt-detail-invoice {
+  margin-top: 0.75rem;
+  padding: 0.85rem;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.debt-detail-invoice h3 {
+  margin: 0 0 0.4rem;
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+
+.debt-detail-invoice p {
+  margin: 0.2rem 0;
+  font-size: 0.82rem;
+  color: var(--ink);
+}
+
+@media (min-width: 1024px) {
+  .site-main:has(.ledger-page) {
+    max-width: 1180px;
+  }
+
+  .ledger-page .ledger-chips {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+
+  .ledger-chips button {
+    padding: 0.45rem 0.8rem;
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--ink);
+    cursor: pointer;
+    background: var(--card);
+    border: 1.5px solid var(--line);
+    border-radius: 999px;
+  }
+
+  .ledger-chips button b {
+    margin-left: 0.2rem;
+    color: var(--muted);
+  }
+
+  .ledger-chips button[aria-pressed="true"] {
+    color: var(--on-ink);
+    background: var(--ink);
+    border-color: var(--ink);
+  }
+
+  .ledger-chips button[aria-pressed="true"] b {
+    color: var(--on-ink-muted);
+  }
+
+  .ledger-cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 260px;
+    gap: 1rem;
+    align-items: start;
+  }
+
+  .ledger-page .ledger-summary {
+    position: sticky;
+    top: 1.25rem;
+    display: grid;
+    gap: 0.6rem;
+    padding: 1rem;
+  }
+
+  .ledger-summary p {
+    margin: 0;
+  }
+
+  .ledger-summary-k {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--muted);
+  }
+
+  .ledger-summary-v {
+    font-size: 1.6rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+  }
+
+  .ledger-summary-late {
+    margin-top: -0.4rem !important;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--overdue);
+  }
+
+  .ledger-summary ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .ledger-summary li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.55rem 0;
+    font-size: 0.85rem;
+    border-top: 1px solid var(--line);
+  }
+
+  .ledger-summary-go {
+    gap: 0.45rem;
+    font-size: 0.85rem;
+  }
+
+  .ledger-summary-go .icon {
+    width: 17px;
+    height: 17px;
+  }
+}
+
+.collect-pane-off {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  /* Same width on every tab of the Collect list, so switching tabs doesn't jump. Review, Send
+     and invoice tracking keep the phone column. */
+  .site-main:has(.collect-home) {
+    max-width: 1180px;
+  }
+
+  .collect-home {
+    padding-bottom: 0;
+  }
+
+  .collect-pane .collect-pane-off {
+    display: block;
+    margin: 0;
+    padding: 0.65rem 0.85rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--unpaid);
+    background: var(--unpaid-bg);
+    border-radius: 14px;
+  }
+
+  .collect-pane-paper-off {
+    opacity: 0.55;
+  }
+
+  /* A long invoice scrolls inside the pane, so Send stays on screen. */
+  .collect-pane-paper {
+    max-height: calc(100vh - 17rem);
+    overflow: auto;
+    border-radius: 20px;
+  }
+
+  .collect-pane-paper:focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+  }
+}
+
+/* Laptops: the totals sit above the grid as a strip, so the grid gets the page's full width and
+   every column (a late tab's two status badges included) reads in full. Beside the grid, the
+   1180px page left the grid too narrow at any window size. */
+@media (min-width: 1024px) {
+  .ledger-cols {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ledger-cols .ledger-summary {
+    position: static;
+    order: -1;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 0.4rem 1.25rem;
+  }
+
+  .ledger-summary ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.1rem;
+    grid-column: 2;
+    grid-row: 1 / span 3;
+  }
+
+  .ledger-summary li {
+    gap: 0.4rem;
+    padding: 0;
+    border-top: 0;
+  }
+
+  .ledger-summary-k,
+  .ledger-summary-v,
+  .ledger-summary-late {
+    grid-column: 1;
+  }
+
+  .ledger-summary-late {
+    margin-top: 0 !important;
+  }
+
+  .ledger-summary-go {
+    grid-column: 3;
+    grid-row: 1 / span 3;
+  }
+}
+
+/* ---------- Sign-in ---------- */
+.site-main:has(.si) {
+  max-width: none;
+  padding: 0;
+}
+
+.si {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.si-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-weight: 800;
+  font-size: 1.1rem;
+}
+
+.si-mark {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #141414;
+  background: #ffffff;
+  border-radius: 13px;
+}
+
+.si-mark::before {
+  content: "";
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  left: 7px;
+  width: 2px;
+  background: repeating-linear-gradient(currentColor 0 3px, transparent 3px 6px);
+  opacity: 0.5;
+}
+
+.si-mark span {
+  margin-left: 5px;
+}
+
+/* Welcome: dark hero on top, sign-in sheet below. */
+.si-welcome {
+  display: flex;
+  flex-direction: column;
+  background: var(--hero);
+}
+
+.si-hero {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  padding: max(2.5rem, env(safe-area-inset-top)) 1.4rem 2.5rem;
+  color: #ffffff;
+}
+
+.si-hero::after {
+  content: "";
+  position: absolute;
+  top: -60px;
+  right: -80px;
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.12), transparent 70%);
+  pointer-events: none;
+}
+
+.si-headline {
+  max-width: 20ch;
+  margin: 1.5rem 0 0.5rem;
+  font-size: 1.85rem;
+  line-height: 1.12;
+  letter-spacing: -0.035em;
+}
+
+.si-lede {
+  max-width: 30ch;
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  color: #c9c5bd;
+}
+
+.si-feats {
+  display: none;
+}
+
+.si-peek {
+  position: relative;
+  height: 130px;
+  margin-top: 1.6rem;
+}
+
+.si-float {
+  /* White cards on the dark welcome panel: light colours in both themes. */
+  --ink: #141414;
+  --muted: #6f6b64;
+  position: absolute;
+  padding: 0.7rem 0.85rem;
+  font-size: 0.78rem;
+  color: #141414;
+  background: #ffffff;
+  border-radius: 18px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+}
+
+.si-float-owed {
+  top: 0;
+  left: 0;
+  display: grid;
+  gap: 0.1rem;
+}
+
+.si-float-k {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.si-float-v {
+  font-size: 1.3rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.si-float-meter {
+  display: flex;
+  width: 140px;
+  height: 5px;
+  margin-top: 0.35rem;
+  overflow: hidden;
+  background: #efece6;
+  border-radius: 3px;
+}
+
+.si-float-meter b {
+  width: 30%;
+  background: var(--ink);
+}
+
+.si-float-meter .si-float-late {
+  width: 25%;
+  background: #ff8a73;
+}
+
+.si-float-paid {
+  top: 56px;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-weight: 700;
+}
+
+.si-float-paid i {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  color: #2b7a46;
+  background: #e6f3ea;
+  border-radius: 9px;
+}
+
+.si-float-paid i .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.si-float-paid small {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.si-sheet {
+  display: grid;
+  gap: 0.65rem;
+  padding: 1.4rem 1.25rem max(1.4rem, env(safe-area-inset-bottom));
+  background: var(--paper);
+  border-radius: 30px 30px 0 0;
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.18);
+}
+
+.si-sheet-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+/* Stand-in for PayPal's official button until it's swapped in. */
+.si-paypal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 52px;
+  font-weight: 800;
+  color: var(--ink);
+  text-decoration: none;
+  background: var(--card);
+  border: 1.5px solid var(--field-line);
+  border-radius: 16px;
+}
+
+.si-paypal:focus-visible,
+.si-btn:focus-visible,
+.si-back:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.si-or {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.si-or::before,
+.si-or::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+.si-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  height: 52px;
+  font: inherit;
+  font-weight: 800;
+  color: var(--on-ink);
+  cursor: pointer;
+  background: var(--ink);
+  border: 0;
+  border-radius: 16px;
+}
+
+.si-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.si-btn .icon {
+  width: 19px;
+  height: 19px;
+}
+
+.si-btn-light {
+  color: var(--ink);
+  background: var(--card);
+  box-shadow: 0 1px 0 var(--line);
+}
+
+.si-fine {
+  margin: 0.2rem 0 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--muted);
+  text-align: center;
+}
+
+.si-error {
+  margin: 0;
+  padding: 0.65rem 0.8rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--error-ink);
+  background: var(--overdue-bg);
+  border-radius: 12px;
+}
+
+/* Email, code and shop steps */
+.si-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 440px;
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: max(1.5rem, env(safe-area-inset-top)) 1.25rem max(1.4rem, env(safe-area-inset-bottom));
+}
+
+.si-form h1 {
+  margin: 0.75rem 0 0;
+  font-size: 1.7rem;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+}
+
+.si-form h1:focus {
+  outline: none;
+}
+
+.si-sub {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.si-sub b {
+  color: var(--ink);
+}
+
+.si-back {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  color: var(--ink);
+  cursor: pointer;
+  background: var(--card);
+  border: 0;
+  border-radius: 50%;
+  box-shadow: 0 1px 0 var(--line);
+}
+
+.si-back .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.si-field {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.6rem 0.9rem 0.7rem;
+  background: var(--card);
+  border: 2px solid var(--field-line);
+  border-radius: 18px;
+}
+
+.si-field:focus-within {
+  border-color: var(--ink);
+}
+
+.si-field > span:first-child {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.si-field-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.si-field-row .icon {
+  width: 18px;
+  height: 18px;
+  color: var(--muted);
+}
+
+.si-field input {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  outline: 0;
+}
+
+.si-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.si-chips button {
+  padding: 0.4rem 0.75rem;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--ink);
+  cursor: pointer;
+  background: var(--card);
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+}
+
+.si-grow {
+  flex: 1;
+}
+
+.si-code {
+  position: relative;
+  display: block;
+}
+
+/* The real input sits invisibly on top of the boxes so taps, paste and autofill reach it. */
+.si-code input {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  font-size: 16px;
+  color: transparent;
+  caret-color: transparent;
+  background: transparent;
+  border: 0;
+  outline: 0;
+}
+
+.si-code-boxes {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0.5rem;
+}
+
+.si-code-boxes span {
+  display: grid;
+  place-items: center;
+  height: 58px;
+  font-size: 1.6rem;
+  font-weight: 800;
+  background: var(--card);
+  border-radius: 14px;
+  box-shadow: 0 1px 0 var(--line);
+}
+
+/* An owner's 12-character code: two rows of six, a little smaller. */
+.si-code-boxes.long span {
+  height: 46px;
+  font-size: 1.25rem;
+}
+
+.si-code:focus-within .si-code-boxes span.on {
+  outline: 2px solid var(--ink);
+}
+
+.si-resend {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+.si-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  font-weight: 800;
+  font-size: 1.1rem;
+  color: #ffffff;
+  background: var(--hero);
+  border-radius: 22px;
+}
+
+.si-preview small {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #c9c5bd;
+}
+
+.si-preview-av {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  color: #141414;
+  background: #ffffff;
+  border-radius: 50%;
+}
+
+.si-types {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.si-types legend {
+  width: 100%;
+  margin-bottom: 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.si-types label {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  background: var(--card);
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+}
+
+.si-types label.on {
+  color: var(--on-ink);
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.si-types label:focus-within {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.si-types input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Laptop: what 555 Buku does on the dark left, signing in on the right. */
+@media (min-width: 1024px) {
+  .si-welcome {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+  }
+
+  .si-hero {
+    display: flex;
+    flex-direction: column;
+    padding: 2.75rem 3rem;
+  }
+
+  .si-headline {
+    max-width: 16ch;
+    margin-top: 2.5rem;
+    font-size: 2.6rem;
+  }
+
+  .si-lede {
+    font-size: 1rem;
+  }
+
+  .si-feats {
+    display: grid;
+    gap: 0.8rem;
+    margin: 2rem 0 0;
+    padding: 0;
+    list-style: none;
+    font-weight: 700;
+  }
+
+  .si-feats li {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .si-feats i {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 11px;
+  }
+
+  .si-feats .icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .si-peek {
+    display: flex;
+    gap: 0.75rem;
+    height: auto;
+    margin-top: auto;
+    padding-top: 2rem;
+  }
+
+  .si-float {
+    position: static;
+  }
+
+  .si-sheet {
+    align-content: center;
+    justify-items: stretch;
+    padding: 3rem calc(50% - 190px);
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .si-sheet-title {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0 0 0.6rem;
+    overflow: visible;
+    clip: auto;
+    font-size: 1.6rem;
+    letter-spacing: -0.03em;
+  }
+
+  .si-form {
+    min-height: 0;
+    margin: 8vh auto;
+    padding: 2rem;
+    background: var(--card);
+    border-radius: 28px;
+    box-shadow: 0 1px 0 var(--line), 0 20px 50px rgba(0, 0, 0, 0.08);
+  }
+
+  .si-form .si-grow {
+    flex: 0 0 0.5rem;
+  }
+
+  .si-form .si-field,
+  .si-form .si-code-boxes span {
+    background: var(--paper);
+  }
+}
+
+/* ---------- Account sheet ---------- */
+.home-acct {
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+  border: 1px solid var(--line);
+}
+
+.home-acct:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.acct-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(20, 20, 20, 0.45);
+}
+
+.acct-sheet {
+  position: relative;
+  width: min(100%, 480px);
+  padding: 1.25rem 1.1rem max(1.4rem, env(safe-area-inset-bottom));
+  background: var(--paper);
+  border-radius: 30px 30px 0 0;
+}
+
+.acct-close {
+  position: absolute;
+  top: 0.9rem;
+  right: 0.9rem;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  color: var(--ink);
+  cursor: pointer;
+  background: var(--card);
+  border: 0;
+  border-radius: 50%;
+}
+
+.acct-close .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.acct-who {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.25rem 2.5rem 1rem 0;
+}
+
+.acct-who b {
+  display: block;
+  font-size: 1.05rem;
+}
+
+.acct-who > span:last-child > span {
+  font-size: 0.82rem;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.acct-av {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  font-weight: 800;
+  color: var(--on-ink);
+  background: var(--ink);
+  border-radius: 50%;
+}
+
+.acct-rows {
+  margin: 0 0 0.75rem;
+  padding: 0.1rem 0.9rem;
+  background: var(--card);
+  border-radius: 18px;
+}
+
+.acct-rows div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.8rem 0;
+  font-size: 0.9rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.acct-rows div:last-child {
+  border-bottom: 0;
+}
+
+.acct-rows dt {
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.acct-rows dd {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin: 0;
+  font-weight: 700;
+}
+
+.acct-rows .acct-ok {
+  color: var(--paid);
+}
+
+.acct-ok .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.acct-signout {
+  width: 100%;
+  height: 50px;
+  font: inherit;
+  font-weight: 800;
+  color: var(--overdue);
+  cursor: pointer;
+  background: var(--card);
+  border: 0;
+  border-radius: 16px;
+  box-shadow: 0 1px 0 var(--line);
+}
+
+.acct-signout:disabled {
+  opacity: 0.6;
+}
+
+.acct-signout:focus-visible,
+.acct-close:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.side-account {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .acct-backdrop {
+    align-items: center;
+  }
+
+  .acct-sheet {
+    width: 420px;
+    border-radius: 26px;
+  }
+
+  .side-account {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.55rem 0.6rem;
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--ink);
+    text-align: left;
+    cursor: pointer;
+    background: transparent;
+    border: 0;
+    border-radius: 12px;
+  }
+
+  .side-account:hover,
+  .side-account:focus-visible {
+    background: var(--paper);
+  }
+
+  .side-account-av {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: var(--on-ink);
+    background: var(--ink);
+    border-radius: 50%;
+  }
+
+  .side-account-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Nudge's box no longer pushes to the bottom by itself; the account button sits under it. */
+  .side-nudge {
+    margin-top: auto;
+  }
+}
+
+/* ---------- Send on WhatsApp: chat button, one-time tip, share sheet ---------- */
+/* Mock: "555 Buku - WhatsApp and Settings Mock.html", phones 1 and 2. */
+
+.home-board-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.home-board-item:last-child {
+  border-bottom: 0;
+}
+
+.home-board-item .home-board-row {
+  flex: 1;
+  min-width: 0;
+  border-bottom: 0;
+}
+
+.wa-btn {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  color: var(--wa);
+  cursor: pointer;
+  background: var(--wa-bg);
+  border: 0;
+  border-radius: 50%;
+}
+
+.wa-btn .icon {
+  width: 20px;
+  height: 20px;
+}
+
+.wa-btn:hover {
+  background: var(--wa-hover);
+}
+
+.wa-btn:focus-visible {
+  outline: 2px solid var(--wa);
+  outline-offset: 2px;
+}
+
+.wa-btn-sm {
+  width: 32px;
+  height: 32px;
+}
+
+.wa-btn-sm .icon {
+  width: 17px;
+  height: 17px;
+}
+
+/* The laptop grid's last two columns are narrow: Remind / Invoice / View, then the chat button. */
+/* Slimmer inner padding where the last pixels count: after the name, and around the status badge. */
+.ag-cell.hg-who-cell {
+  padding-right: 6px;
+}
+
+.ag-cell.hg-status-cell {
+  padding-right: 6px;
+  padding-left: 8px;
+}
+
+.ag-cell.hg-next-cell {
+  padding-right: 4px;
+  padding-left: 8px;
+}
+
+.ag-cell.hg-wa-cell {
+  padding-right: 0;
+  padding-left: 0;
+}
+
+.hg-wa {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  line-height: normal;
+}
+
+.wa-tip-wrap {
+  display: flex;
+  justify-content: flex-end;
+  margin: -0.15rem 0 0.55rem;
+}
+
+.wa-tip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0.4rem 0.35rem 0.4rem 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--paper);
+  background: var(--ink);
+  border-radius: 12px;
+}
+
+/* Points down at the first row's chat button. */
+.wa-tip::after {
+  position: absolute;
+  right: 26px;
+  bottom: -6px;
+  content: "";
+  border: 6px solid transparent;
+  border-top-color: var(--ink);
+  border-bottom: 0;
+}
+
+.wa-tip-close {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+}
+
+.wa-tip-close .icon {
+  width: 13px;
+  height: 13px;
+}
+
+.wa-tip-close:focus-visible {
+  outline: 2px solid var(--paper);
+  outline-offset: 1px;
+}
+
+.share-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(10, 10, 10, 0.5);
+  animation: share-fade 0.18s ease-out;
+}
+
+.share-sheet {
+  position: relative;
+  width: min(100%, 480px);
+  max-height: 92vh;
+  max-height: 92dvh;
+  overflow-y: auto;
+  padding: 0.6rem 1rem max(1.25rem, env(safe-area-inset-bottom));
+  background: var(--paper);
+  border-radius: 30px 30px 0 0;
+  animation: share-up 0.22s ease-out;
+}
+
+@keyframes share-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes share-up {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+}
+
+.share-grab {
+  display: block;
+  width: 40px;
+  height: 5px;
+  margin: 0 auto 0.75rem;
+  background: var(--field-line);
+  border-radius: 9px;
+  opacity: 0.4;
+}
+
+.share-close {
+  position: absolute;
+  top: 0.8rem;
+  right: 0.8rem;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  color: var(--ink);
+  cursor: pointer;
+  background: var(--card);
+  border: 0;
+  border-radius: 50%;
+}
+
+.share-close .icon {
+  width: 15px;
+  height: 15px;
+}
+
+.share-who {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-right: 2.5rem;
+}
+
+.share-who-main {
+  min-width: 0;
+}
+
+.share-who h2 {
+  margin: 0;
+  overflow: hidden;
+  font-size: 1.1rem;
+  letter-spacing: -0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.share-who p {
+  margin: 0.05rem 0 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.share-owed {
+  margin-left: auto;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.share-owed b {
+  display: block;
+  font-size: 1.1rem;
+  letter-spacing: -0.02em;
+}
+
+.share-owed span {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.share-owed .share-late {
+  color: var(--overdue);
+}
+
+.share-preview {
+  margin: 0.9rem 0 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+}
+
+.share-preview-top {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #ffffff;
+  background: #0f5c4a;
+}
+
+.share-preview-top small {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 500;
+  opacity: 0.8;
+}
+
+.share-preview-av {
+  width: 26px;
+  height: 26px;
+  font-size: 0.62rem;
+}
+
+.share-preview-body {
+  padding: 0.75rem 0.75rem 0.85rem;
+  background-color: var(--wa-chat-bg);
+  background-image: radial-gradient(var(--wa-chat-dot) 1px, transparent 1.5px);
+  background-size: 14px 14px;
+}
+
+.share-bubble {
+  margin-left: 1.6rem;
+  padding: 0.55rem 0.7rem;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--wa-bubble-ink);
+  overflow-wrap: anywhere;
+  background: var(--wa-bubble);
+  border-radius: 14px 4px 14px 14px;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.08);
+}
+
+.share-bubble p {
+  margin: 0;
+}
+
+.share-bubble p + p {
+  margin-top: 0.5rem;
+}
+
+.share-paylink {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+  padding: 0.5rem 0.55rem;
+  background: var(--wa-paylink);
+  border-radius: 10px;
+}
+
+.share-paylink-ic {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  color: var(--sent);
+  background: var(--sent-bg);
+  border-radius: 8px;
+}
+
+.share-paylink-ic .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.share-paylink b {
+  display: block;
+  font-size: 0.75rem;
+}
+
+.share-paylink small {
+  display: block;
+  font-size: 0.68rem;
+  opacity: 0.7;
+}
+
+.share-note {
+  margin: 0.6rem 0.15rem 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--unpaid);
+}
+
+.share-label {
+  margin: 0.9rem 0.15rem 0.45rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.share-tones {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.share-tone {
+  flex: 1;
+  min-width: 0;
+  padding: 0.5rem 0.25rem;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--ink);
+  text-align: center;
+  cursor: pointer;
+  background: var(--card);
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+}
+
+.share-tone small {
+  display: block;
+  margin-top: 0.05rem;
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.share-tone[aria-pressed="true"] {
+  border-color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--ink);
+}
+
+.share-btns {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.9rem;
+}
+
+.share-copy,
+.share-send {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  height: 52px;
+  padding: 0 1.1rem;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+  border-radius: 999px;
+}
+
+.share-copy {
+  color: var(--ink);
+  background: var(--card);
+  border: 1px solid var(--line);
+}
+
+.share-send {
+  flex: 1;
+  color: var(--wa-on);
+  background: var(--wa);
+  border: 1px solid var(--wa);
+  box-shadow: 0 8px 18px rgba(31, 143, 78, 0.3);
+}
+
+.share-copy .icon,
+.share-send .icon {
+  width: 20px;
+  height: 20px;
+}
+
+.share-close:focus-visible,
+.share-tone:focus-visible,
+.share-copy:focus-visible,
+.share-send:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+@media (min-width: 1024px) {
+  .share-backdrop {
+    align-items: center;
+  }
+
+  .share-sheet {
+    width: 440px;
+    padding-top: 1.1rem;
+    border-radius: 26px;
+    animation-name: share-fade;
+  }
+
+  .share-grab {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .share-backdrop,
+  .share-sheet {
+    animation: none;
+  }
+}
+
+/* ---------- Settings (/settings) ---------- */
+/* Mock: "555 Buku - WhatsApp and Settings Mock.html", phones 3 and 4. */
+
+:root {
+  --violet: #6b4fc4;
+  --violet-bg: #efeafd;
+}
+
+:root[data-theme="dark"] {
+  --violet: #bba8ff;
+  --violet-bg: #2a2342;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="auto"] {
+    --violet: #bba8ff;
+    --violet-bg: #2a2342;
+  }
+}
+
+.settings {
+  position: relative;
+  padding-bottom: 5rem;
+}
+
+/* The soft circle in the corner is a background, so nothing sticks out to scroll the card. */
+.set-profile {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  overflow: clip;
+  padding: 1.1rem;
+  background:
+    radial-gradient(circle at calc(100% - 40px) 30px, color-mix(in srgb, var(--paper) 60%, transparent) 0 80px, transparent 80.5px),
+    var(--card);
+}
+
+.set-pav {
+  display: grid;
+  flex: none;
+  place-items: center;
+  align-self: flex-start;
+  width: 58px;
+  height: 58px;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--paper);
+  background: var(--ink);
+  border-radius: 18px;
+}
+
+.set-profile-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.set-profile h2 {
+  margin: 0;
+  overflow: hidden;
+  font-size: 1.15rem;
+  letter-spacing: -0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.set-profile p {
+  margin: 0.1rem 0 0.45rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.set-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--paid);
+  background: var(--paid-bg);
+  border-radius: 999px;
+}
+
+.set-pill .icon {
+  width: 13px;
+  height: 13px;
+}
+
+.set-edit {
+  align-self: flex-start;
+  padding: 0.45rem 0.8rem;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--ink);
+  cursor: pointer;
+  background: var(--paper);
+  border: 0;
+  border-radius: 999px;
+}
+
+.set-form {
+  display: grid;
+  flex: 1;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.set-form label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.set-form input,
+.set-form select {
+  width: 100%;
+  height: 42px;
+  padding: 0 0.7rem;
+  font: inherit;
+  font-size: 0.95rem;
+  color: var(--ink);
+  background: var(--card);
+  border: 1px solid var(--field-line);
+  border-radius: 12px;
+}
+
+.set-form input[aria-invalid="true"] {
+  border-color: var(--overdue);
+}
+
+.set-field-error {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--overdue);
+}
+
+.set-form-btns,
+.set-confirm-btns {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  margin-top: 0.4rem;
+}
+
+.set-label {
+  margin: 1.25rem 0.4rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.set-hint {
+  margin: 0.45rem 0.4rem 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.set-themes {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  padding: 0.75rem;
+}
+
+.set-theme {
+  position: relative;
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-align: center;
+  cursor: pointer;
+}
+
+.set-theme input,
+.set-tone input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.set-mini {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  height: 92px;
+  margin-bottom: 0.4rem;
+  padding: 8px 7px;
+  overflow: hidden;
+  border: 2px solid var(--line);
+  border-radius: 14px;
+}
+
+/* The pictures show each theme's own colours, whatever theme is on now. */
+.set-mini-light {
+  background: #f3f1ec;
+}
+
+.set-mini-dark {
+  background: #121212;
+}
+
+.set-mini-auto {
+  background: linear-gradient(135deg, #f3f1ec 50%, #121212 50%);
+}
+
+.set-mini-auto::after {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #8a8579;
+  content: "A";
+}
+
+.set-mini b {
+  display: block;
+  height: 16px;
+  border-radius: 6px;
+}
+
+.set-mini-light b {
+  background: #ffffff;
+}
+
+.set-mini-dark b {
+  background: #262624;
+}
+
+.set-mini b.set-mini-t {
+  width: 55%;
+  height: 6px;
+  border-radius: 4px;
+}
+
+.set-mini-light b.set-mini-t,
+.set-mini-light b.set-mini-n {
+  background: #141414;
+}
+
+.set-mini-dark b.set-mini-t,
+.set-mini-dark b.set-mini-n {
+  background: #f2efe9;
+}
+
+.set-mini b.set-mini-n {
+  height: 10px;
+  margin-top: auto;
+  border-radius: 9px;
+}
+
+.set-theme-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.set-radio {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--field-line);
+  border-radius: 50%;
+}
+
+.set-theme input:checked ~ .set-mini {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 2px var(--ink);
+}
+
+.set-theme input:checked ~ .set-theme-name .set-radio {
+  border: 4px solid var(--ink);
+}
+
+.set-theme input:focus-visible ~ .set-mini,
+.set-tone input:focus-visible + .set-tone-tile {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+
+.set-group {
+  padding: 0.25rem 0;
+}
+
+.set-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 0.9rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.set-item + .set-item {
+  border-top: 1px solid var(--line);
+}
+
+.set-item-link:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+  border-radius: var(--radius);
+}
+
+.set-grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.set-grow small {
+  display: block;
+  margin-top: 0.05rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.set-ic {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+}
+
+.set-ic .icon {
+  width: 19px;
+  height: 19px;
+}
+
+.set-ic-wa {
+  color: var(--wa);
+  background: var(--wa-bg);
+}
+
+.set-ic-blue {
+  color: var(--sent);
+  background: var(--sent-bg);
+}
+
+.set-ic-yellow {
+  color: var(--unpaid);
+  background: var(--unpaid-bg);
+}
+
+.set-ic-violet {
+  color: var(--violet);
+  background: var(--violet-bg);
+}
+
+.set-chev {
+  width: 18px;
+  height: 18px;
+  color: var(--muted);
+}
+
+.set-tones {
+  display: flex;
+  flex-basis: 100%;
+  gap: 0.4rem;
+}
+
+.set-tone {
+  position: relative;
+  flex: 1;
+  cursor: pointer;
+}
+
+.set-tone-tile {
+  display: block;
+  padding: 0.5rem 0.25rem;
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-align: center;
+  background: var(--card);
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+}
+
+.set-tone input:checked + .set-tone-tile {
+  border-color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--ink);
+}
+
+.set-toggle {
+  position: relative;
+  flex: none;
+  width: 46px;
+  height: 28px;
+  padding: 0;
+  cursor: pointer;
+  background: var(--field-line);
+  border: 0;
+  border-radius: 999px;
+}
+
+.set-toggle::after {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  content: "";
+  background: #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: transform 0.15s ease-out;
+}
+
+.set-toggle[aria-checked="true"] {
+  background: var(--paid);
+}
+
+.set-toggle[aria-checked="true"]::after {
+  transform: translateX(18px);
+}
+
+/* Dark: a white knob on the light-green track is too faint (1.8:1); a dark knob is 9:1. */
+:root[data-theme="dark"] .set-toggle[aria-checked="true"]::after {
+  background: #0e2416;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="auto"] .set-toggle[aria-checked="true"]::after {
+    background: #0e2416;
+  }
+}
+
+/* Round 38px back button, as in the mock. */
+.set-back,
+.set-back-space {
+  width: 38px;
+  height: 38px;
+}
+
+.set-back {
+  background: var(--card);
+  border: 1px solid var(--line);
+}
+
+.set-back .icon {
+  width: 20px;
+  height: 20px;
+}
+
+.set-back:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.set-toggle:focus-visible,
+.set-edit:focus-visible,
+.set-btn:focus-visible,
+.set-signout:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.set-demo {
+  margin-top: 1.25rem;
+  padding: 1rem;
+  background: transparent;
+  border: 1.5px dashed var(--field-line);
+  box-shadow: none;
+}
+
+.set-demo-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.set-demo b {
+  display: block;
+  font-size: 0.9rem;
+}
+
+.set-btn {
+  height: 38px;
+  padding: 0 0.9rem;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--ink);
+  cursor: pointer;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+
+.set-btn-primary {
+  color: var(--paper);
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.set-btn-danger {
+  color: var(--overdue);
+  border-color: var(--overdue);
+}
+
+.set-confirm {
+  margin-top: 0.8rem;
+  padding: 0.8rem;
+  background: var(--card);
+  border-radius: 14px;
+}
+
+.set-confirm p {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.set-confirm .set-confirm-sub {
+  margin-top: 0.2rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.set-signout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  height: 52px;
+  margin-top: 1rem;
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: var(--overdue);
+  cursor: pointer;
+  background: var(--card);
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+}
+
+.set-signout .icon {
+  flex: none;
+  width: 19px;
+  height: 19px;
+}
+
+.set-signout {
+  white-space: nowrap;
+}
+
+.set-signout:disabled {
+  opacity: 0.6;
+}
+
+.set-foot {
+  margin: 0.75rem 0 0;
+  font-size: 0.74rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+.set-toast-wrap {
+  position: fixed;
+  bottom: calc(96px + env(safe-area-inset-bottom));
+  left: 50%;
+  z-index: 40;
+  margin: 0;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.set-toast {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 0.9rem;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--paper);
+  white-space: nowrap;
+  background: var(--ink);
+  border-radius: 999px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.3);
+  animation: set-toast-in 0.18s ease-out;
+}
+
+.set-toast .icon {
+  width: 15px;
+  height: 15px;
+}
+
+@keyframes set-toast-in {
+  from {
+    transform: translateY(8px);
+    opacity: 0;
+  }
+}
+
+/* Account sheet: the way to Settings on a phone. */
+.acct-settings {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 0 0.75rem;
+  padding: 0.85rem 0.9rem;
+  font-weight: 700;
+  color: var(--ink);
+  text-decoration: none;
+  background: var(--card);
+  border-radius: 18px;
+}
+
+.acct-settings .icon {
+  width: 18px;
+  height: 18px;
+  color: var(--muted);
+}
+
+.acct-settings:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+/* Laptop sidebar: Settings sits just above the account button. */
+.side-settings {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  /* Same look as the menu items above it (.site-nav a), current page included. */
+  .side-settings {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.65rem 0.75rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--muted);
+    text-decoration: none;
+    border-radius: 12px;
+  }
+
+  .side-settings .icon {
+    width: 20px;
+    height: 20px;
+  }
+
+  .side-settings:hover,
+  .side-settings:focus-visible {
+    color: var(--ink);
+    background: var(--paper);
+  }
+
+  .side-settings[aria-current="page"],
+  .side-nudge[aria-current="page"],
+  .side-nudge[aria-current="page"] strong {
+    color: var(--on-ink);
+    background: var(--ink);
+  }
+
+  .set-toast-wrap {
+    bottom: 2rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .set-toast {
+    animation: none;
+  }
+
+  .set-toggle::after {
+    transition: none;
+  }
+}
+
+/* ---------- Languages: Settings row, the picker, the share sheet's message language ---------- */
+/* Mock: "555 Buku - WhatsApp and Settings Mock.html", phones 2, 3 and 3b. */
+
+.set-ic-plain {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--ink);
+  background: var(--paper);
+}
+
+.set-val {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.lang-search {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 46px;
+  margin: 0.5rem 0 0.25rem;
+  padding: 0 0.9rem;
+  color: var(--muted);
+  background: var(--card);
+  border: 1px solid var(--field-line);
+  border-radius: 999px;
+}
+
+.lang-search .icon {
+  flex: none;
+  width: 17px;
+  height: 17px;
+}
+
+.lang-search input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  font: inherit;
+  font-size: 0.92rem;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  outline: none;
+}
+
+.lang-search:focus-within {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.lang-list {
+  margin: 0;
+  padding: 0.25rem 0;
+  list-style: none;
+}
+
+.lang-list li + li {
+  border-top: 1px solid var(--line);
+}
+
+.lang-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.7rem 0.9rem;
+  font: inherit;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+}
+
+.lang-item[aria-checked="true"] {
+  background: var(--soft, var(--paper));
+}
+
+.lang-list li:first-child .lang-item {
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+.lang-list li:last-child .lang-item {
+  border-radius: 0 0 var(--radius) var(--radius);
+}
+
+.lang-list li:only-child .lang-item {
+  border-radius: var(--radius);
+}
+
+.lang-item:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+}
+
+.lang-item b {
+  display: block;
+  font-size: 0.92rem;
+}
+
+.lang-item small {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.lang-glyph {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  font-size: 0.9rem;
+  font-weight: 800;
+  background: var(--paper);
+  border-radius: 12px;
+}
+
+.lang-tick {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  color: var(--paper);
+  background: var(--ink);
+  border-radius: 50%;
+}
+
+.lang-tick .icon {
+  width: 14px;
+  height: 14px;
+}
+
+.share-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.share-lang select {
+  max-width: 11rem;
+  height: 30px;
+  padding: 0 1.6rem 0 0.7rem;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--ink);
+  cursor: pointer;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+
+.share-lang select:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.share-label-row {
+  margin: 0.9rem 0.15rem 0.45rem;
+}
+
+.share-label-row .share-label {
+  margin: 0;
+}
+
+/* Stays in the page (and in the accessibility tree) when empty; it just takes no space. */
+.lang-status:empty {
+  margin: 0;
+}
+
+/* ---------- Ledger review fixes (PR #37) ---------- */
+/* Ledger: header buttons, debt detail sheet (dl rows, actions). Tokens only. */
+.ledger-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* The detail rows are a <dl>; drop the browser's list margins. */
+dl.debt-detail-content {
+  margin: 1rem 0 0;
+}
+
+dd.debt-detail-value {
+  margin: 0;
+}
+
+.debt-detail-paypal {
+  display: inline-block;
+  margin-top: 0.5rem;
+}
+
+.debt-detail-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.debt-detail-actions .button:last-child {
+  margin-left: auto;
+}
+
+.debt-detail-delete {
+  color: var(--error-ink);
+}
+
+.ledger-bulk-btn:focus-visible {
+  outline: 2px solid var(--on-ink);
+  outline-offset: 2px;
+}
+
+/* Go to Collect: the bar's primary action, always the opposite of the bar (the bar is --ink,
+   dark in light mode and light in dark mode), so it stands out in both themes. */
+.ledger-bulk-btn-primary {
+  background: var(--on-ink);
+  color: var(--ink);
+  font-weight: 800;
+}
+
+/* ---------- Customers (PR #37 review fixes) ---------- */
+
+/* Customers screen (app/customers/CustomersScreen.tsx). Tokens only, so dark mode follows. */
+.customers-page {
+  display: grid;
+  gap: 0;
+}
+
+.button-sm {
+  min-height: 2.25rem;
+  padding: 0 0.85rem;
+  font-size: 0.85rem;
+  border-radius: 12px;
+  gap: 0.3rem;
+}
+
+.button-sm .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.avatar-md {
+  width: 46px;
+  height: 46px;
+  font-size: 0.9rem;
+}
+
+.cust-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.cust-back .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.cust-add {
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+
+.cust-add .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.cust-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  padding: 1rem;
+  text-align: center;
+}
+
+.cust-metric-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.cust-metric-value {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.cust-metric-good {
+  color: var(--paid);
+}
+
+.cust-metric-warn {
+  color: var(--unpaid);
+}
+
+.cust-metric-quiet {
+  color: var(--muted);
+}
+
+.cust-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-bottom: 1.25rem;
+  color: var(--ink);
+}
+
+.cust-tools {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.cust-search {
+  position: relative;
+}
+
+.cust-search input {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.8rem 0.5rem 2.4rem;
+  font: inherit;
+  font-size: 1rem; /* 16px stops iOS zooming into the field */
+  color: var(--ink);
+  background: var(--card);
+  border: 1.5px solid var(--field-line);
+  border-radius: 12px;
+}
+
+.cust-search input::placeholder {
+  color: var(--muted);
+}
+
+.cust-search input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.cust-search-icon {
+  position: absolute;
+  top: 50%;
+  left: 0.75rem;
+  display: grid;
+  color: var(--muted);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.cust-search-icon .icon {
+  width: 18px;
+  height: 18px;
+}
+
+/* The ledger's filter chips, laid out the same way on this page. */
+.customers-page .ledger-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.ledger-chips button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.cust-muted {
+  color: var(--muted);
+}
+
+.cust-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.cust-card {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.cust-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.cust-who {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.cust-card h2.cust-name {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.cust-card h2.cust-name a {
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.cust-card h2.cust-name a:hover,
+.cust-card h2.cust-name a:focus-visible {
+  text-decoration: underline;
+}
+
+.cust-meta {
+  margin-top: 0.2rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.cust-owed {
+  display: grid;
+  justify-items: end;
+  gap: 0.2rem;
+  text-align: right;
+  flex: none;
+}
+
+.cust-owed-amount {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.cust-owed-paid {
+  color: var(--paid);
+}
+
+.cust-overdue {
+  font-size: 0.75rem;
+}
+
+.cust-email {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  color: var(--ink);
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.cust-email-missing {
+  background: var(--unpaid-bg);
+  border-color: transparent;
+}
+
+.cust-email-text {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.cust-email-text .icon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+
+.cust-email-text code {
+  font-size: 0.85rem;
+}
+
+.cust-email-warn {
+  font-weight: 600;
+  color: var(--unpaid);
+}
+
+.cust-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+/* Add customer and Edit email sheets: the shared .sheet look, scrollable when tall. */
+.cust-sheet {
+  max-height: 92dvh;
+  overflow-y: auto;
+  color: var(--ink);
+}
+
+.cust-sheet-title {
+  margin: 0 3rem 0.4rem 0;
+  font-size: 1.2rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.cust-sheet-intro {
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.cust-sheet .field {
+  margin-bottom: 0.75rem;
+}
+
+.cust-sheet .field input {
+  width: 100%;
+}
+
+.cust-sheet .sheet-chips {
+  margin: 0.25rem 0 0.25rem;
+}
+
+.cust-debt-box {
+  margin-bottom: 1.25rem;
+  padding: 0.75rem;
+  border: 1.5px dashed var(--line);
+  border-radius: 12px;
+}
+
+.cust-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cust-check input {
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: var(--accent);
+}
+
+.cust-debt-fields {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.cust-debt-fields .field {
+  margin-bottom: 0;
+}
+
+@media (max-width: 400px) {
+  .cust-debt-fields {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cust-conflict {
+  color: var(--ink);
+}
+
+.cust-sheet-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+/* Ledger grid: the delete button sits centred in its narrow column, not overflowing it. */
+.ag-cell.ledger-delete-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+/* Scan check: long words in the "not sure" note wrap instead of widening the line. */
+.scan-unsure-banner > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.scan-unsure-banner > button {
+  flex: none;
+}
+
+.scan-check-main {
+  min-width: 0;
+}
+
+/* Keeps its space in the layout but isn't seen or reached. */
+.scan-hidden {
+  visibility: hidden;
+}
+
+.debt-detail-note {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+/* Ledger bulk bar on phones: sits above the floating bottom menu (about 5.5rem tall with its
+   gap), and the words shrink before the buttons wrap. */
+@media (max-width: 1023px) {
+  .ledger-bulk-bar {
+    bottom: calc(6rem + env(safe-area-inset-bottom));
+    gap: 0.5rem;
+    padding: 0.6rem 0.75rem;
+  }
+}
+
+.ledger-bulk-info {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ledger-bulk-actions {
+  flex: none;
+}
+
+.ledger-bulk-btn {
+  white-space: nowrap;
+}
+
+/* Customers' sheets on a laptop: a centred dialog, not a sheet stuck to the bottom edge. */
+@media (min-width: 1024px) {
+  .sheet.cust-sheet {
+    top: 50%;
+    bottom: auto;
+    width: min(calc(100% - 2rem), 460px);
+    max-height: calc(100vh - 3rem);
+    overflow-y: auto;
+    padding-bottom: 1.5rem;
+    border-radius: 26px;
+    transform: translate(-50%, -50%);
+  }
+}
+
+/* Share sheet: "See your tab" line in the preview, and the option to add it. */
+.share-tabline {
+  overflow-wrap: anywhere;
+}
+
+.share-tab-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  margin: 0.75rem 0.15rem 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.share-tab-option input {
+  flex: none;
+  width: 1.15rem;
+  height: 1.15rem;
+  margin-top: 0.1rem;
+  accent-color: var(--accent);
+}
+
+.share-tab-option small {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.share-note-quiet {
+  color: var(--muted);
+}
+
+.share-tabline-pending {
+  opacity: 0.6;
+}
+
+.share-tab-manage {
+  margin: 0.4rem 0.15rem 0;
+  font-size: 0.82rem;
+}
+
+.share-send:disabled {
+  opacity: 0.7;
+  cursor: progress;
+}
+
+/* The owner's own tab page: shared by link, with the way to turn it off. */
+.tab-link-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.share-tab-manage small,
+.tab-link-notice .notice-text small {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.tab-link-confirm {
+  flex-basis: 100%;
+}
+
+.tab-link-confirm p {
+  margin: 0 0 0.4rem;
+  font-weight: 700;
+}
+
+.tab-link-off {
+  color: var(--overdue);
+}

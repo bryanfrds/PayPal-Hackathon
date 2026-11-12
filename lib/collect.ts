@@ -1,0 +1,255 @@
+// What the Collect screen bills, and how each customer's tabs become one PayPal invoice.
+// Pure functions; the screens and the /api/invoices route use them.
+
+import { customerSlug } from "./customer-tab";
+import { todayLocal, type Debt } from "./debts";
+import { isNotInvoiced, isOverdue } from "./tab-status";
+import type { ApprovedDebtRecord } from "./person1-types";
+
+/**
+ * An invoice request saved on the device before it goes to PayPal, and kept until the
+ * outcome is known. If the answer is lost, the retry sends exactly this again (same
+ * request id), so PayPal returns the same invoice instead of making a second one.
+ */
+export type PendingSend = {
+  slug: string;
+  customerName: string;
+  email: string;
+  debtIds: string[];
+  lines: InvoiceLine[];
+  amountSen: number;
+  requestId: string;
+  /** ISO timestamp. */
+  startedAt: string;
+};
+
+/** Tabs that haven't been invoiced yet: the shared rule, isNotInvoiced in lib/tab-status. */
+export const isInvoiceable = isNotInvoiced;
+
+export type CollectGroup = {
+  customerName: string;
+  slug: string;
+  /** Oldest first. */
+  debts: Debt[];
+  totalSen: number;
+  /** "overdue" if any tab is overdue (isOverdue: past due or marked), otherwise "unpaid" (not sent). */
+  status: "overdue" | "unpaid";
+  /** Saved email, if the shop has added one. */
+  email?: string;
+  /** An earlier send for these tabs didn't finish; retrying sends exactly that again. */
+  pending?: PendingSend;
+  /** Present when every invoice field must be resolved from Person 1's server record. */
+  approvedDebtId?: string;
+};
+
+export type InvoicedDebt = {
+  debt: ApprovedDebtRecord;
+  invoice: { id: string; number?: string; amountSen: number; sentAt: string; payerLink?: string };
+};
+
+export type ApprovedQueue = {
+  /** Approved debts with no invoice yet. */
+  approvedDebts: ApprovedDebtRecord[];
+  /** Approved debts the server already has an invoice for, even if this device doesn't know. */
+  invoiced: InvoicedDebt[];
+  /** Approved debts the owner unticked afterwards: not billed from anywhere. */
+  withdrawnDebtIds: string[];
+};
+
+export async function loadApprovedDebts(fetchImpl: typeof fetch = fetch): Promise<ApprovedQueue> {
+  const response = await fetchImpl("/api/debts/approved");
+  const body = (await response.json().catch(() => null)) as { approvedDebts?: unknown; invoiced?: unknown; withdrawnDebtIds?: unknown; error?: unknown } | null;
+  if (!response.ok) throw new Error(typeof body?.error === "string" ? body.error : "Could not load approved debts.");
+  if (!Array.isArray(body?.approvedDebts) || !Array.isArray(body?.invoiced) || !Array.isArray(body?.withdrawnDebtIds)) throw new Error("Could not load approved debts.");
+  return { approvedDebts: body.approvedDebts as ApprovedDebtRecord[], invoiced: body.invoiced as InvoicedDebt[], withdrawnDebtIds: body.withdrawnDebtIds as string[] };
+}
+
+/**
+ * Invoices the server knows and this device doesn't (sent from another device, or browser data
+ * cleared), as the records and debts to save here. An invoice the device already has is skipped,
+ * so a debt deleted from the ledger stays deleted. `after` is when the demo was last reset:
+ * anything older belongs to the demo that was cleared.
+ */
+export function invoicesToImport(invoiced: InvoicedDebt[], knownInvoiceIds: Set<string>, after = "") {
+  return invoiced
+    .filter(({ invoice }) => !knownInvoiceIds.has(invoice.id) && invoice.sentAt > after)
+    .map(({ debt, invoice }) => ({
+      record: {
+        id: invoice.id,
+        number: invoice.number,
+        customerName: debt.customerName,
+        slug: customerSlug(debt.customerName),
+        email: debt.customerEmail,
+        debtIds: [debt.id],
+        amountSen: invoice.amountSen,
+        sentAt: invoice.sentAt,
+        payerLink: invoice.payerLink,
+      },
+      debt: { ...approvedDebtGroups([debt])[0].debts[0], status: "sent" as const },
+    }));
+}
+
+/** The approved-debt invoice API accepts one stable server record per invoice. */
+export function approvedDebtGroups(records: ApprovedDebtRecord[]): CollectGroup[] {
+  return records.map((record) => ({
+    approvedDebtId: record.id,
+    customerName: record.customerName,
+    slug: `${customerSlug(record.customerName)}--${record.id}`,
+    debts: [{
+      id: record.id,
+      customerName: record.customerName,
+      item: record.item,
+      amountSen: record.amountSen,
+      date: record.date,
+      status: "unpaid",
+      source: "scan",
+      createdAt: record.approvedAt,
+    }],
+    totalSen: record.amountSen,
+    status: "unpaid",
+    email: record.customerEmail,
+  }));
+}
+
+/**
+ * One group per customer with tabs to invoice, overdue first, then biggest amount first.
+ * A customer with an unfinished send is limited to that send's tabs, email and amount;
+ * tabs added since then wait for the next invoice. `today` (YYYY-MM-DD) decides which are late.
+ */
+export function collectGroups(
+  debts: Debt[],
+  emails: Record<string, string>,
+  pending: Record<string, PendingSend> = {},
+  today: string = todayLocal(),
+): CollectGroup[] {
+  const late = (d: Debt) => isOverdue(d, today);
+  const bySlug = new Map<string, CollectGroup>();
+  for (const debt of debts) {
+    if (!isInvoiceable(debt)) continue;
+    const slug = customerSlug(debt.customerName);
+    const group = bySlug.get(slug);
+    if (group) {
+      group.debts.push(debt);
+      group.totalSen += debt.amountSen;
+      if (late(debt)) group.status = "overdue";
+    } else {
+      bySlug.set(slug, {
+        customerName: debt.customerName,
+        slug,
+        debts: [debt],
+        totalSen: debt.amountSen,
+        status: late(debt) ? "overdue" : "unpaid",
+        email: emails[slug],
+      });
+    }
+  }
+  for (const group of bySlug.values()) {
+    const p = pending[group.slug];
+    const held = p ? group.debts.filter((d) => p.debtIds.includes(d.id)) : [];
+    if (p && held.length > 0) {
+      group.debts = held;
+      group.totalSen = p.amountSen;
+      group.email = p.email;
+      group.status = held.some(late) ? "overdue" : "unpaid";
+      group.pending = p;
+    }
+    group.debts.sort((a, b) => a.date.localeCompare(b.date));
+  }
+  return [...bySlug.values()].sort(
+    (a, b) => (a.status === b.status ? 0 : a.status === "overdue" ? -1 : 1) || b.totalSen - a.totalSen,
+  );
+}
+
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+/** A plain check that catches typos like a missing @ or dot. PayPal does the real check. */
+export function isValidEmail(email: string): boolean {
+  return EMAIL.test(email.trim());
+}
+
+/** Common endings offered as one-tap buttons while typing an email. */
+export const EMAIL_DOMAINS = ["gmail.com", "yahoo.com", "hotmail.com"];
+
+/** "raj.kumar@" + "gmail.com" → "raj.kumar@gmail.com" (replaces any half-typed ending). */
+export function withDomain(typed: string, domain: string): string {
+  const local = typed.trim().split("@")[0];
+  return local ? `${local}@${domain}` : "";
+}
+
+/**
+ * The same invoice (same tabs, email and lines) always gives the same id, so PayPal treats
+ * a retry as the same invoice (PayPal-Request-Id) and never creates a second one. Changing
+ * the email or an amount gives a new id, so a corrected invoice isn't swapped for the old one.
+ * `previousInvoiceIds` are invoices already sent for these tabs (cancelled, or from before a
+ * reset): billing them again gets a new id, so PayPal makes a new invoice instead of
+ * returning the old one.
+ */
+export function invoiceRequestId(input: { debtIds: string[]; email: string; lines: InvoiceLine[]; previousInvoiceIds?: string[] }): string {
+  const parts: unknown[] = [
+    [...input.debtIds].sort(),
+    input.email.trim().toLowerCase(),
+    input.lines.map((l) => [l.name, l.amountSen]),
+  ];
+  if (input.previousInvoiceIds?.length) parts.push([...input.previousInvoiceIds].sort());
+  const key = JSON.stringify(parts);
+  // FNV-1a, 32-bit, twice with different seeds for a longer id.
+  let h1 = 0x811c9dc5;
+  let h2 = 0x01000193;
+  for (let i = 0; i < key.length; i++) {
+    const c = key.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 0x01000193) >>> 0;
+    h2 = Math.imul(h2 ^ c, 0x811c9dc5) >>> 0;
+  }
+  return `buku-${h1.toString(16).padStart(8, "0")}${h2.toString(16).padStart(8, "0")}`;
+}
+
+export type InvoiceLine = { name: string; amountSen: number };
+
+/**
+ * What an invoice line says for a tab with no item name. Always English, whatever the app's
+ * language: it's the PayPal line text and part of the retry ID (invoiceRequestId), so a
+ * language switch must never change a send. Collect's preview and the invoice page show it too.
+ */
+export const SHOP_ITEMS = "Shop items";
+
+/** One invoice line per tab, named by what was taken and when. */
+export function invoiceLines(debts: Debt[]): InvoiceLine[] {
+  return debts.map((d) => ({ name: `${d.item || SHOP_ITEMS} (${d.date})`.slice(0, 200), amountSen: d.amountSen }));
+}
+
+/** What goes to /api/invoices for a group: a pending send exactly as saved, otherwise a fresh one. */
+export function sendRequest(group: CollectGroup, now: Date, previousInvoiceIds: string[] = []): PendingSend {
+  if (group.pending) return group.pending;
+  const email = group.email ?? "";
+  const lines = invoiceLines(group.debts);
+  const debtIds = group.debts.map((d) => d.id);
+  return {
+    slug: group.slug,
+    customerName: group.customerName,
+    email,
+    debtIds,
+    lines,
+    amountSen: group.totalSen,
+    requestId: invoiceRequestId({ debtIds, email, lines, previousInvoiceIds }),
+    startedAt: now.toISOString(),
+  };
+}
+
+export type Preview = {
+  group: CollectGroup;
+  /** False when this customer isn't in the batch: switched off, or no email yet. */
+  willSend: boolean;
+  reason?: "noEmail" | "switchedOff";
+};
+
+/**
+ * Whose invoice the laptop's side pane shows: the one the owner picked, else the first being
+ * sent, else the first on the list. Says whether it will actually go out, so the pane never
+ * passes off a switched-off invoice as one that's being sent.
+ */
+export function pickPreview(groups: CollectGroup[], chosen: CollectGroup[], slug: string | null): Preview | null {
+  const group = groups.find((g) => g.slug === slug) ?? chosen[0] ?? groups[0];
+  if (!group) return null;
+  if (chosen.some((c) => c.slug === group.slug)) return { group, willSend: true };
+  return { group, willSend: false, reason: group.email ? "switchedOff" : "noEmail" };
+}

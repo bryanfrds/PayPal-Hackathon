@@ -1,0 +1,1247 @@
+"use client";
+
+// Scan a buku 555 page or a receipt: first a choice (take a photo or upload one, inside the
+// normal app screen, so the camera never starts on its own), then, Shopee "Scan & Pay" style, a
+// full-screen camera, a short "reading" wait, and a check screen where the owner fixes lines
+// and saves them.
+
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
+import { DebtStoreError, newDebtId } from "@/lib/debt-store";
+import { formatSen, MAX_ITEM_LENGTH, MAX_NAME_LENGTH, parseRmToSen, todayLocal, type DebtErrors } from "@/lib/debts";
+import type { T, TKey } from "@/lib/i18n";
+import {
+  activeScanKey,
+  customerNames,
+  entriesToLines,
+  includedTotalSen,
+  isNewCustomer,
+  linesToDebts,
+  parseActiveScan,
+  parseScanDraft,
+  type ScanLine,
+  type ScanMode,
+  scanDraftKey,
+} from "@/lib/scan";
+import { isInvoiceable, isValidEmail, loadApprovedDebts } from "@/lib/collect";
+import {
+  approveScanEntries,
+  confirmEntryCustomer,
+  createCustomer,
+  getCustomerSuggestions,
+  patchScanEntry,
+  readPhoto,
+  retryRead,
+  shrinkPhoto,
+  updateCustomer,
+  type ReadFailure,
+} from "@/lib/scan-client";
+import type { CustomerMatchSuggestion } from "@/lib/customer-matching";
+import { BackIcon, BoltIcon, CheckIcon, CloseIcon, ImageIcon, NoteIcon, ReceiptIcon, ScanIcon } from "../components/icons";
+import { useDialog } from "../components/useDialog";
+import { useDebts } from "../useDebts";
+import { useT } from "../useT";
+
+type Phase = "choose" | "camera" | "reading" | "check";
+type CompletedRead = { scanId: string; lines: ScanLine[]; isDuplicate?: boolean; warning?: string };
+
+/** The reading steps; the second says "reading the lines" until the count is known. */
+function readingSteps(mode: ScanMode, t: T, found: number | null): string[] {
+  return [
+    t("scan.step.clear"),
+    found === null ? t("scan.step.readingLines") : t("scan.step.found", { count: found }),
+    mode === "notebook" ? t("scan.step.matching") : t("scan.step.readingItems"),
+    t("scan.step.ready"),
+  ];
+}
+const STEP_MS = 650;
+
+/** Drops a saved check-screen draft, so a new photo or a retake starts from a fresh read. */
+function clearDraft(mode: ScanMode) {
+  try {
+    sessionStorage.removeItem(scanDraftKey(mode));
+    sessionStorage.removeItem(activeScanKey(mode));
+  } catch {}
+}
+
+/** Moves focus to a screen's heading when it appears, so screen readers announce the new screen. */
+function useFocusOnMount<T extends HTMLElement>(enabled = true) {
+  const ref = useRef<T>(null);
+  useEffect(() => {
+    if (enabled) ref.current?.focus();
+  }, [enabled]);
+  return ref;
+}
+
+export default function ScanFlow() {
+  const [phase, setPhase] = useState<Phase>("choose");
+  const [mode, setMode] = useState<ScanMode>("notebook");
+  const [photo, setPhoto] = useState<string | null>(null);
+  const [read, setRead] = useState<CompletedRead | null>(null);
+
+  useEffect(() => {
+    for (const savedMode of ["notebook", "receipt"] as const) {
+      const active = parseActiveScan(sessionStorage.getItem(activeScanKey(savedMode)));
+      if (!active) continue;
+      setMode(active.mode);
+      setPhoto(null);
+      setRead({ scanId: active.scanId, lines: active.serverLines, isDuplicate: active.isDuplicate, warning: active.warning });
+      setPhase("check");
+      break;
+    }
+  }, []);
+
+  // Object URLs from the gallery hold memory until revoked.
+  useEffect(() => {
+    return () => {
+      if (photo?.startsWith("blob:")) URL.revokeObjectURL(photo);
+    };
+  }, [photo]);
+
+  function onPhoto(url: string) {
+    clearDraft(mode);
+    setPhoto(url);
+    setPhase("reading");
+  }
+  const onRead = useCallback((result: CompletedRead) => {
+    setRead(result);
+    setPhase("check");
+  }, []);
+  function retake() {
+    clearDraft(mode);
+    setReturned(true);
+    setPhase("choose");
+  }
+  // On first load the page itself has focus; only move it when coming back from Retake.
+  const [returned, setReturned] = useState(false);
+
+  if (phase === "choose") {
+    return <Choose mode={mode} onMode={setMode} onPhoto={onPhoto} onCamera={() => setPhase("camera")} focusTitle={returned} />;
+  }
+  if (phase === "camera") {
+    return (
+      <Camera
+        mode={mode}
+        onMode={setMode}
+        onPhoto={onPhoto}
+        onClose={() => {
+          setReturned(true);
+          setPhase("choose");
+        }}
+      />
+    );
+  }
+  if (phase === "reading") return <Reading mode={mode} photo={photo} onDone={onRead} onRetake={retake} />;
+  return read ? <Check mode={mode} photo={photo} read={read} onRetake={retake} /> : null;
+}
+
+/* 1 · Choose: take a photo (opens the camera) or upload one */
+
+function Choose({
+  mode,
+  onMode,
+  onPhoto,
+  onCamera,
+  focusTitle,
+}: {
+  mode: ScanMode;
+  onMode: (m: ScanMode) => void;
+  onPhoto: (url: string) => void;
+  onCamera: () => void;
+  focusTitle: boolean;
+}) {
+  const { t } = useT();
+  const titleRef = useFocusOnMount<HTMLHeadingElement>(focusTitle);
+  const uploadRef = useRef<HTMLInputElement>(null);
+
+  function onFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (file) onPhoto(URL.createObjectURL(file));
+  }
+
+  return (
+    <div className="scan-choose">
+      <h1 ref={titleRef} tabIndex={-1} className="page-title">
+        {t("scan.title")}
+      </h1>
+      <p className="page-intro">{t("scan.chooseIntro")}</p>
+
+      <div className="chips scan-choose-mode" role="group" aria-label={t("scan.modeGroup")}>
+        <button type="button" aria-pressed={mode === "notebook"} onClick={() => onMode("notebook")}>
+          <NoteIcon />
+          {t("scan.notebook")}
+        </button>
+        <button type="button" aria-pressed={mode === "receipt"} onClick={() => onMode("receipt")}>
+          <ReceiptIcon />
+          {t("scan.receipt")}
+        </button>
+      </div>
+
+      <div className="scan-choose-options">
+        <button type="button" className="scan-option scan-option-primary" onClick={onCamera}>
+          <span className="scan-option-icon" aria-hidden="true">
+            <ScanIcon />
+          </span>
+          <span className="scan-option-text">
+            <strong>{t("scan.takePhoto")}</strong>
+            <small>{t("scan.takePhotoHint")}</small>
+          </span>
+        </button>
+        <button type="button" className="scan-option" onClick={() => uploadRef.current?.click()}>
+          <span className="scan-option-icon" aria-hidden="true">
+            <ImageIcon />
+          </span>
+          <span className="scan-option-text">
+            <strong>{t("scan.uploadPhoto")}</strong>
+            <small>{t("scan.uploadPhotoHint")}</small>
+          </span>
+        </button>
+      </div>
+
+      <input ref={uploadRef} type="file" accept="image/*" hidden onChange={onFile} />
+    </div>
+  );
+}
+
+/* 2 · Camera */
+
+type CameraState = "starting" | "live" | "unavailable";
+
+function Camera({
+  mode,
+  onMode,
+  onPhoto,
+  onClose,
+}: {
+  mode: ScanMode;
+  onMode: (m: ScanMode) => void;
+  onPhoto: (url: string) => void;
+  onClose: () => void;
+}) {
+  const { t } = useT();
+  // Opened by a tap on "Take a photo", so the heading takes focus and the new screen is announced.
+  const titleRef = useFocusOnMount<HTMLHeadingElement>();
+  // True once the video has a frame to capture; the shutter waits for it.
+  const [videoReady, setVideoReady] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const galleryRef = useRef<HTMLInputElement>(null);
+  const takeRef = useRef<HTMLInputElement>(null);
+  const [state, setState] = useState<CameraState>("starting");
+  const [torch, setTorch] = useState<{ supported: boolean; on: boolean }>({ supported: false, on: false });
+
+  const stop = useCallback(() => {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setState("unavailable");
+      return;
+    }
+    navigator.mediaDevices
+      .getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false })
+      .then((stream) => {
+        if (cancelled) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          void videoRef.current.play().catch(() => {});
+        }
+        const track = stream.getVideoTracks()[0];
+        // Camera taken by another app or unplugged: offer the photo options instead.
+        if (track) track.onended = () => setState("unavailable");
+        const caps = (track?.getCapabilities?.() ?? {}) as MediaTrackCapabilities & { torch?: boolean };
+        setTorch({ supported: Boolean(caps.torch), on: false });
+        setState("live");
+      })
+      .catch(() => {
+        if (!cancelled) setState("unavailable");
+      });
+    return () => {
+      cancelled = true;
+      stop();
+    };
+  }, [stop]);
+
+  async function toggleTorch() {
+    const track = streamRef.current?.getVideoTracks()[0];
+    if (!track) return;
+    const on = !torch.on;
+    try {
+      await track.applyConstraints({ advanced: [{ torch: on } as MediaTrackConstraintSet] });
+      setTorch({ supported: true, on });
+    } catch {
+      setTorch({ supported: false, on: false });
+    }
+  }
+
+  function snap() {
+    const video = videoRef.current;
+    if (!video || !video.videoWidth) return;
+    const canvas = document.createElement("canvas");
+    // Enough detail to read handwriting, small enough to keep in memory.
+    const scale = Math.min(1, 1600 / Math.max(video.videoWidth, video.videoHeight));
+    canvas.width = Math.round(video.videoWidth * scale);
+    canvas.height = Math.round(video.videoHeight * scale);
+    canvas.getContext("2d")?.drawImage(video, 0, 0, canvas.width, canvas.height);
+    stop();
+    onPhoto(canvas.toDataURL("image/jpeg", 0.85));
+  }
+
+  function onFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    stop();
+    onPhoto(URL.createObjectURL(file));
+  }
+
+  return (
+    <div className="scan-camera">
+      {state === "live" ? (
+        <video
+          ref={videoRef}
+          className="scan-video"
+          playsInline
+          muted
+          aria-label={t("scan.cameraView")}
+          onLoadedData={() => setVideoReady(true)}
+        />
+      ) : (
+        <video ref={videoRef} className="scan-video" playsInline muted hidden />
+      )}
+
+      <div className="scan-camtop">
+        <button type="button" className="scan-round" aria-label={t("scan.close")} onClick={onClose}>
+          <CloseIcon />
+        </button>
+        <h1 ref={titleRef} tabIndex={-1}>
+          {t("scan.title")}
+        </h1>
+        {torch.supported ? (
+          <button
+            type="button"
+            className="scan-round"
+            aria-pressed={torch.on}
+            aria-label={torch.on ? t("scan.flashOff") : t("scan.flashOn")}
+            onClick={toggleTorch}
+          >
+            <BoltIcon />
+          </button>
+        ) : (
+          <span className="scan-round scan-round-empty" aria-hidden="true" />
+        )}
+      </div>
+
+      {state === "live" && (
+        <>
+          <div className="scan-frame" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+            <i />
+            <span className="scan-line" />
+          </div>
+          <p className="scan-tip">
+            {mode === "notebook" ? t("scan.tipNotebook") : t("scan.tipReceipt")}
+          </p>
+        </>
+      )}
+
+      {(state === "starting" || (state === "live" && !videoReady)) && (
+        <p className="scan-tip scan-tip-mid" role="status">
+          {t("scan.starting")}
+        </p>
+      )}
+
+      {state === "unavailable" && (
+        <div className="scan-fallback">
+          <p className="scan-fallback-title">{t("scan.noCamera")}</p>
+          <p>{t("scan.noCameraBody")}</p>
+          <button type="button" className="button button-primary" onClick={() => takeRef.current?.click()}>
+            {t("scan.takePhoto")}
+          </button>
+          <button type="button" className="button scan-fallback-alt" onClick={() => galleryRef.current?.click()}>
+            {t("scan.chooseGallery")}
+          </button>
+        </div>
+      )}
+
+      <div className="scan-camfoot">
+        <div className="scan-mode" role="group" aria-label={t("scan.modeGroup")}>
+          <button type="button" aria-pressed={mode === "notebook"} onClick={() => onMode("notebook")}>
+            <NoteIcon />
+            {t("scan.notebook")}
+          </button>
+          <button type="button" aria-pressed={mode === "receipt"} onClick={() => onMode("receipt")}>
+            <ReceiptIcon />
+            {t("scan.receipt")}
+          </button>
+        </div>
+        <div className="scan-controls">
+          <button type="button" className="scan-gallery" onClick={() => galleryRef.current?.click()}>
+            <span aria-hidden="true">
+              <ImageIcon />
+            </span>
+            {t("scan.gallery")}
+          </button>
+          {state === "live" && videoReady ? (
+            <button type="button" className="scan-shutter" aria-label={t("scan.shutter")} onClick={snap}>
+              <b />
+            </button>
+          ) : (
+            // Starting up: a dimmed shutter. No camera at all: no shutter (the buttons above take
+            // or choose a photo instead); the space stays so Gallery doesn't jump.
+            <span className={`scan-shutter scan-shutter-off${state === "unavailable" ? " scan-hidden" : ""}`} aria-hidden="true">
+              <b />
+            </span>
+          )}
+          <span className="scan-gallery scan-hidden" aria-hidden="true" />
+        </div>
+      </div>
+
+      <input ref={galleryRef} type="file" accept="image/*" hidden onChange={onFile} />
+      <input ref={takeRef} type="file" accept="image/*" capture="environment" hidden onChange={onFile} />
+    </div>
+  );
+}
+
+/* 3 · Reading: the photo goes to the AI reader; the steps wait on its answer */
+
+const FAILURE_KEY: Record<ReadFailure | "nothingFound", TKey> = {
+  notConnected: "scan.err.notConnected",
+  gone: "scan.err.failed",
+  tooBig: "scan.err.tooBig",
+  tooMany: "scan.err.tooMany",
+  signedOut: "scan.err.signedOut",
+  failed: "scan.err.failed",
+  nothingFound: "scan.err.nothingFound",
+};
+
+function Reading({
+  mode,
+  photo,
+  onDone,
+  onRetake,
+}: {
+  mode: ScanMode;
+  photo: string | null;
+  onDone: (read: CompletedRead) => void;
+  onRetake: () => void;
+}) {
+  const { t } = useT();
+  const [step, setStep] = useState(0);
+  const [lines, setLines] = useState<ScanLine[] | null>(null);
+  const [completed, setCompleted] = useState<Omit<CompletedRead, "lines"> | null>(null);
+  const [problem, setProblem] = useState<ReadFailure | "nothingFound" | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const scanIdRef = useRef<string | undefined>(undefined);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const steps = readingSteps(mode, t, lines?.length ?? null);
+  // Focus the heading whenever the sheet changes (progress ↔ problem), so it's announced.
+  useEffect(() => {
+    titleRef.current?.focus();
+  }, [problem]);
+
+  // One read per attempt: the first uploads the photo, a retry reads the uploaded photo again.
+  useEffect(() => {
+    if (!photo) return;
+    let cancelled = false;
+    (async () => {
+      const scanId = scanIdRef.current;
+      // Shrink first, then check: React's dev double-run cancels the first pass before it uploads.
+      const upload = scanId ? null : await shrinkPhoto(photo);
+      if (cancelled) return;
+      const result = scanId ? await retryRead(scanId) : await readPhoto(upload!, mode);
+      if (cancelled) return;
+      if (!result.ok) {
+        scanIdRef.current = result.scanId;
+        setProblem(result.reason);
+        return;
+      }
+      scanIdRef.current = result.scanId;
+      const read = entriesToLines(result.entries, mode, todayLocal(), t);
+      if (read.length === 0) setProblem("nothingFound");
+      else {
+        setLines(read);
+        setCompleted({
+          scanId: result.scanId,
+          ...(result.isDuplicate ? { isDuplicate: true } : {}),
+          ...(result.warning ? { warning: result.warning } : {}),
+        });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // t only changes with the language; a new read isn't wanted then.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [photo, mode, attempt]);
+
+  // The steps tick along, but stop on "reading the lines" until the reader answers.
+  useEffect(() => {
+    if (problem) return;
+    if (step >= steps.length) {
+      if (lines && completed) onDone({ ...completed, lines });
+      return;
+    }
+    if (step >= 1 && !lines) return;
+    const timer = setTimeout(() => setStep((s) => s + 1), STEP_MS);
+    return () => clearTimeout(timer);
+  }, [step, steps.length, lines, completed, problem, onDone]);
+
+  function tryAgain() {
+    setProblem(null);
+    setStep(1);
+    // Nothing found on a good read: read the same photo again from scratch.
+    if (problem === "nothingFound") scanIdRef.current = undefined;
+    setAttempt((n) => n + 1);
+  }
+
+  const pct = Math.round((Math.min(step, steps.length) / steps.length) * 100);
+  const canRetry = problem === "failed" || problem === "gone" || problem === "tooMany" || problem === "nothingFound";
+  return (
+    <div className="scan-camera">
+      {photo && (
+        // eslint-disable-next-line @next/next/no-img-element -- a local photo, not a site image
+        <img src={photo} alt="" className="scan-video scan-photo-dim" />
+      )}
+      {problem ? (
+        <div className="scan-sheet" role="alert">
+          <h1 ref={titleRef} tabIndex={-1}>
+            {t("scan.err.title")}
+          </h1>
+          <p>{t(FAILURE_KEY[problem])}</p>
+          <div className="scan-sheet-actions">
+            {canRetry && (
+              <button type="button" className="button button-primary" onClick={tryAgain}>
+                {t("scan.tryAgain")}
+              </button>
+            )}
+            {problem === "signedOut" ? (
+              <a className="button button-primary" href="/sign-in?next=/scan">
+                {t("scan.signInAgain")}
+              </a>
+            ) : (
+              <button type="button" className="button" onClick={onRetake}>
+                {t("scan.retake")}
+              </button>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="scan-sheet" role="status" aria-live="polite">
+          <h1 ref={titleRef} tabIndex={-1}>
+            {mode === "notebook" ? t("scan.readingBuku") : t("scan.readingReceipt")}
+          </h1>
+          <p>{t("scan.fewSeconds")}</p>
+          <div className="scan-bar" role="progressbar" aria-label={t("scan.progress")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
+            <b style={{ width: `${pct}%` }} />
+          </div>
+          <ul className="scan-steps">
+            {steps.map((label, i) => (
+              <li key={i} className={i < step ? "done" : i === step ? "now" : "later"}>
+                <span aria-hidden="true">{i < step ? <CheckIcon /> : i === step ? "⋯" : ""}</span>
+                {label}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* 4 · Check */
+
+const NEW_NAME = "__new__";
+
+function PhotoModal({
+  photo,
+  alt,
+  onClose,
+}: {
+  photo: string;
+  alt: string;
+  onClose: () => void;
+}) {
+  const { t, formatNumber } = useT();
+  const [zoom, setZoom] = useState(1);
+  const ref = useDialog<HTMLDivElement>(onClose);
+  // Zoom changes the photo's real size (not a CSS transform), so a zoomed photo makes the box
+  // scroll and every edge, top included, can be reached.
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const [box, setBox] = useState<{ w: number; h: number } | null>(null);
+  const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (!el) return;
+    const measure = () => {
+      const style = getComputedStyle(el);
+      const padX = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+      const padY = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+      // The box's outer size, which scrollbars appearing at high zoom don't change (so no
+      // resize loop), minus its padding, rounded down so the fitted photo never overflows by a pixel.
+      const rect = el.getBoundingClientRect();
+      setBox({ w: Math.max(0, Math.floor(rect.width - padX)), h: Math.max(0, Math.floor(rect.height - padY)) });
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  const fit = box && natural ? Math.min(box.w / natural.w, box.h / natural.h, 1) : null;
+  const size = fit && natural ? { width: natural.w * fit * zoom, height: natural.h * fit * zoom } : undefined;
+  return (
+    <div className="sheet-layer">
+      <div className="sheet-dim" onClick={onClose} aria-hidden="true" />
+      <div className="scan-photo-modal" ref={ref} role="dialog" aria-modal="true" aria-labelledby="scan-photo-title">
+        <h2 id="scan-photo-title" className="visually-hidden">
+          {alt}
+        </h2>
+        <div className="scan-photo-modal-header">
+          <div className="scan-photo-modal-controls">
+            <button
+              type="button"
+              className="button button-sm"
+              onClick={() => setZoom((z) => Math.max(0.75, z - 0.25))}
+              aria-label={t("scanx.viewer.zoomOut")}
+            >
+              −
+            </button>
+            <span className="scan-photo-zoom">{t("scanx.viewer.zoom", { percent: formatNumber(Math.round(zoom * 100)) })}</span>
+            <button
+              type="button"
+              className="button button-sm"
+              onClick={() => setZoom((z) => Math.min(3, z + 0.25))}
+              aria-label={t("scanx.viewer.zoomIn")}
+            >
+              +
+            </button>
+            <button type="button" className="button button-sm" aria-label={t("scanx.viewer.resetLabel")} onClick={() => setZoom(1)}>
+              {t("scanx.viewer.reset")}
+            </button>
+          </div>
+          <button type="button" className="sheet-close" aria-label={t("common.close")} onClick={onClose}>
+            <CloseIcon />
+          </button>
+        </div>
+        <div className="scan-photo-modal-body" ref={bodyRef}>
+          {/* eslint-disable-next-line @next/next/no-img-element -- a local photo, not a site image */}
+          <img
+            src={photo}
+            alt={alt}
+            className={size ? "scan-photo-sized" : undefined}
+            style={size}
+            onLoad={(e) => setNatural({ w: e.currentTarget.naturalWidth || 1, h: e.currentTarget.naturalHeight || 1 })}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Check({ mode, photo, read, onRetake }: { mode: ScanMode; photo: string | null; read: CompletedRead; onRetake: () => void }) {
+  const { t, formatDay } = useT();
+  const router = useRouter();
+  const { debts, ready, addMany, updateMany, remove } = useDebts();
+  const titleRef = useFocusOnMount<HTMLHeadingElement>();
+  // After a refused save: the line whose first bad field gets focus once it's open.
+  const [focusLine, setFocusLine] = useState<{ key: string; n: number } | null>(null);
+  const [today] = useState(() => todayLocal());
+  const draftKey = scanDraftKey(mode);
+  const [lines, setLines] = useState<ScanLine[]>(() => {
+    let saved: ScanLine[] | null = null;
+    if (typeof window !== "undefined") {
+      try {
+        // A draft in the wrong shape (old or tampered) is ignored, not trusted.
+        saved = parseScanDraft(sessionStorage.getItem(draftKey));
+      } catch {}
+    }
+    return saved ?? read.lines;
+  });
+  const [open, setOpen] = useState<string | null>(mode === "receipt" ? "r1" : null);
+  const [errors, setErrors] = useState<Record<string, DebtErrors>>({});
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [pickNew, setPickNew] = useState(false);
+  const [viewPhoto, setViewPhoto] = useState(false);
+
+  // Persist draft in sessionStorage so owner edits survive navigation/failures
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(draftKey, JSON.stringify(lines));
+      sessionStorage.setItem(activeScanKey(mode), JSON.stringify({
+        version: 2,
+        scanId: read.scanId,
+        mode,
+        serverLines: read.lines,
+        lines,
+        ...(read.isDuplicate ? { isDuplicate: true } : {}),
+        ...(read.warning ? { warning: read.warning } : {}),
+      }));
+    } catch {}
+  }, [lines, draftKey, mode, read]);
+
+  const known = customerNames(debts);
+  const included = lines.filter((l) => l.include);
+  const total = includedTotalSen(lines, today);
+  // Lines still showing an error; the notice goes away as they're fixed or unticked.
+  const problemCount = lines.filter((l) => l.include && Object.values(errors[l.key] ?? {}).some(Boolean)).length;
+
+  // Editing a line clears its "unsure" flag (the owner has looked at it) and that field's error only.
+  function update(key: string, field: "customerName" | "item" | "amount", value: string) {
+    setLines((prev) =>
+      prev.map((l) =>
+        l.key === key
+          ? { ...l, [field]: value, unsure: undefined, ...(field === "customerName" ? { confirmedCustomerId: undefined } : {}) }
+          : l,
+      ),
+    );
+    if (errors[key]?.[field]) setErrors((prev) => ({ ...prev, [key]: { ...prev[key], [field]: undefined } }));
+  }
+
+  useEffect(() => {
+    if (!focusLine) return;
+    const lineErrors = errors[focusLine.key] ?? {};
+    const field = (["customerName", "item", "amount"] as const).find((name) => lineErrors[name]);
+    const id =
+      mode === "receipt" && field === "customerName"
+        ? "scan-customer"
+        : `${focusLine.key}-${field === "customerName" ? "name" : field ?? "amount"}`;
+    document.getElementById(id)?.focus();
+    // Runs once per refused save; errors are read as they were then.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusLine]);
+
+  function toggle(key: string, include: boolean) {
+    setLines((prev) => prev.map((l) => (l.key === key ? { ...l, include } : l)));
+    if (!include && errors[key]) setErrors((prev) => ({ ...prev, [key]: {} }));
+  }
+
+  async function save() {
+    setSaveError(null);
+    const now = todayLocal();
+    const result = linesToDebts(lines, now, { newId: newDebtId, now: new Date() }, t);
+    if (!result.ok) {
+      setErrors(Object.fromEntries(result.problems.map((p) => [p.key, p.errors])));
+      setOpen(result.problems[0].key);
+      setFocusLine((prev) => ({ key: result.problems[0].key, n: (prev?.n ?? 0) + 1 }));
+      return;
+    }
+    const original = new Map(read.lines.map((line) => [line.entryId, line]));
+    const changed = (line: ScanLine) => {
+      const before = original.get(line.entryId);
+      return (
+        !before ||
+        line.customerName !== before.customerName ||
+        line.item !== before.item ||
+        line.amount !== before.amount ||
+        line.date !== before.date ||
+        line.include !== before.include ||
+        line.unsure !== before.unsure
+      );
+    };
+    const held = new Map(debts.map((debt) => [debt.id, debt]));
+    if (mode === "notebook") {
+      // Confirmed on the server means it may already be an approved debt: losing the confirmation
+      // here would skip approval and put a second, plain copy on the ledger.
+      const unconfirmed = included.find((line) => original.get(line.entryId)?.confirmedCustomerId && !line.confirmedCustomerId);
+      // A plain debt that already went out can't be corrected, or billed again as an approved one.
+      const billed = included.find((line) => {
+        const debt = held.get(line.entryId);
+        return debt && !isInvoiceable(debt) && (line.confirmedCustomerId || changed(line));
+      });
+      if (unconfirmed || billed) {
+        setOpen((unconfirmed ?? billed)!.key);
+        setSaveError(t(unconfirmed ? "scanx.reconfirm" : "scanx.alreadyInvoiced"));
+        return;
+      }
+    }
+    setSaving(true);
+    let savedCount = 0;
+    try {
+      let approvedByEntry = new Map<string, string>();
+      if (mode === "notebook") {
+        // A line unticked on a reopened scan is withdrawn, so its debt leaves this ledger too.
+        const withdrawn = lines.filter((l) => !l.include && original.get(l.entryId)?.include);
+        const approvedDebts = withdrawn.some((l) => original.get(l.entryId)?.confirmedCustomerId) ? (await loadApprovedDebts()).approvedDebts : [];
+        for (const line of lines.filter((l) => !l.include || changed(l))) {
+          const amountSen = parseRmToSen(line.amount);
+          await patchScanEntry(read.scanId, line.entryId, {
+            ...(amountSen && amountSen > 0 ? { amountSen } : {}),
+            included: line.include,
+            isAmbiguous: Boolean(line.unsure && !line.skipped),
+            ...(line.customerName.trim() ? { customerName: line.customerName } : {}),
+            confirmedCustomerId: line.confirmedCustomerId ?? "",
+            item: line.item,
+            date: line.date,
+          });
+        }
+        for (const line of withdrawn) {
+          const id = approvedDebts.find((debt) => debt.sourceEntryId === line.entryId)?.id ?? line.entryId;
+          const debt = held.get(id);
+          if (debt && isInvoiceable(debt)) remove(id);
+        }
+        const confirmedEntryIds = included.filter((line) => line.confirmedCustomerId).map((line) => line.entryId);
+        if (confirmedEntryIds.length > 0) {
+          const approval = await approveScanEntries(confirmedEntryIds);
+          if (approval.rejected.length > 0) {
+            setSaveError(approval.rejected[0].reason);
+            setSaving(false);
+            return;
+          }
+          approvedByEntry = new Map(approval.approved.map((debt) => [debt.sourceEntryId, debt.id]));
+        }
+      }
+      // A confirmed line is the approved debt. A line with no confirmed customer is a plain ledger
+      // debt, invoiced from Collect once it has an email. Ids follow the entry, so saving a
+      // reopened scan corrects its debts instead of adding them twice.
+      const savedDebts =
+        mode === "notebook"
+          ? result.debts.map((debt, index) => ({ ...debt, id: approvedByEntry.get(included[index].entryId) ?? included[index].entryId }))
+          : result.debts;
+      const fresh = savedDebts.filter((debt) => !held.has(debt.id));
+      if (fresh.length > 0) addMany(fresh); // one write: all of them or none
+      savedCount = fresh.length;
+      savedDebts.forEach(({ id, customerName, item, amountSen, date }, index) => {
+        const line = included[index];
+        // Only what the owner changed here: an untouched line must not undo edits made on the ledger.
+        if (held.has(id) && mode === "notebook" && changed(line) && isInvoiceable(held.get(id)!)) {
+          updateMany([id], { customerName, item, amountSen, date });
+          savedCount += 1;
+        }
+        // The line was saved as a plain debt before its customer was confirmed.
+        if (mode === "notebook" && id !== line.entryId && held.has(line.entryId)) remove(line.entryId);
+      });
+      try {
+        sessionStorage.removeItem(draftKey);
+        sessionStorage.removeItem(activeScanKey(mode));
+      } catch {}
+    } catch (error) {
+      setSaveError(error instanceof DebtStoreError ? error.message : t("add.saveFailed"));
+      setSaving(false);
+      return;
+    }
+    router.push(`/ledger?scanned=${savedCount}`);
+  }
+
+  const receipt = mode === "receipt" ? lines[0] : null;
+  const sourcePhoto = photo ?? `/api/scans/${encodeURIComponent(read.scanId)}/image`;
+
+  return (
+    <div className="tab-page scan-no-chrome">
+      <div className="tab-top">
+        <button type="button" className="tab-back" aria-label={t("common.back")} onClick={onRetake}>
+          <BackIcon />
+        </button>
+        <h1 ref={titleRef} tabIndex={-1}>
+          {mode === "notebook" ? t("scan.checkPage") : t("scan.checkReceipt")}
+        </h1>
+        <span className="tab-back" aria-hidden="true" />
+      </div>
+
+      {read.isDuplicate && read.warning && (
+        <p className="notice notice-warning" role="status">
+          {t("scanx.duplicateNotice")}
+        </p>
+      )}
+
+      <section className="card scan-thumb">
+        {sourcePhoto ? (
+          // eslint-disable-next-line @next/next/no-img-element -- a local photo, not a site image
+          <img src={sourcePhoto} alt={mode === "notebook" ? t("scan.photoNotebook") : t("scan.photoReceipt")} />
+        ) : (
+          <span className="scan-thumb-empty" aria-hidden="true" />
+        )}
+        <div className="scan-thumb-text">
+          <p className="tab-name">{mode === "notebook" ? t("scan.notebookPage") : t("scan.receipt")}</p>
+          <p className="tab-item">
+            {formatDay(today, { year: false })} · {t("scan.linesFound", { count: lines.length })}
+          </p>
+        </div>
+        <div className="scan-thumb-actions">
+          {sourcePhoto && (
+            <button type="button" className="button button-sm scan-view-photo" onClick={() => setViewPhoto(true)}>
+              {t("scanx.viewPhoto")}
+            </button>
+          )}
+          <button type="button" className="link-button scan-retake" onClick={onRetake}>
+            {t("scan.retake")}
+          </button>
+        </div>
+      </section>
+
+      {viewPhoto && sourcePhoto && (
+        <PhotoModal
+          photo={sourcePhoto}
+          alt={mode === "notebook" ? t("scan.photoNotebook") : t("scan.photoReceipt")}
+          onClose={() => setViewPhoto(false)}
+        />
+      )}
+
+      {problemCount > 0 && (
+        <p className="notice notice-error" role="alert">
+          {t("scan.linesNeedFixing", { count: problemCount })}
+        </p>
+      )}
+
+      {saveError && (
+        <div className="notice notice-error" role="alert">
+          <p className="notice-text">{saveError}</p>
+          <div className="notice-actions">
+            <button type="button" className="button" onClick={save} disabled={saving}>
+              {t("scanx.retrySave")}
+            </button>
+            <button type="button" className="button" onClick={onRetake}>
+              {t("scan.retake")}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className={`scan-check-split${sourcePhoto ? " scan-check-split-photo" : ""}`}>
+        {sourcePhoto && (
+          <div className="scan-photo-inspect">
+            <p className="scan-photo-inspect-title">{t("scanx.original")}</p>
+            {/* eslint-disable-next-line @next/next/no-img-element -- a local photo, not a site image */}
+            <img src={sourcePhoto} alt={mode === "notebook" ? t("scan.photoNotebook") : t("scan.photoReceipt")} />
+            <button type="button" className="link-button scan-photo-expand" onClick={() => setViewPhoto(true)}>
+              {t("scanx.expandPhoto")}
+            </button>
+          </div>
+        )}
+
+        <div className="scan-check-main">
+          {receipt && (
+            <section className="card scan-who">
+              <label htmlFor="scan-customer">{t("scan.whichCustomer")}</label>
+              <select
+                id="scan-customer"
+                value={pickNew ? NEW_NAME : receipt.customerName}
+                aria-invalid={Boolean(errors[receipt.key]?.customerName) || undefined}
+                aria-describedby={errors[receipt.key]?.customerName ? "scan-customer-error" : undefined}
+                onChange={(e) => {
+                  if (e.target.value === NEW_NAME) {
+                    setPickNew(true);
+                    update(receipt.key, "customerName", "");
+                  } else {
+                    setPickNew(false);
+                    update(receipt.key, "customerName", e.target.value);
+                  }
+                }}
+              >
+                <option value="" disabled>
+                  {ready ? t("scan.pickCustomer") : t("scan.loadingCustomers")}
+                </option>
+                {known.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+                <option value={NEW_NAME}>{t("scan.newCustomerOption")}</option>
+              </select>
+              {pickNew && (
+                <input
+                  type="text"
+                  aria-label={t("scan.newCustomerName")}
+                  placeholder={t("scan.customerPlaceholder")}
+                  maxLength={MAX_NAME_LENGTH}
+                  value={receipt.customerName}
+                  aria-invalid={Boolean(errors[receipt.key]?.customerName) || undefined}
+                  aria-describedby={errors[receipt.key]?.customerName ? "scan-customer-error" : undefined}
+                  onChange={(e) => update(receipt.key, "customerName", e.target.value)}
+                />
+              )}
+              {errors[receipt.key]?.customerName && (
+                <p className="field-error" id="scan-customer-error">
+                  {t("scan.pickWho")}
+                </p>
+              )}
+            </section>
+          )}
+
+          <p className="bill-meta">
+            <span>
+              {t("scan.lines", { count: lines.length })} · {t("scan.ticked", { count: included.length })}
+            </span>
+            <span>RM {formatSen(total)}</span>
+          </p>
+
+          <ul className="tab-list scan-lines">
+            {lines.map((l) => {
+              const lineErrors = errors[l.key] ?? {};
+              const hasError = Object.values(lineErrors).some(Boolean);
+              const isOpen = open === l.key;
+              const fresh = mode === "notebook" && ready && isNewCustomer(l.customerName, known);
+              return (
+                <li key={l.key} className={`scan-row${hasError ? " scan-row-error" : ""}`}>
+                  <div className="scan-row-main">
+                    <input
+                      type="checkbox"
+                      checked={l.include}
+                      // Crossed out or a repayment: not a debt, unless the owner corrects the line first.
+                      disabled={Boolean(l.skipped && l.unsure)}
+                      onChange={(e) => toggle(l.key, e.target.checked)}
+                      aria-label={t("scan.addLine", { name: l.customerName || t("scan.thisLine"), amount: l.amount || t("scan.noAmount") })}
+                    />
+                    <button
+                      type="button"
+                      className="scan-row-open"
+                      aria-expanded={isOpen}
+                      aria-controls={`scan-edit-${l.key}`}
+                      onClick={() => setOpen(isOpen ? null : l.key)}
+                    >
+                      <span className="tab-who">
+                        <span className="tab-name">{l.customerName || (mode === "receipt" ? t("scan.pickAbove") : t("scan.noName"))}</span>
+                        <span className="tab-item">{l.item || t("scan.noItem")}</span>
+                        {fresh && <span className="badge badge-sent badge-text">{t("scan.newCustomer")}</span>}
+                        {hasError && <span className="badge badge-overdue badge-text">{t("scan.needsFixing")}</span>}
+                      </span>
+                      <span className="tab-amt">RM {l.amount || "—"}</span>
+                    </button>
+                  </div>
+
+                  {l.unsure && (
+                    <div className="scan-unsure-banner">
+                      <span>{l.unsure}</span>
+                      {!l.skipped && (
+                        <button
+                          type="button"
+                          className="link-button"
+                          aria-label={t("scanx.fixAmountLabel", { name: l.customerName || t("scan.thisLine") })}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpen(l.key);
+                            setTimeout(() => {
+                              document.getElementById(`${l.key}-amount`)?.focus();
+                            }, 50);
+                          }}
+                        >
+                          {t("scanx.fixAmount")}
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {isOpen && (
+                    <div className="scan-edit" id={`scan-edit-${l.key}`}>
+                      {mode === "notebook" && (
+                        <>
+                          <EditField
+                            id={`${l.key}-name`}
+                            label={t("scan.customer")}
+                            value={l.customerName}
+                            max={MAX_NAME_LENGTH}
+                            error={lineErrors.customerName}
+                            onChange={(v) => update(l.key, "customerName", v)}
+                          />
+                          {l.include && (
+                            <CustomerMatch
+                              scanId={read.scanId}
+                              line={l}
+                              onConfirmed={(name, customerId) =>
+                                setLines((prev) =>
+                                  prev.map((line) =>
+                                    line.key === l.key ? { ...line, customerName: name, confirmedCustomerId: customerId } : line,
+                                  ),
+                                )
+                              }
+                            />
+                          )}
+                        </>
+                      )}
+                      <EditField
+                        id={`${l.key}-item`}
+                        label={t("add.item")}
+                        value={l.item}
+                        max={MAX_ITEM_LENGTH}
+                        error={lineErrors.item}
+                        onChange={(v) => update(l.key, "item", v)}
+                      />
+                      <EditField
+                        id={`${l.key}-amount`}
+                        label={t("add.amount")}
+                        value={l.amount}
+                        inputMode="decimal"
+                        error={lineErrors.amount}
+                        onChange={(v) => update(l.key, "amount", v)}
+                      />
+                      {lineErrors.date && (
+                        <p className="field-error" id={`${l.key}-date-error`}>
+                          {lineErrors.date}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+
+          <button
+            type="button"
+            className="button button-primary tab-pay"
+            disabled={!ready || saving || included.length === 0}
+            onClick={save}
+          >
+            {included.length === 0 ? t("scan.tickOne") : t("scan.addToLedger", { count: included.length })}
+          </button>
+          <p className="tab-note">{t("scan.nothingSent")}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CustomerMatch({
+  scanId,
+  line,
+  onConfirmed,
+}: {
+  scanId: string;
+  line: ScanLine;
+  onConfirmed: (name: string, customerId: string) => void;
+}) {
+  const { t } = useT();
+  const [suggestions, setSuggestions] = useState<CustomerMatchSuggestion[]>([]);
+  const [selectedId, setSelectedId] = useState(line.confirmedCustomerId ?? "");
+  const [email, setEmail] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function load() {
+    setBusy(true);
+    setError(null);
+    try {
+      await patchScanEntry(scanId, line.entryId, { customerName: line.customerName });
+      const matches = await getCustomerSuggestions(line.entryId);
+      setSuggestions(matches);
+      if (matches[0]) {
+        setSelectedId(matches[0].customer.id);
+        setEmail(matches[0].customer.email ?? "");
+      }
+    } catch {
+      setError(t("scanx.match.loadFailed"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirm() {
+    if (!isValidEmail(email)) {
+      setError(t("collect.email.invalid"));
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const match = suggestions.find((suggestion) => suggestion.customer.id === selectedId)?.customer;
+      const customer = match
+        ? match.email === email.trim()
+          ? match
+          : await updateCustomer(match.id, { email: email.trim() })
+        : await createCustomer({ name: line.customerName, email: email.trim() });
+      const confirmed = await confirmEntryCustomer(line.entryId, customer.id);
+      setSelectedId(customer.id);
+      onConfirmed(confirmed.customer.name, customer.id);
+    } catch {
+      setError(t("scanx.match.confirmFailed"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (line.confirmedCustomerId) {
+    return <p className="tab-note">{t("scanx.match.confirmed")}</p>;
+  }
+
+  return (
+    <div className="field">
+      <p className="tab-note">{t("scanx.match.optional")}</p>
+      {suggestions.length === 0 ? (
+        <button type="button" className="button button-sm" disabled={busy} onClick={() => void load()}>
+          {busy ? t("scanx.match.finding") : t("scanx.match.find")}
+        </button>
+      ) : (
+        <>
+          <label htmlFor={`${line.key}-customer-match`}>{t("scanx.match.label")}</label>
+          <select
+            id={`${line.key}-customer-match`}
+            value={selectedId}
+            onChange={(event) => {
+              const id = event.target.value;
+              setSelectedId(id);
+              setEmail(suggestions.find((suggestion) => suggestion.customer.id === id)?.customer.email ?? "");
+            }}
+          >
+            {suggestions.map(({ customer, confidence }) => (
+              <option key={customer.id} value={customer.id}>
+                {t("scanx.match.option", { name: customer.name, percent: Math.round(confidence * 100) })}
+              </option>
+            ))}
+            <option value="">{t("scanx.match.create", { name: line.customerName })}</option>
+          </select>
+        </>
+      )}
+      <label htmlFor={`${line.key}-customer-email`}>{t("scanx.match.email")}</label>
+      <input
+        id={`${line.key}-customer-email`}
+        type="email"
+        autoComplete="email"
+        value={email}
+        onChange={(event) => setEmail(event.target.value)}
+      />
+      <button type="button" className="button button-sm button-primary" disabled={busy || !email.trim()} onClick={() => void confirm()}>
+        {busy ? t("scanx.match.confirming") : t("scanx.match.confirm")}
+      </button>
+      {error && <p className="field-error" role="alert">{error}</p>}
+    </div>
+  );
+}
+
+function EditField({
+  id,
+  label,
+  value,
+  max,
+  error,
+  inputMode,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  max?: number;
+  error?: string;
+  inputMode?: "decimal";
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="field">
+      <label htmlFor={id}>{label}</label>
+      <input
+        id={id}
+        type="text"
+        value={value}
+        maxLength={max}
+        inputMode={inputMode}
+        aria-invalid={Boolean(error) || undefined}
+        aria-describedby={error ? `${id}-error` : undefined}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      {error && (
+        <p className="field-error" id={`${id}-error`}>
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}

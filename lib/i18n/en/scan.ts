@@ -1,0 +1,31 @@
+// English words added to the Scan check screen (photo viewer, retries). Keys are "scanx.thing".
+export const scan = {
+  // The full-screen photo viewer
+  "scanx.viewer.zoomOut": "Zoom out",
+  "scanx.viewer.zoomIn": "Zoom in",
+  "scanx.viewer.zoom": "{percent}%",
+  "scanx.viewer.reset": "Reset",
+  "scanx.viewer.resetLabel": "Reset zoom",
+  // The check screen
+  "scanx.viewPhoto": "View photo",
+  "scanx.retrySave": "Retry save",
+  "scanx.original": "Your photo",
+  "scanx.expandPhoto": "Expand photo",
+  "scanx.fixAmount": "Fix amount",
+  "scanx.fixAmountLabel": "Fix the amount for {name}",
+  "scanx.duplicateNotice": "This photo was uploaded before. Check these lines so nothing is added twice.",
+  "scanx.match.optional": "Optional: add this line now and add the customer's email later from Collect.",
+  "scanx.match.find": "Find customer matches",
+  "scanx.match.finding": "Finding customers…",
+  "scanx.match.label": "Customer match",
+  "scanx.match.option": "{name} ({percent}%)",
+  "scanx.match.create": "Create “{name}”",
+  "scanx.match.email": "PayPal email",
+  "scanx.match.confirm": "Confirm customer",
+  "scanx.match.confirming": "Confirming…",
+  "scanx.match.confirmed": "Customer confirmed for PayPal invoicing.",
+  "scanx.match.loadFailed": "Couldn't load customer matches. Try again.",
+  "scanx.match.confirmFailed": "Couldn't confirm this customer. Try again.",
+  "scanx.reconfirm": "This line's customer changed. Confirm the customer again before adding it.",
+  "scanx.alreadyInvoiced": "This line already has an invoice, so it can't be changed or added again. Untick it to add the rest.",
+} as const;

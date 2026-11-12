@@ -1,0 +1,272 @@
+import { describe, expect, it, vi } from "vitest";
+import type { Debt } from "./debts";
+import { approvedDebtGroups, collectGroups, invoicesToImport, invoiceLines, invoiceRequestId, isInvoiceable, isValidEmail, loadApprovedDebts, pickPreview, sendRequest, SHOP_ITEMS, withDomain, type CollectGroup, type PendingSend } from "./collect";
+import { LANGUAGES } from "./i18n";
+
+function debt(id: string, customerName: string, amountSen: number, status: Debt["status"], date = "2026-10-01", item = "Milo"): Debt {
+  return { id, customerName, item, amountSen, date, status, source: "manual", createdAt: `${date}T00:00:00.000Z` };
+}
+
+describe("isInvoiceable", () => {
+  it("bills tabs that haven't had an invoice", () => {
+    expect(isInvoiceable(debt("a", "A", 1, "unpaid"))).toBe(true);
+    expect(isInvoiceable(debt("a", "A", 1, "overdue"))).toBe(true);
+    expect(isInvoiceable(debt("a", "A", 1, "sent"))).toBe(false);
+    expect(isInvoiceable(debt("a", "A", 1, "paid"))).toBe(false);
+  });
+});
+
+describe("collectGroups", () => {
+  const debts = [
+    debt("1", "Uncle Tan", 1780, "unpaid", "2026-10-05"),
+    debt("2", "Mak Cik Siti", 4850, "overdue", "2026-08-02"),
+    debt("3", "uncle tan", 500, "unpaid", "2026-10-01"),
+    debt("4", "Kak Lina", 2240, "sent"),
+    debt("5", "Mr. Raj", 500, "unpaid"),
+  ];
+
+  it("makes one group per customer, overdue first, then biggest first", () => {
+    const groups = collectGroups(debts, {}, {}, "2026-10-13");
+    expect(groups.map((g) => [g.customerName, g.totalSen, g.status])).toEqual([
+      ["Mak Cik Siti", 4850, "overdue"],
+      ["Uncle Tan", 2280, "unpaid"],
+      ["Mr. Raj", 500, "unpaid"],
+    ]);
+    expect(groups[1].debts.map((d) => d.id)).toEqual(["3", "1"]);
+  });
+
+  it("calls a tab overdue once it's past its due date, like every other screen", () => {
+    // October tabs fall due on 10 November.
+    const groups = collectGroups(debts, {}, {}, "2026-11-11");
+    expect(groups.map((g) => g.status)).toEqual(["overdue", "overdue", "overdue"]);
+  });
+
+  it("attaches saved emails by customer slug", () => {
+    const groups = collectGroups(debts, { "uncle-tan": "tan@example.com" });
+    expect(groups.find((g) => g.slug === "uncle-tan")?.email).toBe("tan@example.com");
+    expect(groups.find((g) => g.slug === "mr-raj")?.email).toBeUndefined();
+  });
+});
+
+describe("approved debt queue", () => {
+  const approved = {
+    id: "approved-1",
+    ownerEmail: "owner@example.com",
+    sourceEntryId: "entry-1",
+    scanId: "scan-1",
+    customerId: "cust-1",
+    customerName: "Pak Ali",
+    customerEmail: "ali@example.com",
+    amountSen: 3600,
+    currency: "MYR",
+    item: "Rokok",
+    date: "2026-10-18",
+    approvedAt: "2026-10-18T01:00:00Z",
+    handoffKey: "owner@example.com:entry-1:1:x",
+  };
+
+  it("loads the signed-in owner's server queue", async () => {
+    const fetchImpl = vi.fn(async () => Response.json({ approvedDebts: [approved], invoiced: [], withdrawnDebtIds: ["approved-2"] }));
+    await expect(loadApprovedDebts(fetchImpl)).resolves.toEqual({ approvedDebts: [approved], invoiced: [], withdrawnDebtIds: ["approved-2"] });
+    expect(fetchImpl).toHaveBeenCalledWith("/api/debts/approved");
+  });
+
+  it("brings in invoices this device doesn't have, unless they predate a demo reset", () => {
+    const invoice = (id: string, sentAt: string) => ({ debt: approved, invoice: { id, amountSen: 3600, sentAt, number: "0042", payerLink: "https://pay/1" } });
+    const list = [invoice("known", "2026-10-20T00:00:00Z"), invoice("old", "2026-10-01T00:00:00Z"), invoice("new", "2026-10-20T00:00:00Z")];
+
+    const imported = invoicesToImport(list, new Set(["known"]), "2026-10-10T00:00:00Z");
+
+    expect(imported.map((i) => i.record.id)).toEqual(["new"]);
+    expect(imported[0].record).toMatchObject({ customerName: "Pak Ali", email: "ali@example.com", debtIds: ["approved-1"], amountSen: 3600, number: "0042" });
+    expect(imported[0].debt).toMatchObject({ id: "approved-1", amountSen: 3600, status: "sent" });
+  });
+
+  it("turns each approved record into one server-authoritative invoice choice", () => {
+    expect(approvedDebtGroups([approved])).toEqual([
+      expect.objectContaining({
+        approvedDebtId: "approved-1",
+        customerName: "Pak Ali",
+        email: "ali@example.com",
+        totalSen: 3600,
+        debts: [expect.objectContaining({ id: "approved-1", item: "Rokok", amountSen: 3600 })],
+      }),
+    ]);
+  });
+
+  it("keeps a failed queue load visible and retryable", async () => {
+    const fetchImpl = vi.fn(async () => Response.json({ error: "Database unavailable" }, { status: 503 }));
+    await expect(loadApprovedDebts(fetchImpl)).rejects.toThrow("Database unavailable");
+  });
+});
+
+describe("emails", () => {
+  it.each([
+    ["raj.kumar@gmail.com", true],
+    [" siti@yahoo.com.my ", true],
+    ["raj.kumar@", false],
+    ["raj@gmail", false],
+    ["raj kumar@gmail.com", false],
+    ["", false],
+  ])("%j valid: %s", (email, ok) => {
+    expect(isValidEmail(email)).toBe(ok);
+  });
+
+  it("fills in a common ending", () => {
+    expect(withDomain("raj.kumar@", "gmail.com")).toBe("raj.kumar@gmail.com");
+    expect(withDomain("raj.kumar@gm", "gmail.com")).toBe("raj.kumar@gmail.com");
+    expect(withDomain("raj", "yahoo.com")).toBe("raj@yahoo.com");
+    expect(withDomain("  ", "yahoo.com")).toBe("");
+  });
+});
+
+describe("invoiceRequestId", () => {
+  const base = { debtIds: ["a", "b"], email: "siti@gmail.com", lines: [{ name: "Beras", amountSen: 4850 }] };
+  it("is the same for the same invoice, whatever the tab order or email case", () => {
+    expect(invoiceRequestId({ ...base, debtIds: ["b", "a"], email: "Siti@Gmail.com " })).toBe(invoiceRequestId(base));
+  });
+  it("changes when the tabs, email or an amount change", () => {
+    const id = invoiceRequestId(base);
+    expect(invoiceRequestId({ ...base, debtIds: ["a"] })).not.toBe(id);
+    expect(invoiceRequestId({ ...base, email: "siti2@gmail.com" })).not.toBe(id);
+    expect(invoiceRequestId({ ...base, lines: [{ name: "Beras", amountSen: 4800 }] })).not.toBe(id);
+  });
+  it("fits PayPal's request id format", () => {
+    expect(invoiceRequestId(base)).toMatch(/^buku-[0-9a-f]{16}$/);
+  });
+  it("gives a new id when the same tabs are billed again after an earlier invoice", () => {
+    const id = invoiceRequestId(base);
+    expect(invoiceRequestId({ ...base, previousInvoiceIds: [] })).toBe(id);
+    const again = invoiceRequestId({ ...base, previousInvoiceIds: ["INV2-B", "INV2-A"] });
+    expect(again).not.toBe(id);
+    expect(invoiceRequestId({ ...base, previousInvoiceIds: ["INV2-A", "INV2-B"] })).toBe(again);
+  });
+});
+
+describe("pending sends", () => {
+  const debts = [debt("1", "Uncle Tan", 1780, "unpaid", "2026-10-05"), debt("2", "Uncle Tan", 500, "unpaid", "2026-10-12")];
+  const pending: PendingSend = {
+    slug: "uncle-tan",
+    customerName: "Uncle Tan",
+    email: "old@gmail.com",
+    debtIds: ["1"],
+    lines: [{ name: "Milo (2026-10-05)", amountSen: 1780 }],
+    amountSen: 1780,
+    requestId: "buku-0123456789abcdef",
+    startedAt: "2026-10-13T10:00:00.000Z",
+  };
+
+  it("limits the customer to the unfinished send's tabs, email and amount", () => {
+    const [g] = collectGroups(debts, { "uncle-tan": "new@gmail.com" }, { "uncle-tan": pending });
+    expect(g.debts.map((d) => d.id)).toEqual(["1"]);
+    expect(g).toMatchObject({ email: "old@gmail.com", totalSen: 1780, pending });
+  });
+
+  it("resends exactly the saved request for a pending group", () => {
+    const [g] = collectGroups(debts, {}, { "uncle-tan": pending });
+    expect(sendRequest(g, new Date())).toBe(pending);
+  });
+
+  it("ignores a pending send whose tabs are no longer waiting for an invoice", () => {
+    const [g] = collectGroups(debts, { "uncle-tan": "new@gmail.com" }, { "uncle-tan": { ...pending, debtIds: ["gone"] } });
+    expect(g.pending).toBeUndefined();
+    expect(g.totalSen).toBe(2280);
+  });
+
+  it("builds a fresh request with a stable id otherwise", () => {
+    const [g] = collectGroups(debts, { "uncle-tan": "new@gmail.com" });
+    const a = sendRequest(g, new Date("2026-10-13T10:00:00Z"));
+    const b = sendRequest(g, new Date("2026-10-13T11:00:00Z"));
+    expect(a.requestId).toBe(b.requestId);
+    expect(a).toMatchObject({ email: "new@gmail.com", amountSen: 2280, debtIds: ["1", "2"] });
+  });
+});
+
+describe("invoiceLines", () => {
+  it("names each line by item and date, in sen", () => {
+    expect(invoiceLines([debt("1", "A", 4850, "unpaid", "2026-08-02", "Beras 10kg"), debt("2", "A", 100, "unpaid", "2026-10-01", "")])).toEqual([
+      { name: "Beras 10kg (2026-08-02)", amountSen: 4850 },
+      { name: "Shop items (2026-10-01)", amountSen: 100 },
+    ]);
+  });
+});
+
+describe("sample emails", async () => {
+  const { SAMPLE_DEBTS, SAMPLE_EMAILS } = await import("../app/ledger/sample-data");
+  const { customerSlug } = await import("./customer-tab");
+  it("are keyed by the slugs of real sample customers, and valid", () => {
+    const slugs = new Set(SAMPLE_DEBTS.map((d) => customerSlug(d.customerName)));
+    for (const [slug, email] of Object.entries(SAMPLE_EMAILS)) {
+      expect(slugs.has(slug)).toBe(true);
+      expect(isValidEmail(email)).toBe(true);
+    }
+  });
+});
+
+describe("pickPreview", () => {
+  const g = (slug: string, email?: string) => ({ slug, email, customerName: slug, totalSen: 100, debts: [], status: "unpaid" }) as unknown as CollectGroup;
+  const groups = [g("a", "a@x.co"), g("b", "b@x.co"), g("c")];
+
+  it("shows the picked customer and says they're being sent", () => {
+    expect(pickPreview(groups, groups.slice(0, 2), "b")).toMatchObject({ group: { slug: "b" }, willSend: true });
+  });
+
+  it("says when the picked customer is switched off", () => {
+    expect(pickPreview(groups, [groups[0]], "b")).toMatchObject({ group: { slug: "b" }, willSend: false, reason: "switchedOff" });
+  });
+
+  it("says when the picked customer has no email", () => {
+    expect(pickPreview(groups, groups.slice(0, 2), "c")).toMatchObject({ willSend: false, reason: "noEmail" });
+  });
+
+  it("falls back to the first one being sent when the pick is gone", () => {
+    expect(pickPreview(groups, [groups[1]], "gone")).toMatchObject({ group: { slug: "b" }, willSend: true });
+  });
+
+  it("with nobody being sent, shows the first and says it won't go", () => {
+    expect(pickPreview(groups, [], null)).toMatchObject({ group: { slug: "a" }, willSend: false, reason: "switchedOff" });
+  });
+
+  it("is empty with no customers", () => {
+    expect(pickPreview([], [], null)).toBeNull();
+  });
+});
+
+describe("the PayPal request ignores the app language", () => {
+  // "Shop items" feeds the PayPal line text and the retry ID, so it must stay English whatever
+  // language the owner picked (saved in localStorage as buku.prefs.v1).
+  const tabs = [debt("1", "Uncle Tan", 1000, "unpaid", "2026-10-01", ""), debt("2", "Uncle Tan", 1280, "unpaid", "2026-10-02", "Gula")];
+  const at = new Date("2026-10-13T10:00:00Z");
+
+  function requestWithLanguage(language: string | null) {
+    const saved = (globalThis as { localStorage?: unknown }).localStorage;
+    const store: Record<string, string> = language ? { "buku.prefs.v1": JSON.stringify({ language }) } : {};
+    (globalThis as { localStorage?: unknown }).localStorage = {
+      getItem: (k: string) => store[k] ?? null,
+      setItem: (k: string, v: string) => (store[k] = v),
+      removeItem: (k: string) => delete store[k],
+    };
+    try {
+      const [g] = collectGroups(tabs, { "uncle-tan": "tan@example.com" });
+      return sendRequest(g, at);
+    } finally {
+      (globalThis as { localStorage?: unknown }).localStorage = saved;
+    }
+  }
+
+  it("gives the same lines and request ID in every language", () => {
+    const english = requestWithLanguage(null);
+    expect(english.lines[0].name).toBe(`${SHOP_ITEMS} (2026-10-01)`);
+    expect(SHOP_ITEMS).toBe("Shop items");
+    for (const { code } of LANGUAGES) {
+      const r = requestWithLanguage(code);
+      expect(r.lines).toEqual(english.lines);
+      expect(r.requestId).toBe(english.requestId);
+    }
+  });
+
+  it("takes no language argument", () => {
+    expect(invoiceLines.length).toBe(1);
+    expect(sendRequest.length).toBeLessThanOrEqual(3);
+  });
+});
