@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { formatSen, todayLocal } from "@/lib/debts";
 import { ReminderStoreError } from "@/lib/reminder-store";
+import { getActivity } from "@/lib/reminder-store";
+import type { ReminderDecision } from "@/lib/person1-types";
 import { buildSchedule, earliestMoveDay, isDay, reminderMessage, settledCustomers, type ScheduleItem } from "@/lib/reminders";
 import { isPayPalUrl } from "@/lib/customer-pay";
 import { invoicesToRemind } from "@/lib/payments";
@@ -72,8 +74,13 @@ export default function RemindersScreen() {
     return () => clearTimeout(timer);
   }, [justSent]);
   const [error, setError] = useState<string | null>(null);
+  const [serverActivity, setServerActivity] = useState<ReminderDecision[]>([]);
   const boxRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState<number | null>(null);
+
+  useEffect(() => {
+    void getActivity(HISTORY_SENT_MAX).then(setServerActivity).catch(() => {});
+  }, []);
 
   useLayoutEffect(() => {
     const el = boxRef.current;
@@ -346,9 +353,27 @@ export default function RemindersScreen() {
         </section>
       )}
 
+      {serverActivity.length > 0 && (
+        <section className="card reminder-list" aria-labelledby="server-reminder-history">
+          <h2 id="server-reminder-history">Automated reminder activity</h2>
+          <ul>
+            {serverActivity.map((decision) => (
+              <li key={decision.id} className="reminder-row">
+                <span className="reminder-when reminder-when-done"><small>{decision.action.replace("_", " ")}</small></span>
+                <span className="reminder-main">
+                  <span className="reminder-name">{decision.invoiceId}</span>
+                  <span className="reminder-meta">{decision.reason}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="reminder-foot">Recorded by the server scheduler.</p>
+        </section>
+      )}
+
       {ready && (sentReminders.length > 0 || paidCustomers.length > 0) && (
         <section className="card reminder-list" aria-labelledby="reminder-history">
-          <h2 id="reminder-history">{t("reminders.history.title")}</h2>
+          <h2 id="reminder-history">{t("reminders.history.title")} (this device)</h2>
           <ul>
             {historySent.map((item) => (
               <li key={`sent-${item.id}`} className="reminder-row">

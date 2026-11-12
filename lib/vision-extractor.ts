@@ -77,9 +77,13 @@ const visionResultSchema = z.object({
 /** Most lines kept from one photo. Capped after reading: Gemini rejects maxItems on a list this detailed. */
 const MAX_LINES = 100;
 
+/** Gives up before the scan routes' 60s limit, so a slow model ends in a retryable failed scan, not one stuck processing. */
+const VISION_TIMEOUT_MS = 50_000;
+
 async function extractWithGateway(imageBytes: Uint8Array, mimeType: string, today: string): Promise<RawExtractedLine[]> {
   const result = await generateText({
     model: aiModel("vision"),
+    abortSignal: AbortSignal.timeout(VISION_TIMEOUT_MS),
     system: "Extract handwritten shop debt entries accurately. Never guess unclear values; mark them ambiguous. Preserve crossed-out entries and repayments for human review.",
     messages: [{
       role: "user",

@@ -206,7 +206,73 @@ describe("debt-handoff", () => {
     expect(allDebts[0].item).toBe("Beras Wangi");
   });
 
-  it("prevents approving the same physical notebook line twice across rescans and rejects stale revisions", async () => {
+  it("refuses to change an approved debt that already has an invoice, but allows saving it unchanged", async () => {
+    await store.saveEntries([{
+      id: "entry-invoiced",
+      scanId: "scan-1",
+      revision: 1,
+      rawText: "Pak Ali 100.00",
+      customerName: "Pak Ali",
+      item: "Beras",
+      amountSen: 10000,
+      rawAmountText: "100.00",
+      date: "2026-10-18",
+      classification: "debt",
+      confidence: 0.95,
+      isAmbiguous: false,
+      included: true,
+      confirmedCustomerId: "cust-1",
+      sourceRef: { lineIndex: 1 },
+      ownerEdited: false,
+      createdAt: "2026-10-18T00:00:00Z",
+      updatedAt: "2026-10-18T00:00:00Z",
+    }]);
+    const [debt] = (await approveDebtsForInvoicing(owner, ["entry-invoiced"], store)).approved;
+    const invoiced = new Set([debt.id]);
+
+    // Touched but not changed: updatedAt moves the handoff key, the details stay the same.
+    await store.updateEntry(owner, "entry-invoiced", { ownerEdited: true });
+    const same = await approveDebtsForInvoicing(owner, ["entry-invoiced"], store, invoiced);
+    expect(same.rejected).toHaveLength(0);
+    expect(same.approved[0]).toEqual(debt);
+
+    await store.updateEntry(owner, "entry-invoiced", { amountSen: 12000 });
+    const changed = await approveDebtsForInvoicing(owner, ["entry-invoiced"], store, invoiced);
+    expect(changed.approved).toHaveLength(0);
+    expect(changed.rejected[0].reason).toMatch(/already has a PayPal invoice/);
+    expect((await store.getApprovedDebts(owner))[0].amountSen).toBe(10000);
+  });
+
+  it("rejects a line whose entry id already has a live invoice as a plain debt", async () => {
+    await store.saveEntries([{
+      id: "entry-plain-invoiced",
+      scanId: "scan-1",
+      revision: 1,
+      rawText: "Pak Ali 100.00",
+      customerName: "Pak Ali",
+      item: "Beras",
+      amountSen: 10000,
+      rawAmountText: "100.00",
+      date: "2026-10-18",
+      classification: "debt",
+      confidence: 0.95,
+      isAmbiguous: false,
+      included: true,
+      confirmedCustomerId: "cust-1",
+      sourceRef: { lineIndex: 7 },
+      ownerEdited: false,
+      createdAt: "2026-10-18T00:00:00Z",
+      updatedAt: "2026-10-18T00:00:00Z",
+    }]);
+
+    const result = await approveDebtsForInvoicing(owner, ["entry-plain-invoiced"], store, new Set(["entry-plain-invoiced"]));
+
+    expect(result.approved).toHaveLength(0);
+    expect(result.rejected[0].reason).toMatch(/already has a PayPal invoice/);
+    expect(await store.getApprovedDebtBySourceEntryId(owner, "entry-plain-invoiced")).toBeFalsy();
+  });
+
+  it("reconciles the same physical notebook line across rescans and rejects stale revisions", async () => {
     // 1. Scan at revision 1, line 1 entry
     const entryRev1: ExtractedEntry = {
       id: "entry-r1-l1",
@@ -267,11 +333,10 @@ describe("debt-handoff", () => {
     expect(staleRes.rejected).toHaveLength(1);
     expect(staleRes.rejected[0].reason).toMatch(/superseded|revision/i);
 
-    // Attempting to approve line 1 from revision 2 when line 1 was already approved must be rejected or idempotent
+    // Revision 2 replaces the source entry while preserving the approved debt identity.
     const res2 = await approveDebtsForInvoicing(owner, ["entry-r2-l1"], store);
-    expect(res2.approved).toHaveLength(0);
-    expect(res2.rejected).toHaveLength(1);
-    expect(res2.rejected[0].reason).toMatch(/already been approved/i);
+    expect(res2.rejected).toHaveLength(0);
+    expect(res2.approved[0]).toMatchObject({ id: approvedDebtId, sourceEntryId: "entry-r2-l1" });
 
     // Assert only one approved debt represents that physical notebook line
     const allDebts = await store.getApprovedDebts(owner);
@@ -304,8 +369,8 @@ describe("debt-handoff", () => {
         return [];
       }
       if (sql.includes("INSERT INTO customer_directory")) {
-        const [id, ownerEmail, name, slug, email, phone, confirmedAt, createdAt, updatedAt] = params;
-        customers.set(`${ownerEmail}::${id}`, { id, owner_email: ownerEmail, name, slug, email, phone, confirmed_at: confirmedAt, created_at: createdAt, updated_at: updatedAt });
+        const [id, ownerEmail, name, slug, email, phone, notes, confirmedAt, createdAt, updatedAt] = params;
+        customers.set(`${ownerEmail}::${id}`, { id, owner_email: ownerEmail, name, slug, email, phone, notes, confirmed_at: confirmedAt, created_at: createdAt, updated_at: updatedAt });
         return [];
       }
       if (sql.includes("SELECT * FROM customer_directory WHERE owner_email=$1 AND id=$2")) {
@@ -354,6 +419,18 @@ describe("debt-handoff", () => {
         const created = { id, owner_email: ownerEmail, source_entry_id: sourceEntryId, scan_id: scanId, customer_id: customerId, customer_name: customerName, customer_email: customerEmail, amount_sen: amountSen, currency, item, date, approved_at: approvedAt, handoff_key: handoffKey };
         debts.set(key, created);
         return [created];
+      }
+      if (sql.includes("UPDATE approved_debts SET source_entry_id=")) {
+        const [ownerEmail, id, sourceEntryId, scanId, customerId, customerName, customerEmail, amountSen, currency, item, date, approvedAt, handoffKey] = params;
+        for (const [key, debt] of debts.entries()) {
+          if (debt.owner_email === ownerEmail && debt.id === id) {
+            debts.delete(key);
+            const updated = { ...debt, source_entry_id: sourceEntryId, scan_id: scanId, customer_id: customerId, customer_name: customerName, customer_email: customerEmail, amount_sen: amountSen, currency, item, date, approved_at: approvedAt, handoff_key: handoffKey };
+            debts.set(`${ownerEmail}::${sourceEntryId}`, updated);
+            return [updated];
+          }
+        }
+        return [];
       }
       if (sql.includes("SELECT * FROM approved_debts WHERE owner_email=$1 ORDER BY approved_at DESC")) {
         const [email] = params;
@@ -452,11 +529,12 @@ describe("debt-handoff", () => {
     expect(staleRes.rejected).toHaveLength(1);
     expect(staleRes.rejected[0].reason).toMatch(/superseded|revision/i);
 
-    // 3. Attempt to approve line 1 again from revision 2
+    // 3. Reapprove line 1 from revision 2 under the same stable debt identity
     const res2 = await approveDebtsForInvoicing(owner, ["entry-pg-r2-l1"], pgStore);
-    expect(res2.approved).toHaveLength(0);
-    expect(res2.rejected).toHaveLength(1);
-    expect(res2.rejected[0].reason).toMatch(/already been approved/i);
+    expect(res2.rejected).toHaveLength(0);
+    expect(res2.approved).toHaveLength(1);
+    expect(res2.approved[0].id).toBe(approvedDebtId);
+    expect(res2.approved[0].sourceEntryId).toBe("entry-pg-r2-l1");
 
     // 4. Assert only one approved debt represents that physical notebook line
     const allDebts = await pgStore.getApprovedDebts(owner);

@@ -8,26 +8,42 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
 import { DebtStoreError, newDebtId } from "@/lib/debt-store";
-import { formatSen, MAX_ITEM_LENGTH, MAX_NAME_LENGTH, todayLocal, type DebtErrors } from "@/lib/debts";
+import { formatSen, MAX_ITEM_LENGTH, MAX_NAME_LENGTH, parseRmToSen, todayLocal, type DebtErrors } from "@/lib/debts";
 import type { T, TKey } from "@/lib/i18n";
 import {
+  activeScanKey,
   customerNames,
   entriesToLines,
   includedTotalSen,
   isNewCustomer,
   linesToDebts,
+  parseActiveScan,
   parseScanDraft,
   type ScanLine,
   type ScanMode,
   scanDraftKey,
 } from "@/lib/scan";
-import { readPhoto, retryRead, shrinkPhoto, type ReadFailure } from "@/lib/scan-client";
+import { isInvoiceable, isValidEmail, loadApprovedDebts } from "@/lib/collect";
+import {
+  approveScanEntries,
+  confirmEntryCustomer,
+  createCustomer,
+  getCustomerSuggestions,
+  patchScanEntry,
+  readPhoto,
+  retryRead,
+  shrinkPhoto,
+  updateCustomer,
+  type ReadFailure,
+} from "@/lib/scan-client";
+import type { CustomerMatchSuggestion } from "@/lib/customer-matching";
 import { BackIcon, BoltIcon, CheckIcon, CloseIcon, ImageIcon, NoteIcon, ReceiptIcon, ScanIcon } from "../components/icons";
 import { useDialog } from "../components/useDialog";
 import { useDebts } from "../useDebts";
 import { useT } from "../useT";
 
 type Phase = "choose" | "camera" | "reading" | "check";
+type CompletedRead = { scanId: string; lines: ScanLine[]; isDuplicate?: boolean; warning?: string };
 
 /** The reading steps; the second says "reading the lines" until the count is known. */
 function readingSteps(mode: ScanMode, t: T, found: number | null): string[] {
@@ -44,6 +60,7 @@ const STEP_MS = 650;
 function clearDraft(mode: ScanMode) {
   try {
     sessionStorage.removeItem(scanDraftKey(mode));
+    sessionStorage.removeItem(activeScanKey(mode));
   } catch {}
 }
 
@@ -60,7 +77,19 @@ export default function ScanFlow() {
   const [phase, setPhase] = useState<Phase>("choose");
   const [mode, setMode] = useState<ScanMode>("notebook");
   const [photo, setPhoto] = useState<string | null>(null);
-  const [lines, setLines] = useState<ScanLine[]>([]);
+  const [read, setRead] = useState<CompletedRead | null>(null);
+
+  useEffect(() => {
+    for (const savedMode of ["notebook", "receipt"] as const) {
+      const active = parseActiveScan(sessionStorage.getItem(activeScanKey(savedMode)));
+      if (!active) continue;
+      setMode(active.mode);
+      setPhoto(null);
+      setRead({ scanId: active.scanId, lines: active.serverLines, isDuplicate: active.isDuplicate, warning: active.warning });
+      setPhase("check");
+      break;
+    }
+  }, []);
 
   // Object URLs from the gallery hold memory until revoked.
   useEffect(() => {
@@ -74,8 +103,8 @@ export default function ScanFlow() {
     setPhoto(url);
     setPhase("reading");
   }
-  const onRead = useCallback((read: ScanLine[]) => {
-    setLines(read);
+  const onRead = useCallback((result: CompletedRead) => {
+    setRead(result);
     setPhase("check");
   }, []);
   function retake() {
@@ -103,7 +132,7 @@ export default function ScanFlow() {
     );
   }
   if (phase === "reading") return <Reading mode={mode} photo={photo} onDone={onRead} onRetake={retake} />;
-  return <Check mode={mode} photo={photo} read={lines} onRetake={retake} />;
+  return read ? <Check mode={mode} photo={photo} read={read} onRetake={retake} /> : null;
 }
 
 /* 1 · Choose: take a photo (opens the camera) or upload one */
@@ -404,12 +433,13 @@ function Reading({
 }: {
   mode: ScanMode;
   photo: string | null;
-  onDone: (lines: ScanLine[]) => void;
+  onDone: (read: CompletedRead) => void;
   onRetake: () => void;
 }) {
   const { t } = useT();
   const [step, setStep] = useState(0);
   const [lines, setLines] = useState<ScanLine[] | null>(null);
+  const [completed, setCompleted] = useState<Omit<CompletedRead, "lines"> | null>(null);
   const [problem, setProblem] = useState<ReadFailure | "nothingFound" | null>(null);
   const [attempt, setAttempt] = useState(0);
   const scanIdRef = useRef<string | undefined>(undefined);
@@ -439,7 +469,14 @@ function Reading({
       scanIdRef.current = result.scanId;
       const read = entriesToLines(result.entries, mode, todayLocal(), t);
       if (read.length === 0) setProblem("nothingFound");
-      else setLines(read);
+      else {
+        setLines(read);
+        setCompleted({
+          scanId: result.scanId,
+          ...(result.isDuplicate ? { isDuplicate: true } : {}),
+          ...(result.warning ? { warning: result.warning } : {}),
+        });
+      }
     })();
     return () => {
       cancelled = true;
@@ -452,13 +489,13 @@ function Reading({
   useEffect(() => {
     if (problem) return;
     if (step >= steps.length) {
-      if (lines) onDone(lines);
+      if (lines && completed) onDone({ ...completed, lines });
       return;
     }
     if (step >= 1 && !lines) return;
     const timer = setTimeout(() => setStep((s) => s + 1), STEP_MS);
     return () => clearTimeout(timer);
-  }, [step, steps.length, lines, problem, onDone]);
+  }, [step, steps.length, lines, completed, problem, onDone]);
 
   function tryAgain() {
     setProblem(null);
@@ -611,10 +648,10 @@ function PhotoModal({
   );
 }
 
-function Check({ mode, photo, read, onRetake }: { mode: ScanMode; photo: string | null; read: ScanLine[]; onRetake: () => void }) {
+function Check({ mode, photo, read, onRetake }: { mode: ScanMode; photo: string | null; read: CompletedRead; onRetake: () => void }) {
   const { t, formatDay } = useT();
   const router = useRouter();
-  const { debts, ready, addMany } = useDebts();
+  const { debts, ready, addMany, updateMany, remove } = useDebts();
   const titleRef = useFocusOnMount<HTMLHeadingElement>();
   // After a refused save: the line whose first bad field gets focus once it's open.
   const [focusLine, setFocusLine] = useState<{ key: string; n: number } | null>(null);
@@ -628,7 +665,7 @@ function Check({ mode, photo, read, onRetake }: { mode: ScanMode; photo: string 
         saved = parseScanDraft(sessionStorage.getItem(draftKey));
       } catch {}
     }
-    return saved ?? read;
+    return saved ?? read.lines;
   });
   const [open, setOpen] = useState<string | null>(mode === "receipt" ? "r1" : null);
   const [errors, setErrors] = useState<Record<string, DebtErrors>>({});
@@ -641,8 +678,17 @@ function Check({ mode, photo, read, onRetake }: { mode: ScanMode; photo: string 
   useEffect(() => {
     try {
       sessionStorage.setItem(draftKey, JSON.stringify(lines));
+      sessionStorage.setItem(activeScanKey(mode), JSON.stringify({
+        version: 2,
+        scanId: read.scanId,
+        mode,
+        serverLines: read.lines,
+        lines,
+        ...(read.isDuplicate ? { isDuplicate: true } : {}),
+        ...(read.warning ? { warning: read.warning } : {}),
+      }));
     } catch {}
-  }, [lines, draftKey]);
+  }, [lines, draftKey, mode, read]);
 
   const known = customerNames(debts);
   const included = lines.filter((l) => l.include);
@@ -652,7 +698,13 @@ function Check({ mode, photo, read, onRetake }: { mode: ScanMode; photo: string 
 
   // Editing a line clears its "unsure" flag (the owner has looked at it) and that field's error only.
   function update(key: string, field: "customerName" | "item" | "amount", value: string) {
-    setLines((prev) => prev.map((l) => (l.key === key ? { ...l, [field]: value, unsure: undefined } : l)));
+    setLines((prev) =>
+      prev.map((l) =>
+        l.key === key
+          ? { ...l, [field]: value, unsure: undefined, ...(field === "customerName" ? { confirmedCustomerId: undefined } : {}) }
+          : l,
+      ),
+    );
     if (errors[key]?.[field]) setErrors((prev) => ({ ...prev, [key]: { ...prev[key], [field]: undefined } }));
   }
 
@@ -674,7 +726,7 @@ function Check({ mode, photo, read, onRetake }: { mode: ScanMode; photo: string 
     if (!include && errors[key]) setErrors((prev) => ({ ...prev, [key]: {} }));
   }
 
-  function save() {
+  async function save() {
     setSaveError(null);
     const now = todayLocal();
     const result = linesToDebts(lines, now, { newId: newDebtId, now: new Date() }, t);
@@ -684,21 +736,105 @@ function Check({ mode, photo, read, onRetake }: { mode: ScanMode; photo: string 
       setFocusLine((prev) => ({ key: result.problems[0].key, n: (prev?.n ?? 0) + 1 }));
       return;
     }
+    const original = new Map(read.lines.map((line) => [line.entryId, line]));
+    const changed = (line: ScanLine) => {
+      const before = original.get(line.entryId);
+      return (
+        !before ||
+        line.customerName !== before.customerName ||
+        line.item !== before.item ||
+        line.amount !== before.amount ||
+        line.date !== before.date ||
+        line.include !== before.include ||
+        line.unsure !== before.unsure
+      );
+    };
+    const held = new Map(debts.map((debt) => [debt.id, debt]));
+    if (mode === "notebook") {
+      // Confirmed on the server means it may already be an approved debt: losing the confirmation
+      // here would skip approval and put a second, plain copy on the ledger.
+      const unconfirmed = included.find((line) => original.get(line.entryId)?.confirmedCustomerId && !line.confirmedCustomerId);
+      // A plain debt that already went out can't be corrected, or billed again as an approved one.
+      const billed = included.find((line) => {
+        const debt = held.get(line.entryId);
+        return debt && !isInvoiceable(debt) && (line.confirmedCustomerId || changed(line));
+      });
+      if (unconfirmed || billed) {
+        setOpen((unconfirmed ?? billed)!.key);
+        setSaveError(t(unconfirmed ? "scanx.reconfirm" : "scanx.alreadyInvoiced"));
+        return;
+      }
+    }
     setSaving(true);
+    let savedCount = 0;
     try {
-      addMany(result.debts); // one write: all of them or none
+      let approvedByEntry = new Map<string, string>();
+      if (mode === "notebook") {
+        // A line unticked on a reopened scan is withdrawn, so its debt leaves this ledger too.
+        const withdrawn = lines.filter((l) => !l.include && original.get(l.entryId)?.include);
+        const approvedDebts = withdrawn.some((l) => original.get(l.entryId)?.confirmedCustomerId) ? (await loadApprovedDebts()).approvedDebts : [];
+        for (const line of lines.filter((l) => !l.include || changed(l))) {
+          const amountSen = parseRmToSen(line.amount);
+          await patchScanEntry(read.scanId, line.entryId, {
+            ...(amountSen && amountSen > 0 ? { amountSen } : {}),
+            included: line.include,
+            isAmbiguous: Boolean(line.unsure && !line.skipped),
+            ...(line.customerName.trim() ? { customerName: line.customerName } : {}),
+            confirmedCustomerId: line.confirmedCustomerId ?? "",
+            item: line.item,
+            date: line.date,
+          });
+        }
+        for (const line of withdrawn) {
+          const id = approvedDebts.find((debt) => debt.sourceEntryId === line.entryId)?.id ?? line.entryId;
+          const debt = held.get(id);
+          if (debt && isInvoiceable(debt)) remove(id);
+        }
+        const confirmedEntryIds = included.filter((line) => line.confirmedCustomerId).map((line) => line.entryId);
+        if (confirmedEntryIds.length > 0) {
+          const approval = await approveScanEntries(confirmedEntryIds);
+          if (approval.rejected.length > 0) {
+            setSaveError(approval.rejected[0].reason);
+            setSaving(false);
+            return;
+          }
+          approvedByEntry = new Map(approval.approved.map((debt) => [debt.sourceEntryId, debt.id]));
+        }
+      }
+      // A confirmed line is the approved debt. A line with no confirmed customer is a plain ledger
+      // debt, invoiced from Collect once it has an email. Ids follow the entry, so saving a
+      // reopened scan corrects its debts instead of adding them twice.
+      const savedDebts =
+        mode === "notebook"
+          ? result.debts.map((debt, index) => ({ ...debt, id: approvedByEntry.get(included[index].entryId) ?? included[index].entryId }))
+          : result.debts;
+      const fresh = savedDebts.filter((debt) => !held.has(debt.id));
+      if (fresh.length > 0) addMany(fresh); // one write: all of them or none
+      savedCount = fresh.length;
+      savedDebts.forEach(({ id, customerName, item, amountSen, date }, index) => {
+        const line = included[index];
+        // Only what the owner changed here: an untouched line must not undo edits made on the ledger.
+        if (held.has(id) && mode === "notebook" && changed(line) && isInvoiceable(held.get(id)!)) {
+          updateMany([id], { customerName, item, amountSen, date });
+          savedCount += 1;
+        }
+        // The line was saved as a plain debt before its customer was confirmed.
+        if (mode === "notebook" && id !== line.entryId && held.has(line.entryId)) remove(line.entryId);
+      });
       try {
         sessionStorage.removeItem(draftKey);
+        sessionStorage.removeItem(activeScanKey(mode));
       } catch {}
     } catch (error) {
       setSaveError(error instanceof DebtStoreError ? error.message : t("add.saveFailed"));
       setSaving(false);
       return;
     }
-    router.push(`/ledger?scanned=${result.debts.length}`);
+    router.push(`/ledger?scanned=${savedCount}`);
   }
 
   const receipt = mode === "receipt" ? lines[0] : null;
+  const sourcePhoto = photo ?? `/api/scans/${encodeURIComponent(read.scanId)}/image`;
 
   return (
     <div className="tab-page scan-no-chrome">
@@ -712,10 +848,16 @@ function Check({ mode, photo, read, onRetake }: { mode: ScanMode; photo: string 
         <span className="tab-back" aria-hidden="true" />
       </div>
 
+      {read.isDuplicate && read.warning && (
+        <p className="notice notice-warning" role="status">
+          {t("scanx.duplicateNotice")}
+        </p>
+      )}
+
       <section className="card scan-thumb">
-        {photo ? (
+        {sourcePhoto ? (
           // eslint-disable-next-line @next/next/no-img-element -- a local photo, not a site image
-          <img src={photo} alt={mode === "notebook" ? t("scan.photoNotebook") : t("scan.photoReceipt")} />
+          <img src={sourcePhoto} alt={mode === "notebook" ? t("scan.photoNotebook") : t("scan.photoReceipt")} />
         ) : (
           <span className="scan-thumb-empty" aria-hidden="true" />
         )}
@@ -726,7 +868,7 @@ function Check({ mode, photo, read, onRetake }: { mode: ScanMode; photo: string 
           </p>
         </div>
         <div className="scan-thumb-actions">
-          {photo && (
+          {sourcePhoto && (
             <button type="button" className="button button-sm scan-view-photo" onClick={() => setViewPhoto(true)}>
               {t("scanx.viewPhoto")}
             </button>
@@ -737,9 +879,9 @@ function Check({ mode, photo, read, onRetake }: { mode: ScanMode; photo: string 
         </div>
       </section>
 
-      {viewPhoto && photo && (
+      {viewPhoto && sourcePhoto && (
         <PhotoModal
-          photo={photo}
+          photo={sourcePhoto}
           alt={mode === "notebook" ? t("scan.photoNotebook") : t("scan.photoReceipt")}
           onClose={() => setViewPhoto(false)}
         />
@@ -765,12 +907,12 @@ function Check({ mode, photo, read, onRetake }: { mode: ScanMode; photo: string 
         </div>
       )}
 
-      <div className={`scan-check-split${photo ? " scan-check-split-photo" : ""}`}>
-        {photo && (
+      <div className={`scan-check-split${sourcePhoto ? " scan-check-split-photo" : ""}`}>
+        {sourcePhoto && (
           <div className="scan-photo-inspect">
             <p className="scan-photo-inspect-title">{t("scanx.original")}</p>
             {/* eslint-disable-next-line @next/next/no-img-element -- a local photo, not a site image */}
-            <img src={photo} alt={mode === "notebook" ? t("scan.photoNotebook") : t("scan.photoReceipt")} />
+            <img src={sourcePhoto} alt={mode === "notebook" ? t("scan.photoNotebook") : t("scan.photoReceipt")} />
             <button type="button" className="link-button scan-photo-expand" onClick={() => setViewPhoto(true)}>
               {t("scanx.expandPhoto")}
             </button>
@@ -845,6 +987,8 @@ function Check({ mode, photo, read, onRetake }: { mode: ScanMode; photo: string 
                     <input
                       type="checkbox"
                       checked={l.include}
+                      // Crossed out or a repayment: not a debt, unless the owner corrects the line first.
+                      disabled={Boolean(l.skipped && l.unsure)}
                       onChange={(e) => toggle(l.key, e.target.checked)}
                       aria-label={t("scan.addLine", { name: l.customerName || t("scan.thisLine"), amount: l.amount || t("scan.noAmount") })}
                     />
@@ -890,14 +1034,29 @@ function Check({ mode, photo, read, onRetake }: { mode: ScanMode; photo: string 
                   {isOpen && (
                     <div className="scan-edit" id={`scan-edit-${l.key}`}>
                       {mode === "notebook" && (
-                        <EditField
-                          id={`${l.key}-name`}
-                          label={t("scan.customer")}
-                          value={l.customerName}
-                          max={MAX_NAME_LENGTH}
-                          error={lineErrors.customerName}
-                          onChange={(v) => update(l.key, "customerName", v)}
-                        />
+                        <>
+                          <EditField
+                            id={`${l.key}-name`}
+                            label={t("scan.customer")}
+                            value={l.customerName}
+                            max={MAX_NAME_LENGTH}
+                            error={lineErrors.customerName}
+                            onChange={(v) => update(l.key, "customerName", v)}
+                          />
+                          {l.include && (
+                            <CustomerMatch
+                              scanId={read.scanId}
+                              line={l}
+                              onConfirmed={(name, customerId) =>
+                                setLines((prev) =>
+                                  prev.map((line) =>
+                                    line.key === l.key ? { ...line, customerName: name, confirmedCustomerId: customerId } : line,
+                                  ),
+                                )
+                              }
+                            />
+                          )}
+                        </>
                       )}
                       <EditField
                         id={`${l.key}-item`}
@@ -938,6 +1097,112 @@ function Check({ mode, photo, read, onRetake }: { mode: ScanMode; photo: string 
           <p className="tab-note">{t("scan.nothingSent")}</p>
         </div>
       </div>
+    </div>
+  );
+}
+
+function CustomerMatch({
+  scanId,
+  line,
+  onConfirmed,
+}: {
+  scanId: string;
+  line: ScanLine;
+  onConfirmed: (name: string, customerId: string) => void;
+}) {
+  const { t } = useT();
+  const [suggestions, setSuggestions] = useState<CustomerMatchSuggestion[]>([]);
+  const [selectedId, setSelectedId] = useState(line.confirmedCustomerId ?? "");
+  const [email, setEmail] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function load() {
+    setBusy(true);
+    setError(null);
+    try {
+      await patchScanEntry(scanId, line.entryId, { customerName: line.customerName });
+      const matches = await getCustomerSuggestions(line.entryId);
+      setSuggestions(matches);
+      if (matches[0]) {
+        setSelectedId(matches[0].customer.id);
+        setEmail(matches[0].customer.email ?? "");
+      }
+    } catch {
+      setError(t("scanx.match.loadFailed"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirm() {
+    if (!isValidEmail(email)) {
+      setError(t("collect.email.invalid"));
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const match = suggestions.find((suggestion) => suggestion.customer.id === selectedId)?.customer;
+      const customer = match
+        ? match.email === email.trim()
+          ? match
+          : await updateCustomer(match.id, { email: email.trim() })
+        : await createCustomer({ name: line.customerName, email: email.trim() });
+      const confirmed = await confirmEntryCustomer(line.entryId, customer.id);
+      setSelectedId(customer.id);
+      onConfirmed(confirmed.customer.name, customer.id);
+    } catch {
+      setError(t("scanx.match.confirmFailed"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (line.confirmedCustomerId) {
+    return <p className="tab-note">{t("scanx.match.confirmed")}</p>;
+  }
+
+  return (
+    <div className="field">
+      <p className="tab-note">{t("scanx.match.optional")}</p>
+      {suggestions.length === 0 ? (
+        <button type="button" className="button button-sm" disabled={busy} onClick={() => void load()}>
+          {busy ? t("scanx.match.finding") : t("scanx.match.find")}
+        </button>
+      ) : (
+        <>
+          <label htmlFor={`${line.key}-customer-match`}>{t("scanx.match.label")}</label>
+          <select
+            id={`${line.key}-customer-match`}
+            value={selectedId}
+            onChange={(event) => {
+              const id = event.target.value;
+              setSelectedId(id);
+              setEmail(suggestions.find((suggestion) => suggestion.customer.id === id)?.customer.email ?? "");
+            }}
+          >
+            {suggestions.map(({ customer, confidence }) => (
+              <option key={customer.id} value={customer.id}>
+                {t("scanx.match.option", { name: customer.name, percent: Math.round(confidence * 100) })}
+              </option>
+            ))}
+            <option value="">{t("scanx.match.create", { name: line.customerName })}</option>
+          </select>
+        </>
+      )}
+      <label htmlFor={`${line.key}-customer-email`}>{t("scanx.match.email")}</label>
+      <input
+        id={`${line.key}-customer-email`}
+        type="email"
+        autoComplete="email"
+        value={email}
+        onChange={(event) => setEmail(event.target.value)}
+      />
+      <button type="button" className="button button-sm button-primary" disabled={busy || !email.trim()} onClick={() => void confirm()}>
+        {busy ? t("scanx.match.confirming") : t("scanx.match.confirm")}
+      </button>
+      {error && <p className="field-error" role="alert">{error}</p>}
     </div>
   );
 }

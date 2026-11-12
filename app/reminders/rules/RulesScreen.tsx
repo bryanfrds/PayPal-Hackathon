@@ -25,9 +25,9 @@ export default function RulesScreen() {
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
-  function save(next: ReminderRules) {
+  async function save(next: ReminderRules) {
     try {
-      setRules(next);
+      await setRules(next);
       setError(null);
       setSaved(true);
     } catch (e) {
@@ -37,7 +37,7 @@ export default function RulesScreen() {
 
   function step(key: NumberRule, by: number) {
     const { min, max } = RULE_LIMITS[key];
-    save({ ...rules, [key]: Math.min(max, Math.max(min, rules[key] + by)) });
+    void save({ ...rules, [key]: Math.min(max, Math.max(min, rules[key] + by)) });
   }
 
   const moved = Object.keys(moves).length;
@@ -67,7 +67,7 @@ export default function RulesScreen() {
             {t("rules.on")}
             <small>{t("rules.onHint")}</small>
           </span>
-          <button type="button" role="switch" className="collect-switch" aria-checked={rules.on} aria-labelledby="rule-on" onClick={() => save({ ...rules, on: !rules.on })} />
+          <button type="button" role="switch" className="collect-switch" aria-checked={rules.on} aria-labelledby="rule-on" onClick={() => void save({ ...rules, on: !rules.on })} />
         </div>
 
         {STEPS.map(({ key, label: labelKey, hint, unit }) => {
@@ -105,7 +105,7 @@ export default function RulesScreen() {
             aria-checked={rules.skipFridayPrayers}
             aria-labelledby="rule-friday"
             disabled={!rules.on}
-            onClick={() => save({ ...rules, skipFridayPrayers: !rules.skipFridayPrayers })}
+            onClick={() => void save({ ...rules, skipFridayPrayers: !rules.skipFridayPrayers })}
           />
         </div>
       </div>

@@ -48,6 +48,7 @@ export type CustomerRecord = {
   slug: string;
   email?: string;
   phone?: string;
+  notes?: string;
   confirmedAt?: string;
   createdAt: string;
   updatedAt: string;
@@ -67,6 +68,8 @@ export type ApprovedDebtRecord = {
   date: string;
   approvedAt: string;
   handoffKey: string;
+  /** Every PayPal invoice made for this debt, oldest first, recorded before it's sent. */
+  paypalInvoiceIds?: string[];
 };
 
 export type ReminderRuleRecord = {
@@ -90,5 +93,6 @@ export type ReminderDecision = {
   idempotencyKey: string;
   attemptNumber: number;
   deliveryResult?: string;
+  deliveredAt?: string;
   createdAt: string;
 };

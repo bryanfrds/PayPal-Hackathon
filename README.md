@@ -74,6 +74,10 @@ You need Node.js 22 or newer (`node -v` to check).
 
 Other useful commands: `npm test` (unit tests), `npm run typecheck`, `npm run build`.
 
+### Complete Person 1 production journey
+
+Notebook scanning, approved-debt invoicing, and scheduled reminders require persistent server services in production: `DATABASE_URL`, `BLOB_READ_WRITE_TOKEN`, AI Gateway credentials (or Vercel OIDC), and `CRON_SECRET`. Local fallbacks are for development only. Run `npm run db:migrate` after setting the database URL, and before deploying a version that adds a migration. `vercel.json` lists one once-a-day cron per hour because Vercel's Hobby plan fails any deployment with a cron that runs more often, such as `0 * * * *`. The optional live vision smoke test uses only sanitized fixtures and runs only with `RUN_LIVE_VISION_SMOKE=true` plus AI credentials.
+
 ## Payments database and webhook
 
 Both are optional. Without them, the app keeps payment records on the owner's device and asks PayPal about open invoices every minute while it's open. With them, PayPal tells the server when an invoice is paid, cancelled or refunded, about half a minute later in our sandbox test. The app picks that up within about 10 seconds, so a payment or cancellation shows within about 40 seconds. A refund of an invoice the app already shows as paid shows within about an hour.

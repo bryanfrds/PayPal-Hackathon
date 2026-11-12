@@ -31,7 +31,7 @@ export type CheckedBy = "app" | "webhook";
  * reported; `billedCurrency` is what we billed in, to judge it against.
  */
 export type StoredFacts = InvoiceFacts & { id: string; billedCurrency: string; checkedAt: string; checkedBy: CheckedBy };
-export type StoredInvoice = { id: string; ownerEmail: string; customerName: string; amountSen: number; currency: string; sentAt: string; status: string; settlement: Settlement; debtIds?: string[] };
+export type StoredInvoice = { id: string; ownerEmail: string; customerName: string; amountSen: number; currency: string; sentAt: string; status: string; settlement: Settlement; debtIds?: string[]; number?: string; payerLink?: string };
 
 export type PaymentDb = {
   /** Records a sent invoice. A retry of the same send changes nothing. */
@@ -179,7 +179,7 @@ export function createPaymentDb(query: Query): PaymentDb {
   };
 }
 
-const STORED_INVOICE_COLS = `id,owner_email,customer_name,amount_sen,currency,sent_at,debt_ids,COALESCE(status,'UNKNOWN') status,COALESCE(settlement,'check') settlement`;
+const STORED_INVOICE_COLS = `id,owner_email,customer_name,amount_sen,currency,sent_at,debt_ids,number,payer_link,COALESCE(status,'UNKNOWN') status,COALESCE(settlement,'check') settlement`;
 
 function toStoredInvoice(row: Record<string, unknown>): StoredInvoice {
   return {
@@ -192,6 +192,8 @@ function toStoredInvoice(row: Record<string, unknown>): StoredInvoice {
     status: String(row.status),
     settlement: row.settlement as Settlement,
     debtIds: Array.isArray(row.debt_ids) ? (row.debt_ids as string[]) : [],
+    ...(row.number ? { number: String(row.number) } : {}),
+    ...(row.payer_link ? { payerLink: String(row.payer_link) } : {}),
   };
 }
 

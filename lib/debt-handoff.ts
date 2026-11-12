@@ -12,6 +12,8 @@ export async function approveDebtsForInvoicing(
   ownerEmail: string,
   entryIds: string[],
   store: Person1Store,
+  /** Approved debts that already have an invoice: those can't change any more. */
+  invoicedDebtIds: ReadonlySet<string> = new Set(),
 ): Promise<HandoffResult> {
   const approved: ApprovedDebtRecord[] = [];
   const rejected: Array<{ entryId: string; reason: string }> = [];
@@ -20,6 +22,12 @@ export async function approveDebtsForInvoicing(
     const entry = await store.getEntry(ownerEmail, entryId);
     if (!entry) {
       rejected.push({ entryId, reason: "Entry not found." });
+      continue;
+    }
+
+    // A plain debt saved from this line (keyed by the entry id) may already have been invoiced from Collect.
+    if (invoicedDebtIds.has(entry.id)) {
+      rejected.push({ entryId, reason: "This line already has a PayPal invoice, so it can't be approved again. Cancel the invoice on PayPal first." });
       continue;
     }
 
@@ -101,11 +109,18 @@ export async function approveDebtsForInvoicing(
         continue;
       }
 
-      if (existingByLine && existingByLine.sourceEntryId !== entry.id) {
-        rejected.push({
-          entryId,
-          reason: "This notebook line has already been approved for invoicing.",
-        });
+      if (invoicedDebtIds.has(existingDebt.id)) {
+        // Saving the same details again is harmless; changing them would leave the invoice wrong.
+        const unchanged =
+          existingDebt.customerId === customer.id &&
+          existingDebt.customerName === customer.name &&
+          existingDebt.customerEmail === customer.email &&
+          existingDebt.amountSen === entry.amountSen &&
+          existingDebt.item === (entry.item || "Barang kedai") &&
+          existingDebt.date === entry.date;
+        // After a rescan the caller looks this up by the entry it asked about, so name that entry.
+        if (unchanged) approved.push({ ...existingDebt, sourceEntryId: entry.id });
+        else rejected.push({ entryId, reason: "This debt already has a PayPal invoice, so it can't be changed. Cancel the invoice on PayPal first." });
         continue;
       }
 
@@ -123,7 +138,9 @@ export async function approveDebtsForInvoicing(
         handoffKey,
       };
 
-      const [saved] = await store.saveApprovedDebts([updatedRecord]);
+      const saved = existingByLine && existingByLine.sourceEntryId !== entry.id
+        ? await store.replaceApprovedDebt(updatedRecord)
+        : (await store.saveApprovedDebts([updatedRecord]))[0];
       approved.push(saved || updatedRecord);
       continue;
     }
@@ -148,5 +165,6 @@ export async function approveDebtsForInvoicing(
     approved.push(savedNew || approvedRecord);
   }
 
+  if (approved.length > 0) await store.ensureReminderRules(ownerEmail);
   return { approved, rejected };
 }

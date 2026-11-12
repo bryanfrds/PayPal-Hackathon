@@ -72,6 +72,8 @@ export type PayPalInvoice = {
   /** What the payer still owes. */
   due_amount?: PayPalMoney;
   payments?: { paid_amount?: PayPalMoney };
+  primary_recipients?: { billing_info?: { email_address?: string; name?: { full_name?: string } } }[];
+  items?: { name?: string }[];
   links?: PayPalLink[];
 };
 

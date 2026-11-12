@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { DEFAULT_RULES } from "./reminders";
-import { MOVES_KEY, RULES_KEY, ReminderStoreError, createReminderStore } from "./reminder-store";
+import { MOVES_KEY, RULES_KEY, ReminderStoreError, createReminderStore, getActivity, getRules, saveRules } from "./reminder-store";
 
 function memory(initial: Record<string, string> = {}) {
   const data = new Map(Object.entries(initial));
@@ -71,5 +71,50 @@ describe("createReminderStore", () => {
   it("says so when saving fails", () => {
     const store = createReminderStore({ getItem: () => null, setItem: () => { throw new Error("full"); } });
     expect(() => store.setRules(DEFAULT_RULES)).toThrow(ReminderStoreError);
+  });
+});
+
+describe("server reminder adapters", () => {
+  it("maps server rule names to the reminder UI", async () => {
+    const fetchImpl = vi.fn(async () => Response.json({
+      enabled: false,
+      firstAfterDays: 5,
+      minIntervalDays: 6,
+      maxAttempts: 2,
+      sendHour: 14,
+      skipFridayPrayers: false,
+      requireApproval: true,
+    }));
+    await expect(getRules(fetchImpl)).resolves.toEqual({
+      on: false,
+      firstAfterDays: 5,
+      everyDays: 6,
+      maxCount: 2,
+      sendHour: 14,
+      skipFridayPrayers: false,
+    });
+    expect(fetchImpl).toHaveBeenCalledWith("/api/reminder-rules");
+  });
+
+  it("saves UI rules using server field names", async () => {
+    const fetchImpl = vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => Response.json(JSON.parse(String(init?.body))));
+    await saveRules({ ...DEFAULT_RULES, everyDays: 7, maxCount: 4 }, fetchImpl);
+    expect(fetchImpl).toHaveBeenCalledWith("/api/reminder-rules", expect.objectContaining({
+      method: "PUT",
+      body: JSON.stringify({
+        enabled: true,
+        firstAfterDays: 3,
+        minIntervalDays: 7,
+        maxAttempts: 4,
+        sendHour: 10,
+        skipFridayPrayers: true,
+      }),
+    }));
+  });
+
+  it("loads scheduler activity and reports failed requests", async () => {
+    const activity = [{ id: "decision-1", action: "requested" }];
+    await expect(getActivity(20, vi.fn(async () => Response.json({ activity })))).resolves.toEqual(activity);
+    await expect(getRules(vi.fn(async () => Response.json({ error: "offline" }, { status: 503 })))).rejects.toThrow("offline");
   });
 });

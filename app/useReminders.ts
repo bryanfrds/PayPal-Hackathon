@@ -3,10 +3,10 @@
 // Reminder rules and moved reminders on this device, shared by every screen and re-rendering
 // when they change (here or in another tab). See lib/reminder-store.ts.
 
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useSyncExternalStore } from "react";
 import { browserStorage } from "@/lib/debt-store";
 import { DEFAULT_RULES, type ReminderRules } from "@/lib/reminders";
-import { MOVES_KEY, RULES_KEY, SENT_KEY, createReminderStore, type ReminderStore } from "@/lib/reminder-store";
+import { MOVES_KEY, RULES_KEY, SENT_KEY, createReminderStore, getRules, saveRules, type ReminderStore } from "@/lib/reminder-store";
 
 type Snapshot = { rules: ReminderRules; moves: Record<string, string>; sent: Record<string, string> };
 
@@ -14,6 +14,7 @@ const EMPTY: Snapshot = { rules: DEFAULT_RULES, moves: {}, sent: {} };
 let store: ReminderStore | null = null;
 let snapshot: Snapshot = EMPTY;
 const listeners = new Set<() => void>();
+let refreshPromise: Promise<void> | null = null;
 
 function getStore(): ReminderStore {
   if (!store) {
@@ -43,6 +44,21 @@ function subscribe(listener: () => void) {
   };
 }
 
+function refreshRules() {
+  if (!refreshPromise) {
+    refreshPromise = getRules()
+      .then((rules) => {
+        getStore().setRules(rules); // last successful response is only a resilience cache
+        changed();
+      })
+      .catch(() => {})
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+  return refreshPromise;
+}
+
 export function useReminders() {
   const data = useSyncExternalStore(
     subscribe,
@@ -52,9 +68,13 @@ export function useReminders() {
     },
     () => EMPTY,
   );
-  /** Throws ReminderStoreError if it can't be saved. */
-  const setRules = useCallback((rules: ReminderRules) => {
-    getStore().setRules(rules);
+  useEffect(() => {
+    void refreshRules();
+  }, []);
+  /** Rejects with ReminderStoreError if the server can't save it. */
+  const setRules = useCallback(async (rules: ReminderRules) => {
+    const saved = await saveRules(rules);
+    getStore().setRules(saved);
     changed();
   }, []);
   /** Throws ReminderStoreError if it can't be saved. */

@@ -15,8 +15,27 @@ export function scanDraftKey(mode: ScanMode): string {
   return `buku.scan.draft.${mode}.v1`;
 }
 
+export function activeScanKey(mode: ScanMode): string {
+  return `buku.scan.active.${mode}.v1`;
+}
+
 /** Every scan draft key, for a demo reset to clear. */
-export const SCAN_DRAFT_KEYS: readonly string[] = SCAN_MODES.map(scanDraftKey);
+export const SCAN_DRAFT_KEYS: readonly string[] = SCAN_MODES.flatMap((mode) => [scanDraftKey(mode), activeScanKey(mode)]);
+
+function isScanLines(v: unknown): v is ScanLine[] {
+  if (!Array.isArray(v) || v.length === 0 || v.length > 200) return false;
+  const str = (x: unknown) => typeof x === "string";
+  return v.every((l) => {
+    if (typeof l !== "object" || l === null) return false;
+    const r = l as Record<string, unknown>;
+    return (
+      str(r.key) && str(r.entryId) && str(r.customerName) && str(r.item) && str(r.amount) && str(r.date) &&
+      typeof r.include === "boolean" && (r.unsure === undefined || str(r.unsure)) &&
+      (r.skipped === undefined || typeof r.skipped === "boolean") &&
+      (r.confirmedCustomerId === undefined || str(r.confirmedCustomerId))
+    );
+  });
+}
 
 /**
  * A saved draft read back: the lines, or null when it's missing, unreadable, empty, or not
@@ -30,23 +49,45 @@ export function parseScanDraft(raw: string | null | undefined): ScanLine[] | nul
   } catch {
     return null;
   }
-  if (!Array.isArray(v) || v.length === 0 || v.length > 200) return null;
-  const str = (x: unknown) => typeof x === "string";
-  const ok = v.every((l) => {
-    if (typeof l !== "object" || l === null) return false;
-    const r = l as Record<string, unknown>;
-    return (
-      str(r.key) && str(r.customerName) && str(r.item) && str(r.amount) && str(r.date) &&
-      typeof r.include === "boolean" && (r.unsure === undefined || str(r.unsure)) &&
-      (r.skipped === undefined || typeof r.skipped === "boolean")
-    );
-  });
-  return ok ? (v as ScanLine[]) : null;
+  return isScanLines(v) ? v : null;
+}
+
+export type ActiveScan = {
+  version: 2;
+  scanId: string;
+  mode: ScanMode;
+  serverLines: ScanLine[];
+  lines: ScanLine[];
+  isDuplicate?: boolean;
+  warning?: string;
+};
+
+export function parseActiveScan(raw: string | null | undefined): ActiveScan | null {
+  if (!raw) return null;
+  let value: unknown;
+  try {
+    value = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (typeof value !== "object" || value === null) return null;
+  const record = value as Record<string, unknown>;
+  if (
+    record.version !== 2 ||
+    typeof record.scanId !== "string" || !record.scanId ||
+    !SCAN_MODES.includes(record.mode as ScanMode) ||
+    !isScanLines(record.serverLines) || !isScanLines(record.lines) ||
+    (record.isDuplicate !== undefined && typeof record.isDuplicate !== "boolean") ||
+    (record.warning !== undefined && typeof record.warning !== "string")
+  ) return null;
+  return value as ActiveScan;
 }
 
 export type ScanLine = {
-  /** Local id for the check screen, not a debt id. */
+  /** Stable UI key; server-backed lines use the entry ID. */
   key: string;
+  /** Person 1's server entry identity. */
+  entryId: string;
   customerName: string;
   item: string;
   /** As read, e.g. "13.50". Kept as text so the owner can correct it in the same form. */
@@ -59,10 +100,11 @@ export type ScanLine = {
   unsure?: string;
   /** The flag is a note, not a doubt (crossed out in the book, or a repayment): nothing to fix. */
   skipped?: boolean;
+  confirmedCustomerId?: string;
 };
 
 function line(key: string, customerName: string, item: string, amount: string, date: string, unsure?: string): ScanLine {
-  return { key, customerName, item, amount, date, include: !unsure, unsure };
+  return { key, entryId: key, customerName, item, amount, date, include: !unsure, unsure };
 }
 
 /**
@@ -157,6 +199,7 @@ export type ReadEntry = {
   isAmbiguous: boolean;
   ambiguityReason?: string;
   included: boolean;
+  confirmedCustomerId?: string;
 };
 
 /**
@@ -175,9 +218,9 @@ export function entriesToLines(entries: ReadEntry[], mode: ScanMode, today: stri
     const missing = bought.some(unreadable);
     const unsure = missing ? t("scan.amountUnread") : doubt ? doubt.ambiguityReason || t("scan.unsureLine") : undefined;
     const amount = missing ? "" : (bought.reduce((sum, e) => sum + e.amountSen, 0) / 100).toFixed(2);
-    return [{ key: "r1", customerName: "", item, amount, date: bought[0].date || today, include: !unsure, unsure }];
+    return [{ key: bought[0].id, entryId: bought[0].id, customerName: "", item, amount, date: bought[0].date || today, include: !unsure, unsure }];
   }
-  return entries.map((e, i) => {
+  return entries.map((e) => {
     const skipped = e.classification === "crossed_out" || e.classification === "repayment";
     const unsure =
       e.classification === "crossed_out"
@@ -190,13 +233,15 @@ export function entriesToLines(entries: ReadEntry[], mode: ScanMode, today: stri
               ? e.ambiguityReason || t("scan.unsureLine")
               : undefined;
     return {
-      key: `l${i + 1}`,
+      key: e.id,
+      entryId: e.id,
       customerName: e.customerName.trim().slice(0, MAX_NAME_LENGTH),
       item: e.item.trim().slice(0, MAX_ITEM_LENGTH),
       amount: unreadable(e) ? "" : (e.amountSen / 100).toFixed(2),
       date: e.date || today,
       include: e.included && !unsure,
       unsure,
+      ...(e.confirmedCustomerId ? { confirmedCustomerId: e.confirmedCustomerId } : {}),
       ...(skipped ? { skipped } : {}),
     };
   });

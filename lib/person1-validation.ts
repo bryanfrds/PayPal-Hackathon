@@ -3,6 +3,7 @@ import { isValidEmail } from "./collect";
 export const MAX_CUSTOMER_NAME_CHARS = 120;
 export const MAX_CUSTOMER_EMAIL_CHARS = 254;
 export const MAX_CUSTOMER_PHONE_CHARS = 32;
+export const MAX_CUSTOMER_NOTES_CHARS = 500;
 export const MAX_ENTRY_ITEM_CHARS = 500;
 
 type Validation<T> = { ok: true; value: T } | { ok: false; error: string };
@@ -11,11 +12,13 @@ export function validateCustomerInput(value: Record<string, unknown>, requireNam
   const name = typeof value.name === "string" ? value.name.trim() : undefined;
   const email = typeof value.email === "string" ? value.email.trim() : undefined;
   const phone = typeof value.phone === "string" ? value.phone.trim() : undefined;
+  const notes = typeof value.notes === "string" ? value.notes.trim() : undefined;
   if (requireName && !name) return { ok: false, error: "Customer name is required." };
   if (name !== undefined && (!name || name.length > MAX_CUSTOMER_NAME_CHARS)) return { ok: false, error: `Customer name must be ${MAX_CUSTOMER_NAME_CHARS} characters or fewer.` };
   if (email !== undefined && (email.length > MAX_CUSTOMER_EMAIL_CHARS || (email && !isValidEmail(email)))) return { ok: false, error: "Customer email is invalid or too long." };
   if (phone !== undefined && phone.length > MAX_CUSTOMER_PHONE_CHARS) return { ok: false, error: `Customer phone must be ${MAX_CUSTOMER_PHONE_CHARS} characters or fewer.` };
-  return { ok: true, value: { name, email: email || undefined, phone: phone || undefined } };
+  if (notes !== undefined && notes.length > MAX_CUSTOMER_NOTES_CHARS) return { ok: false, error: `Customer notes must be ${MAX_CUSTOMER_NOTES_CHARS} characters or fewer.` };
+  return { ok: true, value: { name, email: email || undefined, phone: phone || undefined, notes: notes || undefined } };
 }
 
 export function validateEntryPatch(value: Record<string, unknown>): Validation<Record<string, unknown>> {

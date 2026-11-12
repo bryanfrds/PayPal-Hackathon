@@ -2,6 +2,8 @@
 // Errors come back as a kind the scan screen can word and offer the right next step for.
 
 import type { ReadEntry, ScanMode } from "./scan";
+import type { CustomerMatchSuggestion } from "./customer-matching";
+import type { ApprovedDebtRecord, CustomerRecord, ExtractedEntry } from "./person1-types";
 
 export type ReadFailure =
   | "notConnected" // the AI reader isn't set up on this site
@@ -12,10 +14,17 @@ export type ReadFailure =
   | "failed"; // the reader or the network failed; worth another try
 
 export type ReadResult =
-  | { ok: true; scanId: string; entries: ReadEntry[] }
+  | { ok: true; scanId: string; entries: ReadEntry[]; isDuplicate?: boolean; warning?: string }
   | { ok: false; reason: ReadFailure; scanId?: string };
 
 type Fetch = typeof fetch;
+
+async function json<T>(res: Response, fallback: string): Promise<T> {
+  const body = (await res.json().catch(() => null)) as (T & { error?: unknown }) | null;
+  if (!res.ok) throw new Error(typeof body?.error === "string" ? body.error : fallback);
+  if (!body) throw new Error(fallback);
+  return body;
+}
 
 function failure(status: number, error: unknown): ReadFailure {
   // Sign-in not set up also answers 503; only the AI reader's own 503 means "not connected".
@@ -28,14 +37,116 @@ function failure(status: number, error: unknown): ReadFailure {
 }
 
 async function toResult(res: Response, fallbackScanId?: string): Promise<ReadResult> {
-  const body = (await res.json().catch(() => null)) as { scan?: { id?: unknown }; entries?: unknown; error?: unknown } | null;
+  const body = (await res.json().catch(() => null)) as {
+    scan?: { id?: unknown };
+    entries?: unknown;
+    error?: unknown;
+    isDuplicate?: unknown;
+    warning?: unknown;
+  } | null;
   const scanId = typeof body?.scan?.id === "string" ? body.scan.id : fallbackScanId;
   if (!res.ok) {
     const reason = failure(res.status, body?.error);
     return { ok: false, reason, scanId: reason === "gone" ? undefined : scanId };
   }
   if (!scanId || !Array.isArray(body?.entries)) return { ok: false, reason: "failed", scanId };
-  return { ok: true, scanId, entries: body.entries as ReadEntry[] };
+  return {
+    ok: true,
+    scanId,
+    entries: body.entries as ReadEntry[],
+    ...(body.isDuplicate === true ? { isDuplicate: true } : {}),
+    ...(typeof body.warning === "string" ? { warning: body.warning } : {}),
+  };
+}
+
+export type ScanEntryPatch = Partial<
+  Pick<ReadEntry, "amountSen" | "included" | "isAmbiguous" | "customerName" | "item" | "date"> & {
+    confirmedCustomerId: string;
+  }
+>;
+
+/** Persists one reviewed draft entry. Rejects so the caller can keep the local draft for retry. */
+export async function patchScanEntry(
+  scanId: string,
+  entryId: string,
+  patch: ScanEntryPatch,
+  fetchImpl: Fetch = fetch,
+): Promise<ReadEntry> {
+  const res = await fetchImpl(
+    `/api/scans/${encodeURIComponent(scanId)}/entries/${encodeURIComponent(entryId)}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    },
+  );
+  return json<ReadEntry>(res, "Could not save scan changes.");
+}
+
+export async function getCustomerSuggestions(entryId: string, fetchImpl: Fetch = fetch): Promise<CustomerMatchSuggestion[]> {
+  const body = await json<{ suggestions: CustomerMatchSuggestion[] }>(
+    await fetchImpl(`/api/entries/${encodeURIComponent(entryId)}/customer-suggestions`),
+    "Could not load customer matches.",
+  );
+  return body.suggestions;
+}
+
+export async function createCustomer(
+  input: Pick<CustomerRecord, "name" | "email">,
+  fetchImpl: Fetch = fetch,
+): Promise<CustomerRecord> {
+  return json<CustomerRecord>(
+    await fetchImpl("/api/customers", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    }),
+    "Could not create the customer.",
+  );
+}
+
+export async function updateCustomer(
+  customerId: string,
+  patch: Partial<Pick<CustomerRecord, "name" | "email" | "phone" | "notes">>,
+  fetchImpl: Fetch = fetch,
+): Promise<CustomerRecord> {
+  return json<CustomerRecord>(
+    await fetchImpl(`/api/customers/${encodeURIComponent(customerId)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    }),
+    "Could not update the customer.",
+  );
+}
+
+export async function confirmEntryCustomer(
+  entryId: string,
+  customerId: string,
+  fetchImpl: Fetch = fetch,
+): Promise<{ entry: ExtractedEntry; customer: CustomerRecord }> {
+  return json(
+    await fetchImpl(`/api/entries/${encodeURIComponent(entryId)}/confirm-customer`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ customerId }),
+    }),
+    "Could not confirm the customer.",
+  );
+}
+
+export async function approveScanEntries(entryIds: string[], fetchImpl: Fetch = fetch): Promise<{
+  approved: ApprovedDebtRecord[];
+  rejected: { entryId: string; reason: string }[];
+}> {
+  return json(
+    await fetchImpl("/api/debts/approve", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ entryIds }),
+    }),
+    "Could not approve the scanned debts.",
+  );
 }
 
 /** Uploads a photo and returns the lines the AI reader found. */

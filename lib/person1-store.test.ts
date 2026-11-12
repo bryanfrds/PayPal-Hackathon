@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it } from "vitest";
-import { createMemoryPerson1Store, type Person1Store } from "./person1-store";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createMemoryPerson1Store, getPerson1Store, type Person1Store } from "./person1-store";
 import type { CustomerRecord, ExtractedEntry, ReminderRuleRecord, ScanRecord } from "./person1-types";
 
 describe("Person1Store (Memory implementation)", () => {
@@ -134,6 +134,11 @@ describe("Person1Store (Memory implementation)", () => {
   });
 
   describe("Reminder Rules", () => {
+    it("persists default rules so a new owner is visible to the scheduler", async () => {
+      await store.ensureReminderRules(owner);
+      expect(await store.listEnabledReminderOwners()).toContain(owner);
+    });
+
     it("returns default reminder rules if none set", async () => {
       const rules = await store.getReminderRules(owner);
       expect(rules.enabled).toBe(true);
@@ -159,5 +164,23 @@ describe("Person1Store (Memory implementation)", () => {
       expect(readBack.firstAfterDays).toBe(5);
       expect(readBack.requireApproval).toBe(true);
     });
+  });
+});
+
+describe("getPerson1Store", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("refuses non-durable Person 1 storage in production", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("DATABASE_URL", "");
+
+    expect(() => getPerson1Store()).toThrow("DATABASE_URL is required for persistent Person 1 storage");
+  });
+
+  it("keeps the memory store available outside production", () => {
+    vi.stubEnv("NODE_ENV", "test");
+    vi.stubEnv("DATABASE_URL", "");
+
+    expect(getPerson1Store()).toBeDefined();
   });
 });

@@ -9,7 +9,7 @@ export async function GET() {
   if (owner instanceof Response) return owner;
 
   const store = getPerson1Store();
-  const rules = await store.getReminderRules(owner.email);
+  const rules = await store.ensureReminderRules(owner.email);
   return NextResponse.json(rules);
 }
 

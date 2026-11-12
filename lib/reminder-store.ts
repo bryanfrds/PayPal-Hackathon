@@ -2,6 +2,7 @@
 // device next to the debts (see debt-store.ts). Person 1's scheduler can take these over.
 
 import { DEFAULT_RULES, normaliseRules, type ReminderRules } from "./reminders";
+import type { ReminderDecision, ReminderRuleRecord } from "./person1-types";
 
 type StorageLike = Pick<Storage, "getItem" | "setItem">;
 
@@ -14,6 +15,52 @@ export class ReminderStoreError extends Error {
     super(message);
     this.name = "ReminderStoreError";
   }
+}
+
+async function responseJson<T>(response: Response): Promise<T> {
+  const body = (await response.json().catch(() => null)) as (T & { error?: unknown }) | null;
+  if (!response.ok) throw new ReminderStoreError(typeof body?.error === "string" ? body.error : "Couldn't reach the reminder server. Try again.");
+  if (!body) throw new ReminderStoreError("The reminder server returned an invalid response.");
+  return body;
+}
+
+function fromServer(rules: ReminderRuleRecord): ReminderRules {
+  return normaliseRules({
+    on: rules.enabled,
+    firstAfterDays: rules.firstAfterDays,
+    everyDays: rules.minIntervalDays,
+    maxCount: rules.maxAttempts,
+    sendHour: rules.sendHour,
+    skipFridayPrayers: rules.skipFridayPrayers,
+  });
+}
+
+export async function getRules(fetchImpl: typeof fetch = fetch): Promise<ReminderRules> {
+  return fromServer(await responseJson<ReminderRuleRecord>(await fetchImpl("/api/reminder-rules")));
+}
+
+export async function saveRules(rules: ReminderRules, fetchImpl: typeof fetch = fetch): Promise<ReminderRules> {
+  const clean = normaliseRules(rules);
+  const saved = await responseJson<ReminderRuleRecord>(await fetchImpl("/api/reminder-rules", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      enabled: clean.on,
+      firstAfterDays: clean.firstAfterDays,
+      minIntervalDays: clean.everyDays,
+      maxAttempts: clean.maxCount,
+      sendHour: clean.sendHour,
+      skipFridayPrayers: clean.skipFridayPrayers,
+    }),
+  }));
+  return fromServer(saved);
+}
+
+export async function getActivity(limit = 50, fetchImpl: typeof fetch = fetch): Promise<ReminderDecision[]> {
+  const body = await responseJson<{ activity: ReminderDecision[] }>(
+    await fetchImpl(`/api/reminders/activity?limit=${Math.min(100, Math.max(1, Math.round(limit)))}`),
+  );
+  return body.activity;
 }
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
